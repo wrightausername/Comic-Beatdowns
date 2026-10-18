@@ -4,7 +4,17 @@ A private, browser-based production desk for **Comic Beatdowns**, hosted by **Ve
 
 ## Quick start
 
-Requirements: **Python 3.11+** (tested on 3.12), **Node 22+**, npm, and **FFmpeg + FFprobe** with the `libx264` encoder and `subtitles`/libass filter. Linux is the validated platform.
+### Windows: download and double-click
+
+1. Download the repository ZIP from GitHub (**Code → Download ZIP**) and choose **Extract All**.
+2. Open the extracted folder and double-click **Start Studio.cmd**.
+3. Let the first-time installation finish. Windows may request installation permission for Python 3.12, Node.js, or FFmpeg. Your browser opens after the studio is ready. Copy the private access token shown in the launcher window into the sign-in screen.
+
+Keep the launcher window open while using the app. Run the same file next time; installed dependencies are reused. Installation uses Windows Package Manager (`winget`), included with Microsoft's **App Installer** on current Windows 10/11 systems. If it is unavailable, install/update App Installer from the Microsoft Store first. The launcher does not disable PowerShell execution policies or package/TLS verification. A Windows CI job checks launcher setup, authenticated startup, and actual MP4 rendering. Native Windows execution was not available in the development cloud machine; verify that CI job before treating Windows support as validated.
+
+### Terminal setup
+
+Requirements: **Python 3.11+** (tested on 3.12), **Node 22+**, npm, and **FFmpeg + FFprobe** with the `libx264` encoder and `subtitles`/libass filter. The following Make commands use a Unix-style shell; Linux is the validated development platform.
 
 ```bash
 # Debian / Ubuntu, if media tools are missing:

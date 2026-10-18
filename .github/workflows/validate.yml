@@ -8,6 +8,23 @@ permissions:
   contents: read
 
 jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install FFmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Validate Windows launcher and application startup
+        shell: cmd
+        run: call "Start Studio.cmd" --check < nul
+      - name: Validate real vertical rendering on Windows
+        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py -q
   validate:
     runs-on: ubuntu-24.04
     steps:
