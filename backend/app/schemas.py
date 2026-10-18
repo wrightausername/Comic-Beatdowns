@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Motion = Literal["hold", "zoom_in", "zoom_out", "pan_left", "pan_right"]
+from .effects import Easing, Motion, Transition
 
 
 class StrictModel(BaseModel):
@@ -11,10 +11,13 @@ class StrictModel(BaseModel):
 
 class VideoSettings(StrictModel):
     fps: Literal[24, 30] = 24
-    transition: Literal["cut", "fade"] = "fade"
+    transition: Transition = "crossfade"
+    transition_duration: float = Field(default=0.25, ge=0.08, le=0.8)
     captions: bool = True
     default_duration: float = Field(default=5, ge=0.25, le=30)
     default_motion: Motion = "zoom_in"
+    default_motion_strength: float = Field(default=0.1, ge=0.02, le=0.3)
+    default_easing: Easing = "smooth"
 
 
 class PanelMetadata(StrictModel):
@@ -53,6 +56,12 @@ class SceneInput(StrictModel):
     panel_id: str
     duration: float = Field(default=5, ge=0.25, le=30)
     motion: Motion = "zoom_in"
+    motion_strength: float = Field(default=0.1, ge=0.02, le=0.3)
+    easing: Easing = "smooth"
+    focus_x: float = Field(default=0.5, ge=0, le=1)
+    focus_y: float = Field(default=0.5, ge=0, le=1)
+    transition: Transition | None = None
+    transition_duration: float | None = Field(default=None, ge=0.08, le=0.8)
     caption: str = Field(default="", max_length=300)
 
 

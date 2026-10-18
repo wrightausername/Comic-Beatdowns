@@ -10,6 +10,7 @@ from PIL import Image, ImageOps
 from sqlalchemy import select
 
 from .database import Project, RenderJob, now
+from .effects import TRANSITIONS, camera_expressions, incoming_transition
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +99,13 @@ def scene_frames(duration: float, fps: int) -> int:
     return max(1, math.floor(duration * fps + 0.5))
 
 
-def prepare_scene_image(source: Path, target: Path):
+def prepare_scene_image(source: Path, target: Path, focus_x=0.5, focus_y=0.5):
     # Fit before FFmpeg scaling so extreme source aspect ratios cannot allocate
     # an enormous intermediate frame. Pillow crops before resizing.
     with Image.open(source) as image:
-        frame = ImageOps.fit(image, (1080, 1920), method=Image.Resampling.LANCZOS)
+        frame = ImageOps.fit(
+            image, (1080, 1920), method=Image.Resampling.LANCZOS, centering=(focus_x, focus_y)
+        )
         frame.convert("RGB").save(target, "PNG")
 
 
@@ -110,33 +113,84 @@ def timeline_duration(scenes: list[dict], fps: int) -> float:
     return sum(scene_frames(s["duration"], fps) for s in scenes) / fps
 
 
-def scene_filter(scene, fps, transition):
+def scene_filter(scene, fps):
     frames = scene_frames(scene["duration"], fps)
-    ratio = f"on/{max(1, frames - 1)}"
-    motion = scene["motion"]
-    zoom = {
-        "zoom_in": f"1+0.10*{ratio}",
-        "zoom_out": f"1.10-0.10*{ratio}",
-        "pan_left": "1.10",
-        "pan_right": "1.10",
-        "hold": "1",
-    }[motion]
-    x = "iw/2-iw/zoom/2"
-    if motion == "pan_left":
-        x = f"(iw-iw/zoom)*(1-{ratio})"
-    if motion == "pan_right":
-        x = f"(iw-iw/zoom)*{ratio}"
-    filters = (
-        "scale=1080:1920:force_original_aspect_ratio=increase,"
-        "crop=1080:1920,setsar=1,"
-        f"zoompan=z='{zoom}':x='{x}':y='ih/2-ih/zoom/2':d={frames}:s=1080x1920:fps={fps},"
+    zoom, x, y = camera_expressions(scene, frames)
+    return (
+        "setsar=1,"
+        f"zoompan=z='{zoom}':x='{x}':y='{y}':d={frames}:s=1080x1920:fps={fps},"
         "format=yuv420p"
     )
-    duration = frames / fps
-    if transition == "fade":
-        fade = min(0.15, duration / 4)
-        filters += f",fade=t=in:st=0:d={fade},fade=t=out:st={duration - fade}:d={fade}"
-    return filters
+
+
+def render_scene(scene, previous, settings, config, image, output, tail, previous_tail=None):
+    """Blend into the incoming scene, holding the previous final frame.
+
+    Only two inputs are decoded at once. Each output keeps its full logical
+    duration, so captions, scene sound effects, and narration never shift.
+    """
+    fps = settings["fps"]
+    frames = scene_frames(scene["duration"], fps)
+    effect, blend_frames = incoming_transition(scene, previous, settings)
+    command = [
+        config.ffmpeg,
+        "-y",
+        "-nostdin",
+        "-v",
+        "error",
+        "-filter_complex_threads",
+        "1",
+        "-i",
+        str(image),
+    ]
+    filters = [
+        f"[0:v]{scene_filter(scene, fps)},split=2[camera][tail]",
+        f"[tail]select='eq(n,{frames - 1})',format=rgb24[last]",
+    ]
+    if effect != "cut":
+        command += ["-loop", "1", "-framerate", str(fps), "-i", str(previous_tail)]
+        filters.extend(
+            [
+                # The looped PNG and zoompan both start at zero with a 1/fps
+                # timebase. Preserve their frame rate metadata and final frame.
+                "[1:v]setsar=1,format=yuv420p[previous]",
+                f"[previous][camera]xfade=transition={TRANSITIONS[effect]}:duration={blend_frames / fps}:offset=0,format=yuv420p[video]",
+            ]
+        )
+    else:
+        filters.append("[camera]null[video]")
+    command += [
+        "-filter_complex",
+        ";".join(filters),
+        "-map",
+        "[video]",
+        "-frames:v",
+        str(frames),
+        "-r",
+        str(fps),
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-threads",
+        "2",
+        str(output),
+        "-map",
+        "[last]",
+        "-frames:v",
+        "1",
+        "-c:v",
+        "png",
+        "-threads",
+        "1",
+        "-update",
+        "1",
+        str(tail),
+    ]
+    run(command)
 
 
 def ass_time(seconds):
@@ -229,33 +283,21 @@ class RenderService:
                 fps = settings["fps"]
                 for i, scene in enumerate(scenes):
                     image_path = work / f"panel-{i}.png"
-                    prepare_scene_image(self.storage.path(scene["storage_key"]), image_path)
-                    run(
-                        [
-                            self.settings.ffmpeg,
-                            "-y",
-                            "-nostdin",
-                            "-v",
-                            "error",
-                            "-filter_threads",
-                            "1",
-                            "-i",
-                            str(image_path),
-                            "-vf",
-                            scene_filter(scene, fps, settings["transition"]),
-                            "-frames:v",
-                            str(scene_frames(scene["duration"], fps)),
-                            "-an",
-                            "-c:v",
-                            "libx264",
-                            "-preset",
-                            "veryfast",
-                            "-crf",
-                            "20",
-                            "-threads",
-                            "2",
-                            str(work / f"scene-{i}.mp4"),
-                        ]
+                    prepare_scene_image(
+                        self.storage.path(scene["storage_key"]),
+                        image_path,
+                        scene.get("focus_x", 0.5),
+                        scene.get("focus_y", 0.5),
+                    )
+                    render_scene(
+                        scene,
+                        scenes[i - 1] if i else None,
+                        settings,
+                        self.settings,
+                        image_path,
+                        work / f"scene-{i}.mp4",
+                        work / f"tail-{i}.png",
+                        work / f"tail-{i - 1}.png" if i else None,
                     )
                     self.progress(job_id, 5 + round(70 * (i + 1) / len(scenes)))
                 (work / "segments.txt").write_text(

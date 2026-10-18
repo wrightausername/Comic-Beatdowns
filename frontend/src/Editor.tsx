@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { api, audioUpload, json } from "./api";
 import { AudioFile, Checklist, Empty, StatusPill } from "./components";
-import { MotionOptions, PanelPicker, VideoOptions } from "./dialogs";
+import { PanelPicker, VideoOptions } from "./dialogs";
+import { MotionOptions } from "./EffectOptions";
+import CameraControls from "./CameraControls";
 import Preview from "./Preview";
 import type {
   Integrations,
@@ -65,6 +67,10 @@ export default function Editor({
   const [title, setTitle] = useState("");
   const [settings, setSettings] = useState<VideoSettings | null>(null);
   const [dirtyScenes, setDirtyScenes] = useState(false);
+  const [previewRequest, setPreviewRequest] = useState<{
+    index: number;
+    nonce: number;
+  } | null>(null);
   const [tab, setTab] = useState<"timeline" | "script" | "settings">(
     "timeline",
   );
@@ -172,6 +178,12 @@ export default function Editor({
             panel_id: s.panel_id,
             duration: s.duration,
             motion: s.motion,
+            motion_strength: s.motion_strength,
+            easing: s.easing,
+            focus_x: s.focus_x,
+            focus_y: s.focus_y,
+            transition: s.transition,
+            transition_duration: s.transition_duration,
             caption: s.caption,
           })),
         },
@@ -447,6 +459,15 @@ export default function Editor({
                             </label>
                           </div>
                         </div>
+                        <CameraControls
+                          scene={scene}
+                          index={index}
+                          settings={settings}
+                          onChange={(patch) => editScene(index, patch)}
+                          onPreview={() =>
+                            setPreviewRequest({ index, nonce: Date.now() })
+                          }
+                        />
                         <div className="scene-footer">
                           {scene.sfx_url ? (
                             <>
@@ -825,7 +846,11 @@ export default function Editor({
           )}
         </div>
         <aside className="editor-preview">
-          <Preview scenes={scenes} project={{ ...project, settings }} />
+          <Preview
+            scenes={scenes}
+            project={{ ...project, settings }}
+            request={previewRequest}
+          />
           <section className="surface preflight">
             <span className="eyebrow">EXPORT CHECKLIST</span>
             <Checklist
@@ -855,6 +880,12 @@ export default function Editor({
                 position: scenes.length + i,
                 duration: settings.default_duration,
                 motion: settings.default_motion,
+                motion_strength: settings.default_motion_strength,
+                easing: settings.default_easing,
+                focus_x: 0.5,
+                focus_y: 0.5,
+                transition: null,
+                transition_duration: null,
                 caption: "",
                 sfx_url: null,
               })),

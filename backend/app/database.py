@@ -1,7 +1,18 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String, Text, create_engine, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    event,
+    inspect,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 
@@ -59,6 +70,12 @@ class Scene(Base):
     position: Mapped[int] = mapped_column(Integer)
     duration: Mapped[float] = mapped_column(Float, default=5)
     motion: Mapped[str] = mapped_column(String, default="zoom_in")
+    motion_strength: Mapped[float] = mapped_column(Float, default=0.1, server_default="0.1")
+    easing: Mapped[str] = mapped_column(String, default="smooth", server_default="linear")
+    focus_x: Mapped[float] = mapped_column(Float, default=0.5, server_default="0.5")
+    focus_y: Mapped[float] = mapped_column(Float, default=0.5, server_default="0.5")
+    transition: Mapped[str | None] = mapped_column(String, nullable=True)
+    transition_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     caption: Mapped[str] = mapped_column(String, default="")
     sfx_key: Mapped[str | None] = mapped_column(String, nullable=True)
 
@@ -97,4 +114,22 @@ def connect(data_dir):
         connection.execute("PRAGMA busy_timeout=30000")
 
     Base.metadata.create_all(engine)
+    migrate_scene_options(engine)
     return engine, sessionmaker(engine, expire_on_commit=False)
+
+
+def migrate_scene_options(engine):
+    """Add optional controls in place; keep existing panels, order, audio, and scripts."""
+    additions = {
+        "motion_strength": "FLOAT NOT NULL DEFAULT 0.1",
+        "easing": "VARCHAR NOT NULL DEFAULT 'linear'",
+        "focus_x": "FLOAT NOT NULL DEFAULT 0.5",
+        "focus_y": "FLOAT NOT NULL DEFAULT 0.5",
+        "transition": "VARCHAR",
+        "transition_duration": "FLOAT",
+    }
+    with engine.begin() as connection:
+        existing = {c["name"] for c in inspect(connection).get_columns("scenes")}
+        for name, definition in additions.items():
+            if name not in existing:
+                connection.exec_driver_sql(f'ALTER TABLE scenes ADD COLUMN "{name}" {definition}')

@@ -27,6 +27,7 @@ import {
   Zap,
 } from "lucide-react";
 import { api, json } from "./api";
+import { transitionLabel } from "./effects";
 import {
   Brand,
   Checklist,
@@ -829,10 +830,8 @@ export default function App() {
                             <h3>{t.name}</h3>
                             <p>
                               {t.settings.fps} fps ·{" "}
-                              {t.settings.transition === "fade"
-                                ? "Dip to black"
-                                : "Hard cuts"}{" "}
-                              · {t.settings.default_duration}s scenes
+                              {transitionLabel(t.settings.transition)} ·{" "}
+                              {t.settings.default_duration}s scenes
                             </p>
                             <div className="template-details">
                               <span>

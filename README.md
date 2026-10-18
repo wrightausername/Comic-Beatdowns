@@ -12,6 +12,13 @@ A private, browser-based production desk for **Comic Beatdowns**, hosted by **Ve
 
 Keep the launcher window open while using the app. Run the same file next time; installed dependencies are reused. Installation uses Windows Package Manager (`winget`), included with Microsoft's **App Installer** on current Windows 10/11 systems. If it is unavailable, install/update App Installer from the Microsoft Store first. The launcher does not disable PowerShell execution policies or package/TLS verification. Windows CI verified launcher setup, authenticated startup, and actual MP4 rendering on Windows Server 2022 with Python 3.12, Node 22, and FFmpeg. CI preinstalls those tools; automatic installation through winget on a clean Windows 10/11 PC remains unverified.
 
+**Updating an existing Windows installation:**
+
+1. Stop Studio with **Ctrl+C** in its launcher window. Back up your existing Studio folder.
+2. Download and extract the [latest ZIP](https://github.com/wrightausername/Comic-Beatdowns/archive/refs/heads/main.zip).
+3. Copy the **contents inside** the new extracted folder into your existing Studio folder. Choose **Replace files** when Windows asks. Keep the existing `.data` folder and `.env` file; your panels, projects, exports, and access token live there. Do not delete your existing Studio folder.
+4. Double-click **Start Studio.cmd** in the existing folder. It rebuilds the updated app and upgrades existing scene records automatically. Refresh the browser with **Ctrl+F5**.
+
 ### Terminal setup
 
 Requirements: **Python 3.11+** (tested on 3.12), **Node 22+**, npm, and **FFmpeg + FFprobe** with the `libx264` encoder and `subtitles`/libass filter. The following Make commands use a Unix-style shell; Linux is the validated development platform.
@@ -43,13 +50,22 @@ Stop other servers before running browser tests, which own ports 8000 and 5173. 
 
 1. Open **Panel library → Import panels**. Choose images, PDF pages, or a CBZ. Add series, issue, starting page, characters, and fight notes. Images are normalized and saved locally; PDFs/CBZs produce one library item per page, in natural filename order for CBZs.
 2. Open a panel to edit metadata or drag a crop rectangle. Optionally choose an output width. **Save as new panel** preserves the full source page and records the parent panel.
-3. Create a project with an idea and template. **Add panels** in selection order. Drag scene handles to reorder, or use the accessible up/down buttons. Set durations, hold/zoom/pan motion, and optional captions. **Save timeline**.
+3. Create a project with an idea and template. **Add panels** in selection order. Drag scene handles to reorder, or use the accessible up/down buttons. Set durations, camera motion, incoming transitions, and optional captions. Try **Subtle push** or open **Camera strength, easing & framing** for more control. **Save timeline**.
 4. In **Verdict script**, write panel-specific jokes and fight commentary. Aim for **175–220 spoken words / roughly 65–90 seconds**. Use the ending to set up the opening hook. Save the draft, review it, then **Approve script**. Script, scene, and video-setting changes require review again.
 5. Upload narration. Supported FFmpeg-readable audio includes WAV, MP3, M4A, OGG, FLAC, AAC, and WebM. Uploaded audio is normalized to stereo 48 kHz WAV. Optionally attach a sound effect to each saved scene. Sound effects start at their scene, are trimmed to scene length, and mix at 35% volume.
 6. Preview the sequence and narration. Save all changes, then **Render MP4**. If narration exceeds the timeline, extend scene durations; speech is never silently truncated. Short narration is padded with silence.
 7. Open **Exports** to review the actual video on repeat and download it. A render captures a fixed revision, so later edits cannot change a queued export. Previous exports remain available.
 
-The duration target is advisory; short test clips and videos up to 180 seconds are allowed. Captions are manually authored **per scene**, not automatic transcription or word-level subtitles. The in-browser preview approximates motion and plays narration; the MP4 is the authoritative preview for caption layout, fades, sound effects, and the mix. Transitions are hard cuts or short dips to black. A looping script ending is supported by the writing workflow and repeat playback; automatic seamless visual crossfades are not implemented.
+The duration target is advisory; short test clips and videos up to 180 seconds are allowed. Captions are manually authored **per scene**, not automatic transcription or word-level subtitles. The in-browser preview approximates motion and transitions and plays narration; the MP4 is the authoritative preview for caption layout, sound effects, and the mix. A looping script ending is supported by the writing workflow and repeat playback; automatic crossfading from the final scene back to the first is not implemented.
+
+### Camera and transition controls
+
+- **20 camera options:** hold, push in, pull back, four directional pans, four diagonal drifts, four moving pushes, two moving pulls, quick punch in/out, and a gentle breathing zoom.
+- **12 transitions:** hard cut, crossfade, dips to black/white, four directional slides, two soft slides, and two wipes. Each scene can inherit the project default or override it.
+- **Adjustable motion:** 2–30% movement strength, four easing curves, and horizontal/vertical framing. Start with 6–12% strength and smooth easing for restrained motion. Framing selects the part of a wide/tall panel retained by the vertical crop.
+- **Short blends:** choose 0.08–0.8 seconds; blends are capped at half the length of either adjacent scene. The outgoing final frame blends into the start of the incoming scene. Scene durations stay intact, preserving narration, captions, and sound-effect timing.
+
+Use **Preview scene** to seek to a scene, then press play. **Video settings** sets defaults for newly added cameras and the project's transitions. Existing scenes retain their camera values until you edit them.
 
 ## Configuration and privacy
 
@@ -82,6 +98,7 @@ backend/app/
   database.py             SQLAlchemy models / SQLite WAL persistence
   importer.py             Pillow images, PDFium PDF pages, safe CBZ reading
   renderer.py             Bounded FFmpeg worker, snapshots, captions, audio mix
+  effects.py              Camera paths, easing, and frame-aligned transition limits
   storage.py              Storage protocol + confined local filesystem adapter
   integrations.py         Writing, authorized source, and voice extension points
   auth.py, limits.py      Private sessions and streamed request limits
@@ -93,7 +110,7 @@ SQLite records projects, scene order, scripts and approval, panel provenance, te
 
 Rendering uses a single background thread, a bounded queue (five active jobs), and at most two FFmpeg encoder threads. Scenes are frame-quantized, rendered to identical H.264 segments, concatenated, optionally subtitled, then mixed with narration and scene audio. On restart, interrupted jobs are marked failed with a retry instruction; requeue them manually with **Render MP4**. Run **one Uvicorn worker**. Multi-host queues, persistent worker processes, retries, cancellation, and progress inside an individual FFmpeg invocation are future work.
 
-For backups, stop the server and copy the whole data directory, including the database and assets. Back up configuration separately and protect the token file. Old audio, crops, and exports are deliberately retained so queued snapshots remain valid; there is no automatic storage cleanup or UI deletion yet. Database tables are initialized automatically; versioned migrations will be needed for future schema changes.
+For backups, stop the server and copy the whole data directory, including the database and assets. Back up configuration separately and protect the token file. Old audio, crops, and exports are deliberately retained so queued snapshots remain valid; there is no automatic storage cleanup or UI deletion yet. Database tables are initialized automatically. An idempotent, additive upgrade adds camera/transition columns to existing scene records without replacing the database; a general versioned migration system remains future work.
 
 ### Optional modules
 
@@ -115,8 +132,8 @@ make e2e                   # Real browser workflow; owns ports 8000 and 5173
 CB_BROWSER_PATH=/usr/bin/chromium make e2e
 ```
 
-The backend suite checks authentication, cookie/CSRF behavior, image/PDF/CBZ import, crop dimensions/provenance, unsafe archives and storage paths, atomic failed imports, scene ordering, approval gates, templates, audio validation, interrupted-job recovery, and immutable render snapshots. Its real FFmpeg test exports a short 1080 × 1920 MP4 with captions, fades, narration, and a sound effect, inspects H.264/AAC dimensions and duration with FFprobe, and decodes every frame. If FFmpeg is missing that test is explicitly skipped; CI installs it so the render test runs.
+The backend suite checks authentication, cookie/CSRF behavior, image/PDF/CBZ import, crop dimensions/provenance, unsafe archives and storage paths, atomic failed imports, scene ordering, approval gates, templates, audio validation, interrupted-job recovery, immutable render snapshots, and upgrades of existing scene records. Media tests render all 20 camera moves and all 12 transitions, verify transition boundary pixels and exact scene duration, and export a short 1080 × 1920 MP4 with captions, narration, and a sound effect. They inspect H.264/AAC dimensions and duration with FFprobe and decode the completed export. If FFmpeg is missing, media tests are explicitly skipped; CI installs it so they run.
 
-Browser tests use programmatically generated original images and silence, exercise the import/crop/project/timeline/script/narration/export/download workflow, and check mobile navigation for horizontal overflow. Unit tests check timeline operations and API/form behavior. Test data lives in temporary directories; no copyrighted comic assets are included.
+Browser tests use programmatically generated original images and silence, exercise the import/crop/project/timeline/script/narration/export/download workflow, save and reload camera/transition choices, and check mobile camera controls for horizontal overflow. Unit tests check timeline operations, camera geometry, transition limits, and API/form behavior. Test data lives in temporary directories; no copyrighted comic assets are included.
 
 GitHub Actions runs installation, checks, production build, and Chromium tests. The workflow itself requires a push to GitHub to execute. Actual paid writing services, TTS, external comic databases, social publishing, automatic winget prerequisite installation on a clean Windows PC, macOS, and fresh-cloud-snapshot restoration have not been verified. Functional export validation uses short clips; 65–90-second production performance and visual quality should be reviewed with your own authorized material.

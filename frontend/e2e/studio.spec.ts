@@ -129,10 +129,49 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     .getByLabel("Scene 1 caption")
     .fill("That defense just left the chat.");
   await page.getByRole("button", { name: "Move scene 2 up" }).click();
+  await page
+    .getByRole("button", { name: "Subtle push", exact: true })
+    .first()
+    .click();
+  await page
+    .getByLabel("Scene 1 motion", { exact: true })
+    .selectOption("drift_up_right");
+  await page
+    .getByLabel("Scene 2 transition", { exact: true })
+    .selectOption("smooth_left");
+  await page.getByLabel("Scene 2 transition duration").fill("0.2");
+  await page.locator(".camera-details summary").first().click();
+  await page
+    .getByLabel("Scene 1 easing", { exact: true })
+    .selectOption("ease_out");
+  await page.getByLabel("Scene 1 horizontal framing").focus();
+  await page.getByLabel("Scene 1 horizontal framing").press("ArrowRight");
+  await page
+    .getByRole("button", { name: "Preview scene", exact: true })
+    .first()
+    .click();
+
   await page.getByRole("button", { name: "Save timeline" }).click();
   await expect(
     page.getByText("Timeline saved.", { exact: false }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Production desk", exact: true })
+    .click();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "An original browser beatdown" })
+    .click();
+  await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
+    "drift_up_right",
+  );
+  await expect(
+    page.getByLabel("Scene 2 transition", { exact: true }),
+  ).toHaveValue("smooth_left");
+  await page.screenshot({
+    path: testInfo.outputPath("camera-editor.png"),
+    fullPage: true,
+  });
   await page.getByLabel("Upload narration").setInputFiles({
     name: "original-silence.wav",
     mimeType: "audio/wav",
@@ -193,6 +232,16 @@ test("mobile navigation remains usable without horizontal overflow", async ({
   await page
     .getByRole("button", { name: "Production desk", exact: true })
     .click();
+  await page.locator(".project-card").first().click();
+  await page.locator(".camera-details summary").first().click();
+  await expect(
+    page.getByLabel("Scene 1 easing", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    ),
+  ).toBe(false);
   await page.screenshot({
     path: testInfo.outputPath("mobile-production.png"),
     fullPage: true,

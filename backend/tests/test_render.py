@@ -83,7 +83,9 @@ def test_real_vertical_render_captions_fades_sfx_and_snapshot(client, image_byte
     audio = next(s for s in media["streams"] if s["codec_type"] == "audio")
     assert (video["width"], video["height"], video["codec_name"]) == (1080, 1920, "h264")
     assert audio["codec_name"] == "aac"
-    assert float(media["format"]["duration"]) == pytest.approx(2, abs=0.1)
+    assert int(video["nb_frames"]) == 48
+    assert float(video["duration"]) == pytest.approx(2, abs=0.001)
+    assert float(media["format"]["duration"]) == pytest.approx(2, abs=0.03)
     # Decode every video/audio frame, not merely the container header.
     subprocess.run(
         ["ffmpeg", "-v", "error", "-i", str(output), "-f", "null", "-"],

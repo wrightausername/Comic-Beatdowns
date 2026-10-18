@@ -1,10 +1,14 @@
-export type Motion = "hold" | "zoom_in" | "zoom_out" | "pan_left" | "pan_right";
+import type { Easing, Motion, Transition } from "./effects";
+export type { Easing, Motion, Transition } from "./effects";
 export interface VideoSettings {
   fps: 24 | 30;
-  transition: "cut" | "fade";
+  transition: Transition;
+  transition_duration: number;
   captions: boolean;
   default_duration: number;
   default_motion: Motion;
+  default_motion_strength: number;
+  default_easing: Easing;
 }
 export interface Panel {
   id: string;
@@ -28,6 +32,12 @@ export interface Scene {
   position: number;
   duration: number;
   motion: Motion;
+  motion_strength: number;
+  easing: Easing;
+  focus_x: number;
+  focus_y: number;
+  transition: Transition | null;
+  transition_duration: number | null;
   caption: string;
   sfx_url: string | null;
   panel: Panel;

@@ -24,7 +24,7 @@ jobs:
         shell: cmd
         run: call "Start Studio.cmd" --check < nul
       - name: Validate real vertical rendering on Windows
-        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py -q
+        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py -q
   validate:
     runs-on: ubuntu-24.04
     env:

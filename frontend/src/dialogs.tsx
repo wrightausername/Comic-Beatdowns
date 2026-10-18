@@ -3,7 +3,20 @@ import type { FormEvent, PointerEvent } from "react";
 import { Check, FileImage, Plus, Scissors, Upload, X } from "lucide-react";
 import { api, json } from "./api";
 import { Modal } from "./components";
-import type { Motion, Panel, Project, Template, VideoSettings } from "./types";
+import type {
+  Easing,
+  Motion,
+  Panel,
+  Project,
+  Template,
+  Transition,
+  VideoSettings,
+} from "./types";
+import {
+  EasingOptions,
+  MotionOptions,
+  TransitionOptions,
+} from "./EffectOptions";
 import { errorMessage } from "./utils";
 
 type ErrorHandler = (message: string) => void;
@@ -544,12 +557,25 @@ export function VideoOptions({
         <select
           value={value.transition}
           onChange={(e) =>
-            onChange({ ...value, transition: e.target.value as "cut" | "fade" })
+            onChange({ ...value, transition: e.target.value as Transition })
           }
         >
-          <option value="fade">Dip to black</option>
-          <option value="cut">Hard cut</option>
+          <TransitionOptions />
         </select>
+      </label>
+      <label>
+        Transition duration (seconds)
+        <input
+          type="number"
+          min="0.08"
+          max="0.8"
+          step="0.01"
+          value={value.transition_duration}
+          disabled={value.transition === "cut"}
+          onChange={(e) =>
+            onChange({ ...value, transition_duration: Number(e.target.value) })
+          }
+        />
       </label>
       <label>
         Default scene duration
@@ -575,6 +601,34 @@ export function VideoOptions({
           <MotionOptions />
         </select>
       </label>
+      <label>
+        Default movement strength ·{" "}
+        {Math.round(value.default_motion_strength * 100)}%
+        <input
+          type="range"
+          min="0.02"
+          max="0.3"
+          step="0.01"
+          value={value.default_motion_strength}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              default_motion_strength: Number(e.target.value),
+            })
+          }
+        />
+      </label>
+      <label>
+        Default motion easing
+        <select
+          value={value.default_easing}
+          onChange={(e) =>
+            onChange({ ...value, default_easing: e.target.value as Easing })
+          }
+        >
+          <EasingOptions />
+        </select>
+      </label>
       <label className="checkbox span-2">
         <input
           type="checkbox"
@@ -584,17 +638,5 @@ export function VideoOptions({
         Burn scene captions into the export
       </label>
     </div>
-  );
-}
-
-export function MotionOptions() {
-  return (
-    <>
-      <option value="zoom_in">Slow push in</option>
-      <option value="zoom_out">Pull back</option>
-      <option value="pan_left">Pan left</option>
-      <option value="pan_right">Pan right</option>
-      <option value="hold">Hold frame</option>
-    </>
   );
 }

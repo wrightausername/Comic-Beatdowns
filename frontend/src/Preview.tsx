@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize, Pause, Play, RotateCcw, ScanLine } from "lucide-react";
 import type { Project, Scene } from "./types";
 import { timecode, timelineSeconds } from "./utils";
+import { blendFrames, cameraStyle, transitionStyles } from "./effects";
 
 export default function Preview({
   scenes,
   project,
+  request,
 }: {
   scenes: Scene[];
   project: Project;
+  request?: { index: number; nonce: number } | null;
 }) {
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
@@ -20,6 +23,17 @@ export default function Preview({
     setCursor(0);
     audio.current?.pause();
   }, [duration, project.narration_url]);
+  useEffect(() => {
+    if (!request) return;
+    const seconds = timelineSeconds(
+      scenes.slice(0, request.index),
+      project.settings.fps,
+    );
+    setCursor(seconds);
+    setPlaying(false);
+    audio.current?.pause();
+    // A request targets the currently edited scene without resetting playback on other edits.
+  }, [request]);
   useEffect(() => {
     if (!playing) return;
     const started = performance.now(),
@@ -55,28 +69,30 @@ export default function Preview({
     offset += length;
     return false;
   });
-  const progress = current
-    ? Math.max(0, Math.min(1, (cursor - offset) / current.duration))
-    : 0;
-  const zoom =
-    current?.motion === "zoom_in"
-      ? 1 + 0.1 * progress
-      : current?.motion === "zoom_out"
-        ? 1.1 - 0.1 * progress
-        : current?.motion.startsWith("pan")
-          ? 1.1
-          : 1;
-  const pan =
-    current?.motion === "pan_left"
-      ? 5 - 10 * progress
-      : current?.motion === "pan_right"
-        ? -5 + 10 * progress
-        : 0;
+  const index = current ? scenes.indexOf(current) : -1;
+  const previous = index > 0 ? scenes[index - 1] : undefined;
   const elapsed = cursor - offset;
-  const fade =
-    current && project.settings.transition === "fade"
-      ? Math.min(1, elapsed / 0.15, (current.duration - elapsed) / 0.15)
-      : 1;
+  const progress = current
+    ? Math.min(
+        1,
+        elapsed /
+          Math.max(
+            1 / project.settings.fps,
+            Math.round(current.duration * project.settings.fps) /
+              project.settings.fps -
+              1 / project.settings.fps,
+          ),
+      )
+    : 0;
+  const effect = current?.transition ?? project.settings.transition;
+  const frames = current ? blendFrames(current, previous, project.settings) : 0;
+  const blending = Boolean(
+    previous && frames && elapsed * project.settings.fps < frames,
+  );
+  const layers = transitionStyles(
+    effect,
+    frames ? (elapsed * project.settings.fps) / frames : 1,
+  );
   async function toggle() {
     if (playing) {
       setPlaying(false);
@@ -103,17 +119,38 @@ export default function Preview({
         <span className="mini-tag">9:16</span>
       </div>
       <div className="phone-frame">
-        <div className="preview-screen">
+        <div
+          className="preview-screen"
+          style={{
+            background:
+              blending && effect === "dip_white" ? "white" : "#03090f",
+          }}
+        >
           {current ? (
             <>
-              <img
-                src={current.panel.image_url}
-                alt={current.panel.title}
-                style={{
-                  opacity: fade,
-                  transform: `scale(${zoom}) translateX(${pan}%)`,
-                }}
-              />
+              {blending && previous && (
+                <div
+                  className="preview-layer"
+                  style={layers.previous}
+                  aria-hidden="true"
+                >
+                  <img
+                    src={previous.panel.image_url}
+                    alt=""
+                    style={cameraStyle(previous, 1)}
+                  />
+                </div>
+              )}
+              <div
+                className="preview-layer"
+                style={blending ? layers.current : undefined}
+              >
+                <img
+                  src={current.panel.image_url}
+                  alt={current.panel.title}
+                  style={cameraStyle(current, progress)}
+                />
+              </div>
               {project.settings.captions && (
                 <div className="preview-caption">{current.caption}</div>
               )}
@@ -174,8 +211,8 @@ export default function Preview({
         </p>
       )}
       <p className="help center">
-        Motion + narration preview. Export to review the final captions, fades,
-        and sound mix.
+        Motion, framing & transition preview. Export to review the final caption
+        layout and sound mix.
       </p>
       <div className="spec-line">
         <span>1080 × 1920</span>
