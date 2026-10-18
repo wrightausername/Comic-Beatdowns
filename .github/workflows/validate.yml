@@ -24,7 +24,20 @@ jobs:
         shell: cmd
         run: call "Start Studio.cmd" --check < nul
       - name: Validate real vertical rendering on Windows
-        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py -q
+        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py -q --junitxml=windows-media-tests.xml
+      - name: Report Windows media failures
+        if: failure()
+        shell: python
+        run: |
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          report = Path("windows-media-tests.xml")
+          if report.exists():
+              for case in ET.parse(report).iter("testcase"):
+                  for failure in list(case.findall("failure")) + list(case.findall("error")):
+                      message = (failure.text or failure.get("message", "Test failed"))[-7500:]
+                      message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                      print(f"::error title={case.get('name')}::{message}")
   validate:
     runs-on: ubuntu-24.04
     env:
