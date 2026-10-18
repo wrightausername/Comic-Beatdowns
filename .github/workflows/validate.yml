@@ -24,7 +24,7 @@ jobs:
         shell: cmd
         run: call "Start Studio.cmd" --check < nul
       - name: Validate real vertical rendering on Windows
-        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py -q --junitxml=windows-media-tests.xml
+        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py -q --tb=short --junitxml=windows-media-tests.xml
       - name: Report Windows media failures
         if: failure()
         shell: python

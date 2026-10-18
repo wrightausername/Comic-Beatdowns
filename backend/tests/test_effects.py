@@ -137,17 +137,20 @@ def test_every_transition_renders_without_shortening_scenes(tmp_path, settings, 
             str(output),
             "-vf",
             f"select='eq(n,0)+eq(n,{count - 1})',scale=1:1",
-            "-vsync",
-            "0",
+            "-fps_mode",
+            "passthrough",
             "-pix_fmt",
             "rgb24",
+            "-threads",
+            "1",
             "-f",
             "rawvideo",
             "-",
         ],
-        check=True,
+        check=False,
         capture_output=True,
     )
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
     assert len(result.stdout) == 6
     first, last = result.stdout[:3], result.stdout[3:]
     assert last[2] > last[0] + 100  # Final frame is fully the incoming blue panel.
