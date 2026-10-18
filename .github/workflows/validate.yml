@@ -27,6 +27,8 @@ jobs:
         run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py -q
   validate:
     runs-on: ubuntu-24.04
+    env:
+      PIP_CACHE_DIR: ${{ runner.temp }}/comic-beatdowns-pip-cache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
