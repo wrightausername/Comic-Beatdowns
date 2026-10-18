@@ -22,22 +22,29 @@ jobs:
         run: choco install ffmpeg --no-progress -y
       - name: Validate Windows launcher and application startup
         shell: cmd
-        run: call "Start Studio.cmd" --check < nul
+        run: |
+          call "Start Studio.cmd" --check < nul > windows-startup.log 2>&1
+          set "CB_LAUNCH_EXIT=%errorlevel%"
+          type windows-startup.log
+          exit /b %CB_LAUNCH_EXIT%
       - name: Validate real vertical rendering on Windows
         run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py -q --tb=short --junitxml=windows-media-tests.xml
-      - name: Report Windows media failures
+      - name: Report Windows validation failures
         if: failure()
         shell: python
         run: |
           from pathlib import Path
           import xml.etree.ElementTree as ET
+          def annotate(title, message):
+              message = message[-3800:].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title={title}::{message}")
           report = Path("windows-media-tests.xml")
           if report.exists():
               for case in ET.parse(report).iter("testcase"):
                   for failure in list(case.findall("failure")) + list(case.findall("error")):
-                      message = (failure.text or failure.get("message", "Test failed"))[-7500:]
-                      message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-                      print(f"::error title={case.get('name')}::{message}")
+                      annotate(case.get("name"), failure.text or failure.get("message", "Test failed"))
+          elif Path("windows-startup.log").exists():
+              annotate("Windows startup", Path("windows-startup.log").read_text(errors="replace"))
   validate:
     runs-on: ubuntu-24.04
     env:
