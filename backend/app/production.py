@@ -2,6 +2,7 @@
 
 import copy
 import io
+import math
 import tempfile
 import wave
 from pathlib import Path
@@ -32,7 +33,7 @@ from .automation import (
 )
 from .database import InboxFile, Panel, Project, ProjectVersion, Scene, SoundEffect, uid
 from .importer import import_to_library
-from .renderer import normalize_audio, run
+from .renderer import normalize_audio, run, timeline_duration
 from .schemas import (
     AudioPrepareInput,
     BatchRenderInput,
@@ -328,32 +329,55 @@ async def prepare_audio(
             segments = [(start, end)]
 
         def mapped(time):
-            return sum(max(0, min(b, time) - a) for a, b in segments if time > a)
+            return sum(max(0, min(b, time) - a) for a, b in segments if time > a) + max(
+                0, time - end
+            )
 
         narration_duration = mapped(end)
-        new_scenes, cursor = [], 0
-        for scene in state["scenes"]:
-            finish = cursor + round(
-                scene["duration"] * project.settings.get("fps", 24)
-            ) / project.settings.get("fps", 24)
-            length = mapped(start + finish) - mapped(start + cursor)
-            if scene.get("locked") and abs(length - scene["duration"]) > 0.05:
+        # Quantize cumulative boundaries once. Rounding each shortened shot
+        # independently drifts on fast timelines, and discarding short remnants
+        # without carrying their time forward would cut off narration.
+        fps = project.settings.get("fps", 24)
+        padding = max(0, timeline_duration(state["scenes"], fps) - (end - start))
+        target = math.ceil((narration_duration + padding) * fps - 1e-6)
+        minimum, maximum = math.ceil(0.25 * fps), 30 * fps
+        new_scenes, cursor, kept_end = [], 0, 0
+        originals = state["scenes"]
+        for index, scene in enumerate(originals):
+            finish = cursor + round(scene["duration"] * fps) / fps
+            boundary = (
+                target
+                if index == len(originals) - 1
+                else min(target, round(mapped(start + finish) * fps))
+            )
+            frames = boundary - kept_end
+            original_frames = round(scene["duration"] * fps)
+            if scene.get("locked") and frames != original_frames:
                 raise ValueError(
                     "Shortening pauses would change a locked shot. Unlock it or choose noise reduction only."
                 )
-            if length >= 0.25:
-                sfx_time = mapped(start + cursor + scene.get("sfx_offset", 0)) - mapped(
-                    start + cursor
-                )
+            if frames >= minimum:
+                if frames > maximum:
+                    raise ValueError(
+                        "Fit narration or split long shots before cleaning this recording."
+                    )
+                sfx_time = mapped(start + cursor + scene.get("sfx_offset", 0)) - kept_end / fps
                 new_scenes.append(
                     {
                         **scene,
-                        "duration": min(30, length),
+                        "duration": scene["duration"] if scene.get("locked") else frames / fps,
                         "sfx_offset": max(0, sfx_time),
                         "position": len(new_scenes),
                     }
                 )
+                kept_end = boundary
             cursor = finish
+        if new_scenes and kept_end < target:
+            tail = new_scenes[-1]
+            frames = round(tail["duration"] * fps) + target - kept_end
+            if tail.get("locked") or frames > maximum:
+                raise ValueError("Unlock or split the last shot so the cleaned narration fits.")
+            tail["duration"] = frames / fps
         # Do not create a zero-scene result from silence or very short shots.
         if state["scenes"] and not new_scenes:
             raise ValueError(

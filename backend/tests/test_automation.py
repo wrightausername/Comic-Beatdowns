@@ -425,3 +425,51 @@ def test_build_uses_operator_sound_choices(client, image_bytes):
         ).status_code
         == 422
     )
+
+
+def test_pause_cleanup_keeps_all_narration_on_a_fast_timeline(client, image_bytes):
+    project, url, panel, _ = fixture_project(client, image_bytes, 4)
+    client.put(
+        url + "/scenes",
+        json={"scenes": [{"panel_id": panel["id"], "duration": 0.25} for _ in range(16)]},
+    )
+    project = client.post(
+        url + "/narration", files={"file": ("voice.wav", voiced_wav(), "audio/wav")}
+    ).json()
+    preview = client.post(
+        url + "/audio/prepare", json={"reduce_noise": False, "shorten_pauses": True}
+    )
+    assert preview.status_code == 200, preview.text
+    data = preview.json()
+    result = client.post(
+        url + "/versions/" + data["id"] + "/restore", json={"base_revision": project["revision"]}
+    )
+    assert result.status_code == 200, result.text
+    cleaned = result.json()
+    fps = cleaned["settings"]["fps"]
+    assert all(scene["duration"] >= 0.25 for scene in cleaned["scenes"])
+    assert cleaned["duration"] >= cleaned["narration_duration"] - 0.001
+    assert cleaned["duration"] - cleaned["narration_duration"] < 1 / fps + 0.001
+
+
+def test_noise_cleanup_preserves_locked_ending_and_silent_padding(client, image_bytes):
+    project, url, _, _ = fixture_project(client, image_bytes, 4)
+    project = client.post(
+        url + "/narration", files={"file": ("voice.wav", wav_bytes(2), "audio/wav")}
+    ).json()
+    scenes = payload(project)["scenes"]
+    scenes[-1]["locked"] = True
+    project = client.put(url + "/workspace", json=payload(project, scenes=scenes)).json()
+    preview = client.post(
+        url + "/audio/prepare", json={"reduce_noise": True, "shorten_pauses": False}
+    )
+    assert preview.status_code == 200, preview.text
+    result = client.post(
+        url + "/versions/" + preview.json()["id"] + "/restore",
+        json={"base_revision": project["revision"]},
+    )
+    assert result.status_code == 200, result.text
+    assert result.json()["duration"] == 4
+    assert result.json()["narration_duration"] == 2
+    assert result.json()["scenes"][-1]["duration"] == 2
+    assert result.json()["scenes"][-1]["locked"]
