@@ -11,7 +11,7 @@ export default function Preview({
 }: {
   scenes: Scene[];
   project: Project;
-  request?: { index: number; nonce: number } | null;
+  request?: { index?: number; seconds?: number; nonce: number } | null;
 }) {
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
@@ -25,10 +25,12 @@ export default function Preview({
   }, [duration, project.narration_url]);
   useEffect(() => {
     if (!request) return;
-    const seconds = timelineSeconds(
-      scenes.slice(0, request.index),
-      project.settings.fps,
-    );
+    const seconds =
+      request.seconds ??
+      timelineSeconds(
+        scenes.slice(0, request.index ?? 0),
+        project.settings.fps,
+      );
     setCursor(seconds);
     setPlaying(false);
     audio.current?.pause();
@@ -41,6 +43,14 @@ export default function Preview({
     let frame = 0;
     function tick(now: number) {
       const next = initial + (now - started) / 1000;
+      if (
+        next >=
+        (project.settings.narration_end ??
+          project.narration_duration ??
+          duration) -
+          project.settings.narration_start
+      )
+        audio.current?.pause();
       if (next >= duration) {
         setCursor(0);
         setPlaying(false);
@@ -99,8 +109,12 @@ export default function Preview({
       audio.current?.pause();
       return;
     }
-    if (audio.current && cursor < (project.narration_duration ?? 0)) {
-      audio.current.currentTime = cursor;
+    if (
+      audio.current &&
+      cursor + project.settings.narration_start <
+        (project.settings.narration_end ?? project.narration_duration ?? 0)
+    ) {
+      audio.current.currentTime = cursor + project.settings.narration_start;
       try {
         await audio.current.play();
         setAudioError(false);
@@ -151,9 +165,51 @@ export default function Preview({
                   style={cameraStyle(current, progress)}
                 />
               </div>
-              {project.settings.captions && (
-                <div className="preview-caption">{current.caption}</div>
+              {project.logo_url && (
+                <img
+                  className={`preview-brand-logo ${project.settings.logo_position}`}
+                  src={project.logo_url}
+                  alt="Brand logo"
+                  style={{
+                    width: `${(project.settings.logo_width / 1080) * 100}%`,
+                    maxHeight: `${(project.settings.logo_width / 1920) * 100}%`,
+                  }}
+                />
               )}
+              {project.settings.captions &&
+                (() => {
+                  const cue = project.caption_cues?.find(
+                    (cue) =>
+                      cue.start <= cursor + project.settings.narration_start &&
+                      cue.end > cursor + project.settings.narration_start,
+                  );
+                  const text = project.caption_cues?.length
+                    ? (cue?.text ?? "")
+                    : current.caption;
+                  const words = text.split(" ");
+                  return text ? (
+                    <div
+                      className={`preview-caption ${project.settings.caption_position} ${project.settings.caption_style}`}
+                      style={{
+                        color: project.settings.caption_color,
+                        fontSize: `${(project.settings.caption_font_size / 62) * 0.8}em`,
+                      }}
+                    >
+                      {project.settings.caption_style === "punchy" ? (
+                        <>
+                          {words.slice(0, -1).join(" ")}{" "}
+                          <span
+                            style={{ color: project.settings.caption_accent }}
+                          >
+                            {words.at(-1)}
+                          </span>
+                        </>
+                      ) : (
+                        text
+                      )}
+                    </div>
+                  ) : null;
+                })()}
             </>
           ) : (
             <div className="preview-placeholder">

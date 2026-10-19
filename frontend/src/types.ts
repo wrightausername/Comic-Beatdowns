@@ -9,6 +9,31 @@ export interface VideoSettings {
   default_motion: Motion;
   default_motion_strength: number;
   default_easing: Easing;
+  edit_pace: "fast" | "slow";
+  narration_start: number;
+  narration_end: number | null;
+  normalize_voice: boolean;
+  voice_volume: number;
+  sfx_volume: number;
+  music_volume: number;
+  duck_audio: boolean;
+  caption_font_size: number;
+  caption_color: string;
+  caption_accent: string;
+  caption_style: "outline" | "box" | "punchy";
+  caption_position: "bottom" | "middle" | "top";
+  logo_position: "top_left" | "top_right" | "bottom_left" | "bottom_right";
+  logo_width: number;
+}
+export interface CaptionCue {
+  start: number;
+  end: number;
+  text: string;
+}
+export interface Waveform {
+  duration: number;
+  peaks: number[];
+  pauses: [number, number][];
 }
 export interface Panel {
   id: string;
@@ -53,6 +78,12 @@ export interface Project {
   settings: VideoSettings;
   narration_url: string | null;
   narration_duration: number | null;
+  music_url: string | null;
+  music_duration: number | null;
+  logo_url: string | null;
+  caption_cues: CaptionCue[];
+  can_undo: boolean;
+  can_redo: boolean;
   revision: number;
   created_at: string;
   updated_at: string;
@@ -73,6 +104,7 @@ export interface RenderJob {
   error: string | null;
   created_at: string;
   finished_at: string | null;
+  quality: "final" | "draft";
 }
 export interface Template {
   id: string;

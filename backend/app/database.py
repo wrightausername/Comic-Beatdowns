@@ -57,6 +57,11 @@ class Project(Base):
     narration_key: Mapped[str | None] = mapped_column(String, nullable=True)
     narration_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     settings: Mapped[dict] = mapped_column(JSON, default=dict)
+    caption_cues: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    edit_history: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    music_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    music_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    logo_key: Mapped[str | None] = mapped_column(String, nullable=True)
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[str] = mapped_column(String, default=now)
     updated_at: Mapped[str] = mapped_column(String, default=now)
@@ -99,6 +104,9 @@ class Template(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
     name: Mapped[str] = mapped_column(String)
     settings: Mapped[dict] = mapped_column(JSON)
+    logo_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    music_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    music_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 def connect(data_dir):
@@ -115,6 +123,27 @@ def connect(data_dir):
 
     Base.metadata.create_all(engine)
     migrate_scene_options(engine)
+    with engine.begin() as connection:
+        existing = {c["name"] for c in inspect(connection).get_columns("projects")}
+        for name, definition in {
+            "caption_cues": "JSON NOT NULL DEFAULT '[]'",
+            "edit_history": "JSON NOT NULL DEFAULT '{}'",
+            "music_key": "VARCHAR",
+            "music_duration": "FLOAT",
+            "logo_key": "VARCHAR",
+        }.items():
+            if name not in existing:
+                connection.exec_driver_sql(f'ALTER TABLE projects ADD COLUMN "{name}" {definition}')
+        existing = {c["name"] for c in inspect(connection).get_columns("templates")}
+        for name, definition in {
+            "logo_key": "VARCHAR",
+            "music_key": "VARCHAR",
+            "music_duration": "FLOAT",
+        }.items():
+            if name not in existing:
+                connection.exec_driver_sql(
+                    f'ALTER TABLE templates ADD COLUMN "{name}" {definition}'
+                )
     return engine, sessionmaker(engine, expire_on_commit=False)
 
 

@@ -30,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.storage = LocalStorage(config.data_dir)
         app.state.login_attempts = {}
         app.state.render_lock = Lock()
+        app.state.caption_lock = Lock()
         app.state.renderer = RenderService(config, app.state.storage, sessions, executor)
         app.state.renderer.recover()
         with sessions() as db:

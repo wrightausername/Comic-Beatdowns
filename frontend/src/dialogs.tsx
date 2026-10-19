@@ -3,6 +3,7 @@ import type { FormEvent, PointerEvent } from "react";
 import { Check, FileImage, Plus, Scissors, Upload, X } from "lucide-react";
 import { api, json } from "./api";
 import { Modal } from "./components";
+import BrandOptions from "./BrandOptions";
 import type {
   Easing,
   Motion,
@@ -635,8 +636,9 @@ export function VideoOptions({
           checked={value.captions}
           onChange={(e) => onChange({ ...value, captions: e.target.checked })}
         />
-        Burn scene captions into the export
+        Burn captions into the export
       </label>
+      <BrandOptions value={value} onChange={onChange} />
     </div>
   );
 }

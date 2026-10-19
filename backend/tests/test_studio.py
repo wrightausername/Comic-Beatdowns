@@ -219,8 +219,10 @@ def test_snapshot_and_interrupted_job_recovery(client, image_bytes, monkeypatch)
     client.patch(url, json={"script": "Verdict is in."})
     client.patch(url, json={"script_approved": True})
     client.post(url + "/narration", files={"file": ("voice.wav", wav_bytes(2), "audio/wav")})
+    client.patch(url, json={"script_approved": True})
     assert client.post(url + "/renders").status_code == 422  # Never cut off narration.
     client.post(url + "/narration", files={"file": ("voice.wav", wav_bytes(0.5), "audio/wav")})
+    client.patch(url, json={"script_approved": True})
     renderer = client.app.state.renderer
     monkeypatch.setattr(renderer, "enqueue", lambda _: None)
     response = client.post(url + "/renders")

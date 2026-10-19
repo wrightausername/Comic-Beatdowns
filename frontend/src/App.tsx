@@ -363,8 +363,13 @@ export default function App() {
               projectId={selectedId}
               panels={panels}
               integrations={integrations}
-              onBack={() => navigate("production")}
-              onChanged={() => void refresh()}
+              onBack={() => {
+                setDirty(false);
+                setSelectedId(null);
+                setPage("production");
+                void refresh();
+              }}
+              onChanged={refresh}
               onError={showError}
               onDirty={setDirty}
               onImport={() => setDialog("import")}
@@ -767,7 +772,10 @@ export default function App() {
                               </span>
                               <h3>{job.title}</h3>
                               <p className="help">
-                                Revision {job.project_revision} ·{" "}
+                                {job.quality === "draft"
+                                  ? "Draft · 360p"
+                                  : "Final · 1080p"}{" "}
+                                · Revision {job.project_revision} ·{" "}
                                 {new Date(job.created_at).toLocaleString()}
                               </p>
                               {job.error && (

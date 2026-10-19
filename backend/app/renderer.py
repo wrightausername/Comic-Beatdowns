@@ -99,12 +99,12 @@ def scene_frames(duration: float, fps: int) -> int:
     return max(1, math.floor(duration * fps + 0.5))
 
 
-def prepare_scene_image(source: Path, target: Path, focus_x=0.5, focus_y=0.5):
+def prepare_scene_image(source: Path, target: Path, focus_x=0.5, focus_y=0.5, size=(1080, 1920)):
     # Fit before FFmpeg scaling so extreme source aspect ratios cannot allocate
     # an enormous intermediate frame. Pillow crops before resizing.
     with Image.open(source) as image:
         frame = ImageOps.fit(
-            image, (1080, 1920), method=Image.Resampling.LANCZOS, centering=(focus_x, focus_y)
+            image, size, method=Image.Resampling.LANCZOS, centering=(focus_x, focus_y)
         )
         frame.convert("RGB").save(target, "PNG")
 
@@ -113,17 +113,19 @@ def timeline_duration(scenes: list[dict], fps: int) -> float:
     return sum(scene_frames(s["duration"], fps) for s in scenes) / fps
 
 
-def scene_filter(scene, fps):
+def scene_filter(scene, fps, size=(1080, 1920)):
     frames = scene_frames(scene["duration"], fps)
     zoom, x, y = camera_expressions(scene, frames)
     return (
         "setsar=1,"
-        f"zoompan=z='{zoom}':x='{x}':y='{y}':d={frames}:s=1080x1920:fps={fps},"
+        f"zoompan=z='{zoom}':x='{x}':y='{y}':d={frames}:s={size[0]}x{size[1]}:fps={fps},"
         "format=yuv420p"
     )
 
 
-def render_scene(scene, previous, settings, config, image, output, tail, previous_tail=None):
+def render_scene(
+    scene, previous, settings, config, image, output, tail, previous_tail=None, size=(1080, 1920)
+):
     """Blend into the incoming scene, holding the previous final frame.
 
     Only two inputs are decoded at once. Each output keeps its full logical
@@ -144,7 +146,7 @@ def render_scene(scene, previous, settings, config, image, output, tail, previou
         str(image),
     ]
     filters = [
-        f"[0:v]{scene_filter(scene, fps)},split=2[camera][tail]",
+        f"[0:v]{scene_filter(scene, fps, size)},split=2[camera][tail]",
         f"[tail]select='eq(n,{frames - 1})',format=rgb24[last]",
     ]
     if effect != "cut":
@@ -209,28 +211,105 @@ def ass_text(text):
     )
 
 
-def write_captions(scenes, fps, path):
-    header = """[Script Info]
+def write_captions(scenes, fps, path, settings=None, cues=None):
+    settings = settings or {}
+
+    def ass_color(color):
+        return color[5:7] + color[3:5] + color[1:3]
+
+    color = ass_color(settings.get("caption_color", "#FFFFFF"))
+    accent = ass_color(settings.get("caption_accent", "#00E5F5"))
+    alignment = {"bottom": 2, "middle": 5, "top": 8}[settings.get("caption_position", "bottom")]
+    border = 3 if settings.get("caption_style") == "box" else 1
+    font_size = settings.get("caption_font_size", 62)
+    header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
 WrapStyle: 0
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,DejaVu Sans,62,&H00FFFFFF,&H00FFFFFF,&H0015100A,&H90000000,-1,0,0,0,100,100,0,0,1,4,1,2,90,90,320,1
+Style: Default,DejaVu Sans,{font_size},&H00{color},&H00{accent},&H0015100A,&H90000000,-1,0,0,0,100,100,0,0,{border},4,1,{alignment},90,90,320,1
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     events = []
+
+    def event(start, end, text):
+        escaped = ass_text(text)
+        if settings.get("caption_style") == "punchy":
+            words = escaped.upper().split(" ")
+            escaped = (
+                " ".join(words[:-1])
+                + (" " if len(words) > 1 else "")
+                + r"{\c&H"
+                + accent
+                + "&}"
+                + words[-1]
+            )
+        events.append(f"Dialogue: 0,{ass_time(start)},{ass_time(end)},Default,,0,0,0,,{escaped}\n")
+
+    if cues:
+        start = settings.get("narration_start", 0)
+        duration = timeline_duration(scenes, fps)
+        for cue in cues:
+            left, right = max(0, cue["start"] - start), min(duration, cue["end"] - start)
+            if right > left:
+                event(left, right, cue["text"])
+        path.write_text(header + "".join(events), encoding="utf-8")
+        return
     cursor = 0
     for scene in scenes:
         end = cursor + scene_frames(scene["duration"], fps) / fps
         if scene["caption"].strip():
-            events.append(
-                f"Dialogue: 0,{ass_time(cursor)},{ass_time(end)},Default,,0,0,0,,{ass_text(scene['caption'])}\n"
-            )
+            event(cursor, end, scene["caption"])
         cursor = end
     path.write_text(header + "".join(events), encoding="utf-8")
+
+
+def mix_audio(snapshot, storage, total, command):
+    """Append media inputs and build a voice-led mix with optional sidechain ducking."""
+    settings = snapshot["settings"]
+    start, end = settings.get("narration_start", 0), settings.get("narration_end")
+    trim = f"atrim=start={start}" + (f":end={end}" if end is not None else "")
+    voice = f"[1:a]{trim},asetpts=PTS-STARTPTS,aresample=48000"
+    if settings.get("normalize_voice", False):
+        voice += ",loudnorm=I=-16:TP=-1.5:LRA=11"
+    voice += f",volume={settings.get('voice_volume', 1)},apad,atrim=duration={total}[voice]"
+    filters, beds, index = [voice], [], 2
+    if snapshot.get("music_key"):
+        command += ["-stream_loop", "-1", "-i", str(storage.path(snapshot["music_key"]))]
+        filters.append(
+            f"[{index}:a]aresample=48000,atrim=duration={total},asetpts=PTS-STARTPTS,volume={settings.get('music_volume', 0.12)}[music]"
+        )
+        beds.append("[music]")
+        index += 1
+    cursor = 0
+    for scene in snapshot["scenes"]:
+        length = scene_frames(scene["duration"], settings["fps"]) / settings["fps"]
+        if scene.get("sfx_key"):
+            command += ["-i", str(storage.path(scene["sfx_key"]))]
+            filters.append(
+                f"[{index}:a]aresample=48000,atrim=duration={length},asetpts=PTS-STARTPTS,volume={settings.get('sfx_volume', 0.35)},adelay={round(cursor * 1000)}:all=1,apad,atrim=duration={total}[sfx{index}]"
+            )
+            beds.append(f"[sfx{index}]")
+            index += 1
+        cursor += length
+    if beds:
+        filters.append("".join(beds) + f"amix=inputs={len(beds)}:duration=longest:normalize=0[bed]")
+        if settings.get("duck_audio", False):
+            filters += [
+                "[voice]asplit=2[voiceout][side]",
+                "[bed][side]sidechaincompress=threshold=0.025:ratio=8:attack=10:release=200[ducked]",
+                "[voiceout][ducked]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[audio]",
+            ]
+        else:
+            filters.append(
+                "[voice][bed]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[audio]"
+            )
+    else:
+        filters.append("[voice]alimiter=limit=0.95[audio]")
+    return filters, index
 
 
 class RenderService:
@@ -281,6 +360,7 @@ class RenderService:
                 work = Path(directory)
                 scenes, settings = snapshot["scenes"], snapshot["settings"]
                 fps = settings["fps"]
+                size = (360, 640) if snapshot.get("quality") == "draft" else (1080, 1920)
                 for i, scene in enumerate(scenes):
                     image_path = work / f"panel-{i}.png"
                     prepare_scene_image(
@@ -288,6 +368,7 @@ class RenderService:
                         image_path,
                         scene.get("focus_x", 0.5),
                         scene.get("focus_y", 0.5),
+                        size,
                     )
                     render_scene(
                         scene,
@@ -298,12 +379,15 @@ class RenderService:
                         work / f"scene-{i}.mp4",
                         work / f"tail-{i}.png",
                         work / f"tail-{i - 1}.png" if i else None,
+                        size,
                     )
                     self.progress(job_id, 5 + round(70 * (i + 1) / len(scenes)))
                 (work / "segments.txt").write_text(
                     "".join(f"file 'scene-{i}.mp4'\n" for i in range(len(scenes)))
                 )
-                write_captions(scenes, fps, work / "captions.ass")
+                write_captions(
+                    scenes, fps, work / "captions.ass", settings, snapshot.get("caption_cues")
+                )
                 total = timeline_duration(scenes, fps)
                 command = [
                     self.settings.ffmpeg,
@@ -322,44 +406,39 @@ class RenderService:
                     "-i",
                     str(self.storage.path(snapshot["narration_key"])),
                 ]
-                audio_filters = [
-                    f"[1:a]aresample=48000,apad,atrim=duration={total},asetpts=PTS-STARTPTS[voice]"
-                ]
-                tracks = ["[voice]"]
-                cursor, input_index = 0, 2
-                for scene in scenes:
-                    if scene.get("sfx_key"):
-                        command += ["-i", str(self.storage.path(scene["sfx_key"]))]
-                        audio_filters.append(
-                            f"[{input_index}:a]atrim=duration={scene_frames(scene['duration'], fps) / fps},"
-                            f"asetpts=PTS-STARTPTS,volume=0.35,adelay={round(cursor * 1000)}:all=1[sfx{input_index}]"
-                        )
-                        tracks.append(f"[sfx{input_index}]")
-                        input_index += 1
-                    cursor += scene_frames(scene["duration"], fps) / fps
-                audio_filters.append(
-                    "".join(tracks)
-                    + f"amix=inputs={len(tracks)}:duration=first:normalize=0,alimiter=limit=0.95[audio]"
+                filters, next_input = mix_audio(snapshot, self.storage, total, command)
+                has_captions = settings["captions"] and (
+                    snapshot.get("caption_cues") or any(s["caption"].strip() for s in scenes)
                 )
+                has_logo = bool(snapshot.get("logo_key"))
+                video_map = "0:v:0"
+                if has_captions or has_logo:
+                    filters.append(
+                        "[0:v]" + ("subtitles=captions.ass" if has_captions else "null") + "[base]"
+                    )
+                    video_map = "[base]"
+                if has_logo:
+                    command += ["-i", str(self.storage.path(snapshot["logo_key"]))]
+                    width = round(settings.get("logo_width", 180) * size[0] / 1080)
+                    margin = round(36 * size[0] / 1080)
+                    position = settings.get("logo_position", "top_right")
+                    x = str(margin) if position.endswith("left") else f"W-w-{margin}"
+                    y = str(margin) if position.startswith("top") else f"H-h-{margin}"
+                    filters += [
+                        f"[{next_input}:v]scale={width}:{width}:force_original_aspect_ratio=decrease,format=rgba[logo]",
+                        f"[base][logo]overlay=x={x}:y={y}:eof_action=repeat[branded]",
+                    ]
+                    video_map = "[branded]"
                 command += [
                     "-filter_complex",
-                    ";".join(audio_filters),
+                    ";".join(filters),
                     "-map",
-                    "0:v:0",
+                    video_map,
                     "-map",
                     "[audio]",
                 ]
-                if settings["captions"] and any(s["caption"].strip() for s in scenes):
-                    command += [
-                        "-vf",
-                        "subtitles=captions.ass",
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "veryfast",
-                        "-crf",
-                        "20",
-                    ]
+                if has_captions or has_logo:
+                    command += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
                 else:
                     command += ["-c:v", "copy"]
                 command += [
@@ -379,7 +458,7 @@ class RenderService:
                 run(command, cwd=work)
                 media = probe(output, self.settings)
                 video = next((s for s in media["streams"] if s["codec_type"] == "video"), {})
-                if video.get("width") != 1080 or video.get("height") != 1920:
+                if (video.get("width"), video.get("height")) != size:
                     raise ValueError("Export validation failed: incorrect output dimensions")
             with self.sessions() as db:
                 job = db.get(RenderJob, job_id)
@@ -390,7 +469,10 @@ class RenderService:
                     now(),
                 )
                 project = db.get(Project, job.project_id)
-                if project.revision == job.project_revision:
+                if (
+                    project.revision == job.project_revision
+                    and snapshot.get("quality", "final") == "final"
+                ):
                     project.status = "exported"
                 db.commit()
         except Exception as e:
@@ -401,7 +483,7 @@ class RenderService:
                 job.status, job.error, job.finished_at = "failed", str(e)[:1500], now()
                 project = db.get(Project, job.project_id)
                 if project.revision == job.project_revision:
-                    project.status = "ready"
+                    project.status = "ready" if project.script_approved else "scripting"
                 db.commit()
 
 

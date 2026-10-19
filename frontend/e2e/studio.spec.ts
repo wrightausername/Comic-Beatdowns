@@ -42,8 +42,8 @@ function originalPng() {
     chunk("IEND", Buffer.alloc(0)),
   ]);
 }
-function silentWav() {
-  const audio = Buffer.alloc(44 + 16000 * 2);
+function silentWav(seconds = 1) {
+  const audio = Buffer.alloc(44 + 16000 * 2 * seconds);
   audio.write("RIFF");
   audio.writeUInt32LE(audio.length - 8, 4);
   audio.write("WAVEfmt ", 8);
@@ -244,6 +244,188 @@ test("mobile navigation remains usable without horizontal overflow", async ({
   ).toBe(false);
   await page.screenshot({
     path: testInfo.outputPath("mobile-production.png"),
+    fullPage: true,
+  });
+});
+
+test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand kit, and draft export", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(150_000);
+  const saved = () =>
+    expect(page.getByLabel("Autosave status")).toHaveText("All changes saved");
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page.getByLabel("Project title").fill("Effortless editing");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Add panels", exact: true }).click();
+  await page.locator(".picker-card").first().click();
+  await page.locator(".picker-card").last().click();
+  await page.getByRole("button", { name: "Add 2 panels" }).click();
+  await page.getByLabel("Upload narration").setInputFiles({
+    name: "six-seconds.wav",
+    mimeType: "audio/wav",
+    buffer: silentWav(6),
+  });
+  await expect(
+    page.getByText("Narration uploaded and normalized."),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Fast · punchy", exact: false })
+    .click();
+  await page.getByRole("button", { name: "Create first cut" }).click();
+  await expect(
+    page.getByText("Fast first cut created:", { exact: false }),
+  ).toBeVisible();
+  await expect(page.locator(".scene-card")).toHaveCount(5);
+  await saved();
+  await page.reload();
+  // The app's navigation is local; reopen the project after reloading.
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Effortless editing" })
+    .click();
+  await expect(page.locator(".scene-card")).toHaveCount(5);
+  await page.getByLabel("Select all scenes", { exact: true }).check();
+  await page.getByLabel("Bulk camera motion").selectOption("pan_up");
+  await page.getByLabel("Bulk movement strength").fill("20");
+  await page.getByRole("button", { name: "Apply to selected" }).click();
+  await saved();
+  await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
+    "pan_up",
+  );
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
+    "punch_in",
+  );
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
+    "pan_up",
+  );
+  await page
+    .getByRole("button", { name: "Slow · smooth", exact: false })
+    .click();
+  await page.getByLabel("Auto Edit length").selectOption("short");
+  await page.getByRole("button", { name: "Create first cut" }).click();
+  await expect(
+    page.getByText("Slow first cut created:", { exact: false }),
+  ).toBeVisible();
+  await expect(page.locator(".scene-card")).toHaveCount(2);
+  await saved();
+  const cut = page.getByRole("slider", { name: "Cut after scene 1" });
+  const before = Number(await cut.getAttribute("aria-valuenow"));
+  await cut.focus();
+  await cut.press("ArrowRight");
+  await expect
+    .poll(async () => Number(await cut.getAttribute("aria-valuenow")))
+    .toBeGreaterThan(before);
+  await saved();
+  const handle = await cut.boundingBox();
+  expect(handle).toBeTruthy();
+  const durationBeforeDrag = Number(
+    await page.getByLabel("Scene 1 duration", { exact: true }).inputValue(),
+  );
+  await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(handle!.x + handle!.width / 2 + 25, handle!.y + 40, {
+    steps: 4,
+  });
+  await page.mouse.up();
+  await expect
+    .poll(async () =>
+      Number(
+        await page.getByLabel("Scene 1 duration", { exact: true }).inputValue(),
+      ),
+    )
+    .toBeGreaterThan(durationBeforeDrag);
+  const durations = await page
+    .locator('.scene-body input[type="number"]')
+    .evaluateAll((inputs) =>
+      inputs.map((input) => Number((input as HTMLInputElement).value)),
+    );
+  expect(durations.reduce((a, b) => a + b, 0)).toBeCloseTo(6, 4);
+  await saved();
+  await page
+    .getByRole("button", { name: "Generate captions", exact: true })
+    .click();
+  await expect(
+    page.getByText("No speech was recognized.", { exact: false }),
+  ).toBeVisible();
+  await page.getByLabel("Import SRT captions").setInputFiles({
+    name: "verdict.srt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "1\n00:00:00,000 --> 00:00:01,000\nVerdict hits hard\n",
+    ),
+  });
+  await expect(page.getByLabel("Caption 1 text")).toHaveValue(
+    "Verdict hits hard",
+  );
+  await page.getByLabel("Caption 1 text").fill("VERDICT hits hard");
+  await saved();
+  const srtDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download SRT", exact: true }).click();
+  const srtFile = await srtDownload;
+  const srtTarget = testInfo.outputPath("captions.srt");
+  await srtFile.saveAs(srtTarget);
+  expect(await readFile(srtTarget, "utf8")).toContain("VERDICT hits hard");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByLabel("Caption style", { exact: true })
+    .selectOption("punchy");
+  await page.getByLabel("Upload brand logo").setInputFiles({
+    name: "logo.png",
+    mimeType: "image/png",
+    buffer: originalPng(),
+  });
+  await expect(page.getByText("Logo saved.", { exact: true })).toBeVisible();
+  await page.getByLabel("Upload background music").setInputFiles({
+    name: "music.wav",
+    mimeType: "audio/wav",
+    buffer: silentWav(1),
+  });
+  await expect(page.getByText("Music saved.", { exact: true })).toBeVisible();
+  await page.getByLabel("Template name").fill("Verdict brand kit");
+  await page
+    .getByRole("button", { name: "Save template", exact: true })
+    .click();
+  await expect(
+    page.getByText("Brand template saved.", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.screenshot({
+    path: testInfo.outputPath("streamlined-editor.png"),
+    fullPage: true,
+  });
+  await expect(
+    page.getByRole("button", { name: "Render MP4", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Draft preview", exact: true })
+    .click();
+  await expect(page.locator(".render-row").first()).toContainText("completed", {
+    timeout: 60_000,
+  });
+  await expect(page.locator(".render-row").first()).toContainText(
+    "Draft · 360p",
+  );
+  const download = page.waitForEvent("download");
+  await page
+    .locator(".render-row")
+    .first()
+    .getByRole("link", { name: "MP4", exact: true })
+    .click();
+  const file = await download;
+  const target = testInfo.outputPath("draft.mp4");
+  await file.saveAs(target);
+  expect((await readFile(target)).subarray(4, 8).toString()).toBe("ftyp");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+  await page.screenshot({
+    path: testInfo.outputPath("streamlined-mobile.png"),
     fullPage: true,
   });
 });

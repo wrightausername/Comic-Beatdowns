@@ -11,7 +11,7 @@ class Storage(Protocol):
 
 
 class LocalStorage:
-    PUBLIC_PREFIXES = {"panels", "narration", "sfx", "exports"}
+    PUBLIC_PREFIXES = {"panels", "narration", "sfx", "exports", "music", "logos"}
 
     def __init__(self, root: Path):
         self.root = root.resolve()

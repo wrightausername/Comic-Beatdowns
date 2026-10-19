@@ -1,33 +1,43 @@
 import hmac
+import io
 import tempfile
 import time
 from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from PIL import Image
 from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from .audio import analyze_audio, parse_srt, srt_text, transcribe
 from .auth import COOKIE, SESSION_AGE, authenticated, session_cookie
+from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
 from .renderer import normalize_audio, timeline_duration, tools_available
 from .schemas import (
+    AutoEditInput,
+    CaptionGenerateInput,
+    CaptionList,
     Crop,
     Login,
     PanelMetadata,
     ProjectCreate,
     ProjectUpdate,
+    RenderInput,
+    RevisionInput,
     SceneList,
     TemplateInput,
     VideoSettings,
+    WorkspaceInput,
 )
 from .storage import media_url
+from .workspace import locked_project, remember, replace_workspace_scenes, restore
 
 router = APIRouter(prefix="/api")
 
@@ -102,6 +112,12 @@ def project_dict(project, db, detail=False):
         "settings": settings,
         "narration_url": media_url(project.narration_key),
         "narration_duration": project.narration_duration,
+        "music_url": media_url(project.music_key),
+        "music_duration": project.music_duration,
+        "logo_url": media_url(project.logo_key),
+        "caption_cues": project.caption_cues,
+        "can_undo": bool((project.edit_history or {}).get("past")),
+        "can_redo": bool((project.edit_history or {}).get("future")),
         "revision": project.revision,
         "created_at": project.created_at,
         "updated_at": project.updated_at,
@@ -127,6 +143,7 @@ def job_dict(job):
         "error": job.error,
         "created_at": job.created_at,
         "finished_at": job.finished_at,
+        "quality": job.snapshot.get("quality", "final"),
     }
 
 
@@ -308,9 +325,22 @@ def create_project(data: ProjectCreate, db: Session = Depends(session)):
     if not data.title.strip():
         raise HTTPException(422, "Give this project a title")
     settings = VideoSettings().model_dump()
+    template = None
     if data.template_id:
-        settings = get_or_404(db, Template, data.template_id).settings
+        template = get_or_404(db, Template, data.template_id)
+        # Audio selections belong to the original recording, not the brand kit.
+        settings = {
+            **VideoSettings.model_validate(template.settings).model_dump(),
+            "narration_start": 0,
+            "narration_end": None,
+        }
     project = Project(title=data.title.strip(), idea=data.idea, settings=settings)
+    if template:
+        project.logo_key, project.music_key, project.music_duration = (
+            template.logo_key,
+            template.music_key,
+            template.music_duration,
+        )
     db.add(project)
     db.commit()
     return project_dict(project, db, True)
@@ -332,6 +362,8 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(s
     changed_script = "script" in values and values["script"] != project.script
     if changed_script and values.get("script_approved"):
         raise HTTPException(422, "Save the script revision before approving it")
+    if values != {"script_approved": True}:
+        remember(db, project)
     touch(project, invalidate_approval=changed_script or "settings" in values)
     for key, value in values.items():
         setattr(project, key, value)
@@ -345,6 +377,7 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(s
 @router.put("/projects/{project_id}/scenes")
 def replace_scenes(project_id: str, data: SceneList, db: Session = Depends(session)):
     project = get_or_404(db, Project, project_id)
+    remember(db, project)
     if (
         timeline_duration([{"duration": s.duration} for s in data.scenes], project.settings["fps"])
         > 180
@@ -394,9 +427,13 @@ async def upload_narration(
 ):
     project = get_or_404(db, Project, project_id)
     key, duration = await save_audio(file, request, "narration", 180)
+    remember(db, project)
     # Older files are retained because already queued render snapshots may use them.
     project.narration_key, project.narration_duration = key, duration
-    touch(project)
+    project.caption_cues = []
+    values = VideoSettings.model_validate(project.settings).model_dump()
+    project.settings = {**values, "narration_start": 0, "narration_end": None}
+    touch(project, invalidate_approval=True)
     db.commit()
     return project_dict(project, db, True)
 
@@ -413,6 +450,7 @@ async def upload_sfx(
     scene = get_or_404(db, Scene, scene_id)
     if scene.project_id != project_id:
         raise HTTPException(404, "Scene does not belong to this project")
+    remember(db, project)
     scene.sfx_key, _ = await save_audio(file, request, "sfx", 30)
     touch(project)
     db.commit()
@@ -425,6 +463,7 @@ def remove_sfx(project_id: str, scene_id: str, db: Session = Depends(session)):
     scene = get_or_404(db, Scene, scene_id)
     if scene.project_id != project_id:
         raise HTTPException(404, "Scene does not belong to this project")
+    remember(db, project)
     scene.sfx_key = None
     touch(project)
     db.commit()
@@ -432,17 +471,26 @@ def remove_sfx(project_id: str, scene_id: str, db: Session = Depends(session)):
 
 
 @router.post("/projects/{project_id}/renders", status_code=202)
-def start_render(project_id: str, request: Request, db: Session = Depends(session)):
+def start_render(
+    project_id: str,
+    request: Request,
+    data: RenderInput | None = None,
+    db: Session = Depends(session),
+):
     with request.app.state.render_lock:
-        return queue_render(project_id, request, db)
+        return queue_render(project_id, request, db, (data or RenderInput()).quality)
 
 
-def queue_render(project_id: str, request: Request, db: Session):
+def queue_render(project_id: str, request: Request, db: Session, quality="final"):
     project = get_or_404(db, Project, project_id)
     scenes = scenes_for(db, project_id)
     if not tools_available(request.app.state.settings):
         raise HTTPException(503, "Install FFmpeg and FFprobe before rendering")
-    if not scenes or not project.narration_key or not project.script_approved:
+    if (
+        not scenes
+        or not project.narration_key
+        or (quality == "final" and not project.script_approved)
+    ):
         raise HTTPException(
             422, "Add scenes, upload narration, and approve the script before rendering"
         )
@@ -466,7 +514,11 @@ def queue_render(project_id: str, request: Request, db: Session):
         }
         for s in scenes
     ]
-    if project.narration_duration > timeline_duration(values, settings["fps"]) + 0.05:
+    try:
+        voice_start, voice_end = audio_range(settings, project.narration_duration)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    if voice_end - voice_start > timeline_duration(values, settings["fps"]) + 0.05:
         raise HTTPException(
             422, "Narration is longer than the timeline. Extend the scenes so no speech is cut off."
         )
@@ -476,9 +528,14 @@ def queue_render(project_id: str, request: Request, db: Session):
         "scenes": values,
         "narration_key": project.narration_key,
         "script": project.script,
+        "caption_cues": project.caption_cues,
+        "music_key": project.music_key,
+        "logo_key": project.logo_key,
+        "quality": quality,
     }
     job = RenderJob(project_id=project_id, project_revision=project.revision, snapshot=snapshot)
-    project.status = "rendering"
+    if quality == "final":
+        project.status = "rendering"
     db.add(job)
     db.commit()
     request.app.state.renderer.enqueue(job.id)
@@ -491,6 +548,173 @@ def list_renders(project_id: str | None = None, db: Session = Depends(session)):
     if project_id:
         query = query.where(RenderJob.project_id == project_id)
     return [job_dict(j) for j in db.scalars(query)]
+
+
+@router.put("/projects/{project_id}/workspace")
+def save_workspace(project_id: str, data: WorkspaceInput, db: Session = Depends(session)):
+    project = locked_project(db, project_id, data.base_revision)
+    if not data.title.strip():
+        raise HTTPException(422, "Give this project a title")
+    remember(db, project)
+    replace_workspace_scenes(db, project, data.scenes, data.settings.fps)
+    project.title, project.idea, project.script = data.title.strip(), data.idea, data.script
+    project.settings, project.caption_cues = (
+        data.settings.model_dump(),
+        [cue.model_dump() for cue in data.cues],
+    )
+    touch(project, invalidate_approval=True)
+    db.commit()
+    return project_dict(project, db, True)
+
+
+@router.post("/projects/{project_id}/history/{direction}")
+def history_step(
+    project_id: str, direction: str, data: RevisionInput, db: Session = Depends(session)
+):
+    if direction not in {"undo", "redo"}:
+        raise HTTPException(404, "Unknown history action")
+    project = locked_project(db, project_id, data.base_revision)
+    restore(db, project, direction)
+    touch(project, invalidate_approval=True)
+    db.commit()
+    return project_dict(project, db, True)
+
+
+@router.get("/projects/{project_id}/waveform")
+def waveform(project_id: str, request: Request, db: Session = Depends(session)):
+    project = get_or_404(db, Project, project_id)
+    if not project.narration_key:
+        raise HTTPException(422, "Upload narration first")
+    try:
+        return analyze_audio(
+            request.app.state.storage.path(project.narration_key), request.app.state.settings
+        )
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@router.post("/projects/{project_id}/auto-edit")
+def preview_auto_edit(
+    project_id: str, data: AutoEditInput, request: Request, db: Session = Depends(session)
+):
+    project = get_or_404(db, Project, project_id)
+    if not project.narration_key:
+        raise HTTPException(422, "Upload narration so the edit can follow its timing")
+    try:
+        analysis = analyze_audio(
+            request.app.state.storage.path(project.narration_key), request.app.state.settings
+        )
+        return auto_edit(
+            scenes_for(db, project_id),
+            VideoSettings.model_validate(project.settings).model_dump(),
+            project.narration_duration,
+            data,
+            analysis["pauses"],
+        )
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@router.post("/projects/{project_id}/captions/transcribe")
+async def generate_captions(
+    project_id: str,
+    request: Request,
+    data: CaptionGenerateInput | None = None,
+    db: Session = Depends(session),
+):
+    project = get_or_404(db, Project, project_id)
+    if not project.narration_key:
+        raise HTTPException(422, "Upload narration first")
+    if data and data.use_script and not project.script.strip():
+        raise HTTPException(422, "Save the matching script first")
+    if not request.app.state.caption_lock.acquire(blocking=False):
+        raise HTTPException(409, "Caption recognition is busy. Try again shortly.")
+    try:
+        cues = await run_in_threadpool(
+            transcribe,
+            request.app.state.storage.path(project.narration_key),
+            request.app.state.settings,
+            project.script if data and data.use_script else "",
+        )
+        # Return a draft, never overwrite captions edited while recognition ran.
+        return {"cues": CaptionList(cues=cues).model_dump()["cues"]}
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    finally:
+        request.app.state.caption_lock.release()
+
+
+@router.post("/projects/{project_id}/captions/import")
+async def import_captions(
+    project_id: str, file: UploadFile = File(...), db: Session = Depends(session)
+):
+    get_or_404(db, Project, project_id)
+    raw = await upload_bytes(file, 1024 * 1024)
+    try:
+        return CaptionList(cues=parse_srt(raw.decode("utf-8-sig"))).model_dump()
+    except (ValueError, UnicodeError) as error:
+        raise HTTPException(422, str(error)) from error
+
+
+@router.get("/projects/{project_id}/captions/srt")
+def download_captions(project_id: str, db: Session = Depends(session)):
+    project = get_or_404(db, Project, project_id)
+    return PlainTextResponse(
+        srt_text(project.caption_cues),
+        headers={"Content-Disposition": 'attachment; filename="verdict-captions.srt"'},
+    )
+
+
+@router.post("/projects/{project_id}/music")
+async def upload_music(
+    project_id: str, request: Request, file: UploadFile = File(...), db: Session = Depends(session)
+):
+    project = get_or_404(db, Project, project_id)
+    key, duration = await save_audio(file, request, "music", 180)
+    remember(db, project)
+    project.music_key, project.music_duration = key, duration
+    touch(project, invalidate_approval=True)
+    db.commit()
+    return project_dict(project, db, True)
+
+
+@router.post("/projects/{project_id}/logo")
+async def upload_logo(
+    project_id: str, request: Request, file: UploadFile = File(...), db: Session = Depends(session)
+):
+    project = get_or_404(db, Project, project_id)
+    raw = await upload_bytes(file, 8 * 1024 * 1024)
+    try:
+        with Image.open(io.BytesIO(raw)) as image:
+            if image.width * image.height > 32_000_000:
+                raise ValueError("Use a logo under 32 megapixels")
+            logo = image.convert("RGBA")
+            logo.thumbnail((1600, 1600))
+            output = io.BytesIO()
+            logo.save(output, "PNG")
+    except (OSError, ValueError, Image.DecompressionBombError) as error:
+        raise HTTPException(422, "Choose a valid image under 32 megapixels") from error
+    key = f"logos/{uid()}.png"
+    request.app.state.storage.write(key, output.getvalue())
+    remember(db, project)
+    project.logo_key = key
+    touch(project, invalidate_approval=True)
+    db.commit()
+    return project_dict(project, db, True)
+
+
+@router.delete("/projects/{project_id}/assets/{kind}")
+def remove_project_asset(project_id: str, kind: str, db: Session = Depends(session)):
+    if kind not in {"music", "logo"}:
+        raise HTTPException(404, "Unknown asset")
+    project = get_or_404(db, Project, project_id)
+    remember(db, project)
+    setattr(project, f"{kind}_key", None)
+    if kind == "music":
+        project.music_duration = None
+    touch(project, invalidate_approval=True)
+    db.commit()
+    return project_dict(project, db, True)
 
 
 @router.get("/renders/{job_id}")
@@ -506,13 +730,22 @@ def download_render(job_id: str, request: Request, db: Session = Depends(session
     path = request.app.state.storage.public_path(job.output_key)
     if not path.is_file():
         raise HTTPException(404, "Export file is missing")
-    return FileResponse(path, media_type="video/mp4", filename=f"comic-beatdowns-{job.id[:8]}.mp4")
+    quality = job.snapshot.get("quality", "final")
+    return FileResponse(
+        path, media_type="video/mp4", filename=f"comic-beatdowns-{quality}-{job.id[:8]}.mp4"
+    )
 
 
 @router.get("/templates")
 def list_templates(db: Session = Depends(session)):
     return [
-        {"id": t.id, "name": t.name, "settings": t.settings} for t in db.scalars(select(Template))
+        {
+            "id": t.id,
+            "name": t.name,
+            "settings": VideoSettings.model_validate(t.settings).model_dump(),
+            "logo_url": media_url(t.logo_key),
+        }
+        for t in db.scalars(select(Template))
     ]
 
 
@@ -521,6 +754,13 @@ def create_template(data: TemplateInput, db: Session = Depends(session)):
     if not data.name.strip():
         raise HTTPException(422, "Give this template a name")
     template = Template(name=data.name.strip(), settings=data.settings.model_dump())
+    if data.project_id:
+        project = get_or_404(db, Project, data.project_id)
+        template.logo_key, template.music_key, template.music_duration = (
+            project.logo_key,
+            project.music_key,
+            project.music_duration,
+        )
     db.add(template)
     db.commit()
     return {"id": template.id, "name": template.name, "settings": template.settings}
