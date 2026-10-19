@@ -634,6 +634,7 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   const download = page
     .locator(".export-card")
     .filter({ hasText: "Final · 1080p" })
+    .filter({ hasText: "Verdict upload handoff" })
     .getByRole("link", { name: "Download MP4" });
   await expect(download).toBeVisible({ timeout: 120_000 });
   const fileEvent = page.waitForEvent("download");
