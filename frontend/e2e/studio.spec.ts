@@ -585,3 +585,60 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
   });
   expect(errors).toEqual([]);
 });
+
+test("Verdict Autopilot turns uploaded panels and voice into a preview and approved final", async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Let Verdict handle the edit after upload"),
+  ).toBeChecked();
+  await page.getByLabel("New project files").setInputFiles([
+    {
+      name: "original-autopilot.png",
+      mimeType: "image/png",
+      buffer: originalPng(),
+    },
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(2) },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Verdict upload handoff");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  const card = page.getByRole("region", {
+    name: "Verdict Autopilot",
+    exact: true,
+  });
+  await expect(card).toBeVisible();
+  const approve = card.getByRole("button", { name: "Approve & export 1080p" });
+  await expect(approve).toBeVisible({ timeout: 120_000 });
+  await expect(card.getByLabel("Verdict rendered video")).toHaveAttribute(
+    "src",
+    /\.mp4$/,
+  );
+  await expect(approve).toBeDisabled();
+  await expect(card.getByText(/No timed speech found/)).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("verdict-autopilot.png"),
+    timeout: 60_000,
+  });
+  await card
+    .getByLabel("I checked the preview, captions, and panel matches.")
+    .check();
+  await approve.click();
+  await page.getByRole("button", { name: "Exports", exact: true }).click();
+  const download = page
+    .locator(".export-card")
+    .filter({ hasText: "Final · 1080p" })
+    .getByRole("link", { name: "Download MP4" });
+  await expect(download).toBeVisible({ timeout: 120_000 });
+  const fileEvent = page.waitForEvent("download");
+  await download.click();
+  const file = await fileEvent;
+  expect(file.suggestedFilename()).toContain("Verdict_upload_handoff_Final");
+  expect(errors).toEqual([]);
+});

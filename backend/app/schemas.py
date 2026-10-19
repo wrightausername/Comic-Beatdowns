@@ -183,6 +183,24 @@ class WatchInput(StrictModel):
     enabled: bool
 
 
+class AutopilotOptions(StrictModel):
+    enabled: bool = False
+    mode: Literal["basic", "vision"] = "basic"
+    pace: Literal["fast", "slow"] = "fast"
+    delivery: Literal["draft", "final"] = "draft"
+
+
+class DirectorStart(StrictModel):
+    base_revision: int = Field(ge=1)
+
+
+class VisionConnection(StrictModel):
+    base_url: str = Field(min_length=1, max_length=300)
+    model: str = Field(min_length=1, max_length=120)
+    api_key: str | None = Field(default=None, max_length=512)
+    transcription_model: str = Field(default="", max_length=120)
+
+
 class TemplateInput(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     settings: VideoSettings
@@ -191,3 +209,7 @@ class TemplateInput(StrictModel):
 
 class Login(StrictModel):
     token: str = Field(min_length=1, max_length=512)
+
+
+class AutopilotUpdate(AutopilotOptions):
+    base_revision: int = Field(ge=1)

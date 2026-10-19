@@ -64,6 +64,7 @@ class Project(Base):
     logo_key: Mapped[str | None] = mapped_column(String, nullable=True)
     workflow: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     watch_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    autopilot: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[str] = mapped_column(String, default=now)
     updated_at: Mapped[str] = mapped_column(String, default=now)
@@ -145,6 +146,23 @@ class Template(Base):
     music_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
+class DirectorJob(Base):
+    __tablename__ = "director_jobs"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    base_revision: Mapped[int] = mapped_column(Integer)
+    output_revision: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="queued")
+    stage: Mapped[str] = mapped_column(String, default="queued")
+    message: Mapped[str] = mapped_column(String, default="Verdict is getting ready.")
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    report: Mapped[dict] = mapped_column(JSON, default=dict)
+    render_id: Mapped[str | None] = mapped_column(ForeignKey("render_jobs.id"), nullable=True)
+    created_at: Mapped[str] = mapped_column(String, default=now)
+    finished_at: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
 def connect(data_dir):
     engine = create_engine(
         f"sqlite:///{data_dir / 'studio.sqlite3'}",
@@ -166,6 +184,7 @@ def connect(data_dir):
             "edit_history": "JSON NOT NULL DEFAULT '{}'",
             "workflow": "JSON NOT NULL DEFAULT '{}'",
             "watch_enabled": "BOOLEAN NOT NULL DEFAULT 0",
+            "autopilot": "JSON NOT NULL DEFAULT '{}'",
             "music_key": "VARCHAR",
             "music_duration": "FLOAT",
             "logo_key": "VARCHAR",

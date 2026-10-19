@@ -23,6 +23,7 @@ import { PanelPicker, VideoOptions } from "./dialogs";
 import { MotionOptions } from "./EffectOptions";
 import CameraControls from "./CameraControls";
 import Preview from "./Preview";
+import VerdictAutopilot from "./VerdictAutopilot";
 import ProductionWorkflow, {
   WorkflowSteps,
   type Stage,
@@ -507,6 +508,16 @@ export default function Editor({
           {notice}
         </div>
       )}
+      <VerdictAutopilot
+        project={project}
+        dirty={dirty}
+        busy={busy}
+        accept={accept}
+        perform={perform}
+        onChanged={onChanged}
+        onReview={() => setStage("review")}
+        onError={onError}
+      />
       <WorkflowSteps
         stage={stage}
         setStage={setStage}

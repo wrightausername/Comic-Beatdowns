@@ -67,6 +67,22 @@ The duration target is advisory; short clips and videos up to 180 seconds are al
 7. **Fast draft exports:** **Draft preview** renders at **360 × 640** using smaller intermediate frames. It works before script approval. Final **Render MP4** remains **1080 × 1920** and requires approval after changes. Drafts and final exports are labeled in history and filenames. All exports capture a fixed saved revision.
 8. **Reusable brand kits:** templates now preserve editing pace, camera defaults, transition settings, caption style/size/colors/position, logo placement/size, the logo image, music track, and audio levels. New projects reuse the assets and reset narration in/out points. Upload assets you are authorized to use.
 
+### Verdict Autopilot: panels + voice → video
+
+1. Click **Verdict Autopilot** on the production desk. Drop panels and one narration recording into the new-project window. Choose Basic or your saved Vision AI connection, Fast or Slow pacing, and preview or automatic final delivery. Check the file roles and create the project.
+2. Verdict analyzes voice timing, arranges shots, applies punchy camera moves and clean transitions, places local sound effects, normalizes narration, adds timed captions when speech is recognized, and renders a vertical preview. Keep Studio running; the browser can be closed. **Fast / Slow** controls pacing independently of the recording length; Autopilot keeps the full selected recording, up to 180 seconds.
+3. Watch the result in the Autopilot card. Check **I checked the preview…**, then **Approve & export 1080p**. Choose **Finish for me · automatic 1080p MP4** before starting to delegate approval and get the final file automatically. Nothing is posted to social media.
+
+For an existing project, switch on Autopilot above the five editing steps, then use **Let Verdict handle it**. Successful file batches uploaded through **Add files** trigger it automatically when both panels and narration are present. A partial/failed batch does not start a run. Manual library imports and watched-folder imports still need **Let Verdict handle it** after loading their changes. The editor, scene locks, captions, and manual adjustments remain available. Your local unsaved draft is never silently replaced. Changes during planning stop that plan from being applied; rerun on the new saved revision. Each applied run has Undo and a reusable **Before Verdict Autopilot** version. One planner runs at a time, with a bounded queue of five jobs; video rendering retains its separate bounded queue.
+
+**Basic (default)** runs locally without API keys. It uses narration timing, your panel order, metadata tags, and keyword beat rules. It cannot understand artwork or guarantee a panel matches the spoken fight. English recognition can mishear comic names; upload an SRT for exact wording. If no speech can be recognized, Verdict produces the video without captions and explains why. An existing script is preserved; an empty script is filled only from recognized words.
+
+**Vision AI (optional)** sends resized panel images and narration text to an OpenAI-compatible image-capable model to choose panel matches, hit/reveal/reaction/read beats, and crop targets. Open **Optional: connect Verdict’s vision AI**, enter the API base URL, model, and optional key, save, and choose **Vision AI**. Local servers such as Ollama can use `http://localhost:11434/v1` with no key; remote providers require HTTPS and may charge for usage. A separate optional **Speech model** sends narration audio to `/audio/transcriptions` and must support `verbose_json` segment timestamps. Blank uses offline English recognition; supplied SRT captions bypass speech recognition. Selecting Basic never calls these providers. Vision supports at most 30 project panels per run, validates all chosen panel IDs and coordinates, and fails visibly on unusable responses instead of quietly switching modes. No new dialogue or narration is generated.
+
+Connection secrets are saved atomically in `.data/.verdict-provider.json`, outside media routes; API responses and job snapshots never return the key. POSIX files use private permissions; Windows inherits the data folder’s ACL. Remove the saved connection/key using its GUI button. Keep the data folder private and preserve it when updating. The existing optional script-writer environment settings are separate from this vision connection.
+
+Autopilot jobs survive browser navigation. Restarting Studio stops an unfinished planning job with a retry message; an interrupted render follows the renderer’s existing recovery rules. Cancel is available during planning; a queued render continues through the existing export workflow. A failed provider request leaves the saved edit unchanged. AI suggestions still need judgment for continuity, names, dialogue readability, and framing. Unit/integration tests mock remote vision/speech providers, including invalid panel IDs and authentication failure; **live provider compatibility and output quality have not been verified with paid credentials**. Automated tests render real preview/final MP4 files from original generated images and silence, including Windows validation in GitHub Actions.
+
 ### Camera and transition controls
 
 - **21 camera options:** hold, push in, pull back, four directional pans, four diagonal drifts, four moving pushes, two moving pulls, quick punch in/out, a gentle breathing zoom, and a decaying impact shake.
@@ -123,6 +139,8 @@ backend/app/
   workspace.py            Atomic autosave, revision conflicts, durable undo/redo
   automation.py           Explainable matching, beats, shorts, section slicing, original effects
   production.py           Guided workflow, versions, file recovery, audio cleanup, export queue
+  director.py             Durable opt-in Verdict upload-to-video jobs and approval
+  verdict_provider.py     Optional vision/speech APIs and private GUI connection
   inbox.py                Opt-in local project folder importer
   effects.py              Camera paths, easing, and frame-aligned transition limits
   storage.py              Storage protocol + confined local filesystem adapter

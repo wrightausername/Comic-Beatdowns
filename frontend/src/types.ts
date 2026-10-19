@@ -129,6 +129,7 @@ export interface Project {
   scenes?: Scene[];
   workflow?: Workflow;
   watch_enabled?: boolean;
+  autopilot?: AutopilotOptions;
 }
 export interface RenderJob {
   id: string;
@@ -156,4 +157,38 @@ export interface Integrations {
   publishing_enabled: boolean;
   comic_sources: unknown[];
   storage: string;
+}
+
+export interface AutopilotOptions {
+  enabled: boolean;
+  mode: "basic" | "vision";
+  pace: "fast" | "slow";
+  delivery: "draft" | "final";
+  voice_approved?: boolean;
+}
+export interface DirectorJob {
+  id: string;
+  project_id: string;
+  status:
+    "queued" | "working" | "rendering" | "completed" | "failed" | "cancelled";
+  stage: string;
+  message: string;
+  progress: number;
+  base_revision: number;
+  output_revision: number | null;
+  report: {
+    mode?: string;
+    summary?: string;
+    warnings?: string[];
+    scene_count?: number;
+    caption_count?: number;
+  };
+  render: RenderJob | null;
+}
+export interface VisionConnection {
+  configured: boolean;
+  base_url: string;
+  model: string;
+  transcription_model: string;
+  has_key: boolean;
 }

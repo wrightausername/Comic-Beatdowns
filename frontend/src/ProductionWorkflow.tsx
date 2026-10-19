@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { api, audioUpload, json } from "./api";
+import { handToVerdict, orderForProduction } from "./VerdictAutopilot";
 import type { StudioDraft } from "./useStudioDraft";
 import type {
   CaptionCue,
@@ -250,8 +251,13 @@ export default function ProductionWorkflow(props: Props) {
   async function importFiles() {
     await perform(async () => {
       let latest: Project | null = null;
-      for (let i = 0; i < files.length; i++) {
-        if (files[i].status === "Imported") continue;
+      let failed = false;
+      const pending = orderForProduction(
+        files
+          .map((item, index) => ({ ...item, index }))
+          .filter((item) => item.status !== "Imported"),
+      );
+      for (const { index: i } of pending) {
         setFiles((old) =>
           old.map((v, j) => (i === j ? { ...v, status: "Importing…" } : v)),
         );
@@ -269,6 +275,7 @@ export default function ProductionWorkflow(props: Props) {
             old.map((v, j) => (i === j ? { ...v, status: "Imported" } : v)),
           );
         } catch (error) {
+          failed = true;
           setFiles((old) =>
             old.map((v, j) =>
               i === j ? { ...v, status: errorMessage(error) } : v,
@@ -277,6 +284,7 @@ export default function ProductionWorkflow(props: Props) {
         }
       }
       if (latest) {
+        if (!failed) await handToVerdict(latest);
         onChanged();
         setMessage(
           "Files sorted. Choose panels below, or continue to Match narration.",
@@ -1586,7 +1594,7 @@ export default function ProductionWorkflow(props: Props) {
 }
 export function guessKind(filename: string) {
   if (/\.srt$/i.test(filename)) return "captions";
-  if (/\.(wav|mp3|m4a|ogg|flac|aac)$/i.test(filename))
+  if (/\.(wav|mp3|m4a|ogg|flac|aac|webm)$/i.test(filename))
     return /^(music|bgm)/i.test(filename)
       ? "music"
       : /^(sfx|effect|impact|whoosh)/i.test(filename)

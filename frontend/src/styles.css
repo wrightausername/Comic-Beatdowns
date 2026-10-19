@@ -3619,3 +3619,74 @@ progress::-webkit-progress-value {
     width: 32px;
   }
 }
+
+.autopilot-card {
+  margin: 1rem 0;
+  padding: 1.35rem;
+  border: 1px solid var(--cyan, #00e5f5);
+  border-radius: 14px;
+  background: linear-gradient(125deg, #0a2833, #10171e 65%);
+}
+.autopilot-heading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.autopilot-heading > svg {
+  color: #00e5f5;
+  flex-shrink: 0;
+}
+.autopilot-heading h2 {
+  margin: 0.3rem 0;
+}
+.autopilot-heading p {
+  margin: 0.3rem 0;
+}
+.autopilot-toggle {
+  margin-left: auto;
+}
+.autopilot-toggle,
+.autopilot-review {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.autopilot-toggle input,
+.autopilot-review input {
+  width: auto;
+  accent-color: #00e5f5;
+}
+.autopilot-options {
+  margin-top: 1.2rem;
+}
+.autopilot-progress {
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 10px;
+  background: #0a111a;
+}
+.autopilot-progress progress {
+  width: 100%;
+  accent-color: #00e5f5;
+  margin-top: 0.8rem;
+}
+.autopilot-video {
+  display: block;
+  width: min(100%, 270px);
+  max-height: 480px;
+  margin: 1rem auto;
+  background: #000;
+}
+.autopilot-review {
+  margin: 1rem 0;
+}
+.autopilot-connection {
+  margin-top: 1rem;
+  border-top: 1px solid #28404d;
+  padding-top: 0.8rem;
+}
+.autopilot-connection summary {
+  cursor: pointer;
+  color: #a9dbe3;
+}

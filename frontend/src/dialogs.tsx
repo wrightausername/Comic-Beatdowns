@@ -4,8 +4,14 @@ import { Check, FileImage, Plus, Scissors, Upload, X } from "lucide-react";
 import { api, json } from "./api";
 import { Modal } from "./components";
 import BrandOptions from "./BrandOptions";
+import {
+  defaultAutopilot,
+  handToVerdict,
+  orderForProduction,
+} from "./VerdictAutopilot";
 import { guessKind } from "./ProductionWorkflow";
 import type {
+  AutopilotOptions,
   Easing,
   Motion,
   Panel,
@@ -105,16 +111,21 @@ function MetadataFields({
 export function NewProject({
   templates,
   initialTemplateId,
+  initialAutopilot = false,
   onClose,
   onCreated,
   onError,
 }: {
   templates: Template[];
   initialTemplateId?: string;
+  initialAutopilot?: boolean;
   onClose: () => void;
   onCreated: (project: Project) => void;
   onError: ErrorHandler;
 }) {
+  const [autopilot, setAutopilot] = useState(initialAutopilot);
+  const [directorOptions, setDirectorOptions] =
+    useState<AutopilotOptions>(defaultAutopilot);
   const [title, setTitle] = useState("");
   const [idea, setIdea] = useState("");
   const [template, setTemplate] = useState(
@@ -134,11 +145,25 @@ export function NewProject({
     e.preventDefault();
     setBusy(true);
     try {
+      const orderedFiles = orderForProduction(files);
       let created = await api<Project>(
         "/projects",
         json({ title, idea, template_id: template || null }),
       );
-      for (const item of files) {
+      if (autopilot)
+        created = await api<Project>(
+          `/projects/${created.id}/autopilot`,
+          json(
+            {
+              ...directorOptions,
+              enabled: true,
+              base_revision: created.revision,
+            },
+            "PUT",
+          ),
+        );
+      let failed = false;
+      for (const item of orderedFiles) {
         try {
           const body = new FormData();
           body.append("file", item.file);
@@ -149,9 +174,17 @@ export function NewProject({
           );
           created = result.project;
         } catch (error) {
+          failed = true;
           onError(
             `${item.file.name}: ${errorMessage(error)}. Add it again in step 1.`,
           );
+        }
+      }
+      if (!failed) {
+        try {
+          await handToVerdict(created);
+        } catch (error) {
+          onError(errorMessage(error));
         }
       }
       onCreated(created);
@@ -168,6 +201,86 @@ export function NewProject({
       onClose={onClose}
     >
       <form onSubmit={submit}>
+        <label className="autopilot-review">
+          <input
+            type="checkbox"
+            checked={autopilot}
+            onChange={(e) => setAutopilot(e.target.checked)}
+          />
+          Let Verdict handle the edit after upload
+        </label>
+        <p className="muted">
+          Autopilot builds and renders a preview from your panels and voice. No
+          API key needed. Connect vision AI inside the project for artwork
+          understanding.
+        </p>
+        {autopilot && (
+          <div className="form-grid">
+            <label>
+              Verdict mode
+              <select
+                value={directorOptions.mode}
+                onChange={(e) =>
+                  setDirectorOptions({
+                    ...directorOptions,
+                    mode: e.target.value as AutopilotOptions["mode"],
+                  })
+                }
+              >
+                <option value="basic">Basic · local, no API key</option>
+                <option value="vision">
+                  Vision AI · saved connection required
+                </option>
+              </select>
+            </label>
+            <label>
+              Editing pace
+              <select
+                value={directorOptions.pace}
+                onChange={(e) =>
+                  setDirectorOptions({
+                    ...directorOptions,
+                    pace: e.target.value as AutopilotOptions["pace"],
+                  })
+                }
+              >
+                <option value="fast">Fast · punchy Shorts camera</option>
+                <option value="slow">Slow · longer readable shots</option>
+              </select>
+            </label>
+            <label>
+              Verdict delivery
+              <select
+                value={directorOptions.delivery}
+                onChange={(e) =>
+                  setDirectorOptions({
+                    ...directorOptions,
+                    delivery: e.target.value as AutopilotOptions["delivery"],
+                  })
+                }
+              >
+                <option value="draft">Preview first · I approve</option>
+                <option value="final">
+                  Finish for me · automatic 1080p MP4
+                </option>
+              </select>
+            </label>
+            {directorOptions.delivery === "final" && (
+              <p className="notice">
+                You authorize Verdict to approve and render the final edit
+                automatically.
+              </p>
+            )}
+            {directorOptions.mode === "vision" && (
+              <p className="muted">
+                Uses your saved AI connection and sends resized panels and
+                narration text to that provider. Speech audio is sent only if a
+                Speech model is saved. Provider charges may apply. Connect the
+                model inside an existing project first.
+              </p>
+            )}
+          </div>
+        )}
         <div
           className="project-dropzone"
           onDragOver={(e) => e.preventDefault()}

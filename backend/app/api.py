@@ -125,6 +125,7 @@ def project_dict(project, db, detail=False):
         "caption_cues": project.caption_cues,
         "workflow": project.workflow,
         "watch_enabled": project.watch_enabled,
+        "autopilot": project.autopilot,
         "can_undo": bool((project.edit_history or {}).get("past")),
         "can_redo": bool((project.edit_history or {}).get("future")),
         "revision": project.revision,
@@ -162,6 +163,7 @@ def touch(project, *, invalidate_approval=False):
     project.updated_at = now()
     if invalidate_approval:
         project.script_approved = False
+        project.autopilot = {**(project.autopilot or {}), "voice_approved": False}
     project.status = "ready" if project.script_approved else "scripting"
 
 
@@ -377,7 +379,11 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(s
     touch(project, invalidate_approval=changed_script or "settings" in values)
     for key, value in values.items():
         setattr(project, key, value)
-    if project.script_approved and not project.script.strip():
+    if (
+        project.script_approved
+        and not project.script.strip()
+        and not (project.autopilot or {}).get("voice_approved")
+    ):
         raise HTTPException(422, "Write a script before approving it")
     project.status = "ready" if project.script_approved else "scripting"
     db.commit()
@@ -488,9 +494,15 @@ def start_render(
 def queue_render(
     project_id: str, request: Request, db: Session, quality="final", start=None, end=None
 ):
+    return queue_render_for_state(project_id, request.app.state, db, quality, start, end)
+
+
+def queue_render_for_state(
+    project_id, state, db, quality="final", start=None, end=None, director_job=None
+):
     project = get_or_404(db, Project, project_id)
     scenes = scenes_for(db, project_id)
-    if not tools_available(request.app.state.settings):
+    if not tools_available(state.settings):
         raise HTTPException(503, "Install FFmpeg and FFprobe before rendering")
     if (
         not scenes
@@ -543,7 +555,7 @@ def queue_render(
     }
     from .automation import missing_assets, section_snapshot
 
-    missing = missing_assets(snapshot, request.app.state.storage)
+    missing = missing_assets(snapshot, state.storage)
     if missing:
         raise HTTPException(
             422, "Source files are missing. Open Add files → Recover missing files."
@@ -557,8 +569,19 @@ def queue_render(
     if quality == "final":
         project.status = "rendering"
     db.add(job)
+    if director_job is not None:
+        db.flush()
+        director_job.render_id = job.id
+        director_job.status, director_job.stage, director_job.progress = (
+            "rendering",
+            "rendering",
+            65,
+        )
+        director_job.message = (
+            "Rendering your vertical MP4. You can leave this page; keep Studio running."
+        )
     db.commit()
-    request.app.state.renderer.enqueue(job.id)
+    state.renderer.enqueue(job.id)
     return job_dict(job)
 
 

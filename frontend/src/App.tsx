@@ -131,6 +131,7 @@ export default function App() {
   const [preferredTemplate, setPreferredTemplate] = useState<
     string | undefined
   >(undefined);
+  const [autopilotStart, setAutopilotStart] = useState(false);
   const [dialog, setDialog] = useState<"new" | "import" | "help" | null>(null);
   const [selectedPanel, setSelectedPanel] = useState<Panel | null>(null);
   const [error, setError] = useState(""),
@@ -411,10 +412,28 @@ export default function App() {
                   </p>
                 </div>
                 {page === "production" ? (
-                  <button className="button" onClick={() => setDialog("new")}>
-                    <Plus size={17} />
-                    New project
-                  </button>
+                  <div className="toolbar">
+                    <button
+                      className="button"
+                      onClick={() => {
+                        setAutopilotStart(true);
+                        setDialog("new");
+                      }}
+                    >
+                      <Sparkles size={17} />
+                      Verdict Autopilot
+                    </button>
+                    <button
+                      className="button secondary"
+                      onClick={() => {
+                        setAutopilotStart(false);
+                        setDialog("new");
+                      }}
+                    >
+                      <Plus size={17} />
+                      New project
+                    </button>
+                  </div>
                 ) : page === "library" ? (
                   <button
                     className="button"
@@ -988,14 +1007,17 @@ export default function App() {
         <NewProject
           templates={templates}
           initialTemplateId={preferredTemplate}
+          initialAutopilot={autopilotStart}
           onClose={() => {
             setDialog(null);
             setPreferredTemplate(undefined);
+            setAutopilotStart(false);
           }}
           onError={showError}
           onCreated={(project) => {
             setDialog(null);
             setPreferredTemplate(undefined);
+            setAutopilotStart(false);
             void refresh();
             navigate("production", project.id);
           }}
