@@ -66,6 +66,42 @@ export interface Scene {
   caption: string;
   sfx_url: string | null;
   panel: Panel;
+  locked?: boolean;
+  note?: string;
+  beat?: "custom" | "hit" | "reveal" | "reaction" | "read";
+  sfx_id?: string | null;
+  sfx_offset?: number;
+  framing?: "fill" | "fit";
+  sfx_source_id?: string | null;
+  clear_sfx?: boolean;
+}
+export interface StoryCard {
+  start: number;
+  end: number;
+  text: string;
+  panel_id: string;
+  beat?: Scene["beat"];
+  reason?: string;
+  estimated?: boolean;
+}
+export interface EditNote {
+  id: string;
+  time: number;
+  text: string;
+  done: boolean;
+}
+export interface Workflow {
+  sound_choices?: Record<string, string>;
+  panel_ids?: string[];
+  storyboard?: StoryCard[];
+  notes?: EditNote[];
+}
+export interface SoundEffect {
+  id: string;
+  name: string;
+  kind: string;
+  duration: number;
+  url: string;
 }
 export type Status = "idea" | "scripting" | "ready" | "rendering" | "exported";
 export interface Project {
@@ -91,6 +127,8 @@ export interface Project {
   duration: number;
   cover_url: string | null;
   scenes?: Scene[];
+  workflow?: Workflow;
+  watch_enabled?: boolean;
 }
 export interface RenderJob {
   id: string;
@@ -105,6 +143,7 @@ export interface RenderJob {
   created_at: string;
   finished_at: string | null;
   quality: "final" | "draft";
+  section?: { start: number; end: number } | null;
 }
 export interface Template {
   id: string;

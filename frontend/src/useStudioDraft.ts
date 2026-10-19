@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, json } from "./api";
-import type { CaptionCue, Project, Scene, VideoSettings } from "./types";
+import type {
+  CaptionCue,
+  Project,
+  Scene,
+  VideoSettings,
+  Workflow,
+} from "./types";
 import { errorMessage } from "./utils";
 
 export interface StudioDraft {
@@ -10,6 +16,7 @@ export interface StudioDraft {
   settings: VideoSettings;
   scenes: Scene[];
   cues: CaptionCue[];
+  workflow?: Workflow;
 }
 export const fromProject = (p: Project): StudioDraft => ({
   title: p.title,
@@ -18,6 +25,7 @@ export const fromProject = (p: Project): StudioDraft => ({
   settings: p.settings,
   scenes: p.scenes ?? [],
   cues: p.caption_cues ?? [],
+  workflow: p.workflow ?? {},
 });
 export function draftPayload(draft: StudioDraft) {
   return {
@@ -35,6 +43,14 @@ export function draftPayload(draft: StudioDraft) {
         transition,
         transition_duration,
         caption,
+        locked,
+        note,
+        beat,
+        sfx_id,
+        sfx_offset,
+        framing,
+        sfx_source_id,
+        clear_sfx,
       }) => ({
         id,
         panel_id,
@@ -47,6 +63,14 @@ export function draftPayload(draft: StudioDraft) {
         transition,
         transition_duration,
         caption,
+        locked,
+        note,
+        beat,
+        sfx_id,
+        sfx_offset,
+        framing,
+        sfx_source_id,
+        clear_sfx,
       }),
     ),
   };

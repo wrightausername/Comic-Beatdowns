@@ -28,7 +28,7 @@ jobs:
           type windows-startup.log
           exit /b %CB_LAUNCH_EXIT%
       - name: Validate real vertical rendering on Windows
-        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py backend/tests/test_workflow.py -q --tb=short --junitxml=windows-media-tests.xml
+        run: .venv/Scripts/python.exe -m pytest backend/tests/test_render.py backend/tests/test_effects.py backend/tests/test_workflow.py backend/tests/test_automation.py -q --tb=short --junitxml=windows-media-tests.xml
       - name: Report Windows validation failures
         if: failure()
         shell: python

@@ -98,7 +98,7 @@ export default function CameraControls({
                 onChange({ motion_strength: Number(e.target.value) })
               }
             />
-            <small>6–12% works well for subtle motion.</small>
+            <small>18–26% for punchy shots; 6–12% for smoother holds.</small>
           </label>
           <label>
             Motion easing

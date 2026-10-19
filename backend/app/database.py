@@ -62,6 +62,8 @@ class Project(Base):
     music_key: Mapped[str | None] = mapped_column(String, nullable=True)
     music_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     logo_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    workflow: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    watch_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[str] = mapped_column(String, default=now)
     updated_at: Mapped[str] = mapped_column(String, default=now)
@@ -83,6 +85,40 @@ class Scene(Base):
     transition_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     caption: Mapped[str] = mapped_column(String, default="")
     sfx_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    sfx_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    sfx_offset: Mapped[float] = mapped_column(Float, default=0, server_default="0")
+    locked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    beat: Mapped[str] = mapped_column(String, default="custom", server_default="custom")
+    framing: Mapped[str] = mapped_column(String, default="fill", server_default="fill")
+
+
+class SoundEffect(Base):
+    __tablename__ = "sound_effects"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    name: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String, default="impact")
+    storage_key: Mapped[str] = mapped_column(String)
+    duration: Mapped[float] = mapped_column(Float)
+
+
+class ProjectVersion(Base):
+    __tablename__ = "project_versions"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String)
+    snapshot: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[str] = mapped_column(String, default=now)
+
+
+class InboxFile(Base):
+    __tablename__ = "inbox_files"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    filename: Mapped[str] = mapped_column(String)
+    digest: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    message: Mapped[str] = mapped_column(String)
 
 
 class RenderJob(Base):
@@ -128,6 +164,8 @@ def connect(data_dir):
         for name, definition in {
             "caption_cues": "JSON NOT NULL DEFAULT '[]'",
             "edit_history": "JSON NOT NULL DEFAULT '{}'",
+            "workflow": "JSON NOT NULL DEFAULT '{}'",
+            "watch_enabled": "BOOLEAN NOT NULL DEFAULT 0",
             "music_key": "VARCHAR",
             "music_duration": "FLOAT",
             "logo_key": "VARCHAR",
@@ -156,6 +194,12 @@ def migrate_scene_options(engine):
         "focus_y": "FLOAT NOT NULL DEFAULT 0.5",
         "transition": "VARCHAR",
         "transition_duration": "FLOAT",
+        "sfx_id": "VARCHAR",
+        "sfx_offset": "FLOAT NOT NULL DEFAULT 0",
+        "locked": "BOOLEAN NOT NULL DEFAULT 0",
+        "note": "TEXT NOT NULL DEFAULT ''",
+        "beat": "VARCHAR NOT NULL DEFAULT 'custom'",
+        "framing": "VARCHAR NOT NULL DEFAULT 'fill'",
     }
     with engine.begin() as connection:
         existing = {c["name"] for c in inspect(connection).get_columns("scenes")}

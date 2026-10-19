@@ -5,7 +5,7 @@ import copy
 from fastapi import HTTPException
 from sqlalchemy import select, text
 
-from .database import Panel, Project, Scene, uid
+from .database import Panel, Project, Scene, SoundEffect, uid
 from .renderer import timeline_duration
 
 PROJECT_FIELDS = (
@@ -19,6 +19,7 @@ PROJECT_FIELDS = (
     "music_key",
     "music_duration",
     "logo_key",
+    "workflow",
 )
 SCENE_FIELDS = (
     "id",
@@ -34,6 +35,12 @@ SCENE_FIELDS = (
     "transition_duration",
     "caption",
     "sfx_key",
+    "sfx_id",
+    "sfx_offset",
+    "locked",
+    "note",
+    "beat",
+    "framing",
 )
 
 
@@ -87,6 +94,10 @@ def replace_workspace_scenes(db, project, items, fps):
     for item in items:
         if not db.get(Panel, item.panel_id):
             raise HTTPException(422, "A source panel is missing")
+        if item.sfx_id and not db.get(SoundEffect, item.sfx_id):
+            raise HTTPException(422, "A favorite sound effect is missing")
+        if item.sfx_source_id and item.sfx_source_id not in old:
+            raise HTTPException(422, "Sound source must belong to this project")
         if item.id and item.id not in old:
             existing = db.get(Scene, item.id)
             if (
@@ -98,10 +109,17 @@ def replace_workspace_scenes(db, project, items, fps):
     for scene in old.values():
         if scene.id not in ids:
             db.delete(scene)
+    original_sounds = {key: scene.sfx_key for key, scene in old.items()}
     for position, item in enumerate(items):
         scene = old.get(item.id) or Scene(id=item.id or uid(), project_id=project.id)
-        for key, value in item.model_dump(exclude={"id"}).items():
+        for key, value in item.model_dump(exclude={"id", "sfx_source_id", "clear_sfx"}).items():
             setattr(scene, key, value)
+        if item.clear_sfx:
+            scene.sfx_key, scene.sfx_id = None, None
+        elif item.sfx_id:
+            scene.sfx_key = db.get(SoundEffect, item.sfx_id).storage_key
+        elif item.sfx_source_id:
+            scene.sfx_key = original_sounds[item.sfx_source_id]
         scene.position = position
         db.add(scene)
 

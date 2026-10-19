@@ -23,6 +23,7 @@ Motion = Literal[
     "punch_in",
     "punch_out",
     "breathe",
+    "impact_shake",
 ]
 Easing = Literal["linear", "smooth", "ease_in", "ease_out"]
 Transition = Literal[
@@ -79,6 +80,10 @@ def camera_expressions(scene, frames):
         zoom = f"(1+{strength}*sin(PI*{progress}))"
     elif motion.startswith(("pan_", "drift_")):
         zoom = str(1 + strength)
+    if motion == "impact_shake":
+        zoom = str(1 + strength)
+        x = f"max(0,min(1,{fx}+0.35*sin(80*PI*{t})*exp(-15*{t})))"
+        y = f"max(0,min(1,{fy}+0.22*sin(70*PI*{t})*exp(-15*{t})))"
     if motion.endswith("left"):
         x = f"({min(1, fx + 0.5)}+({max(0, fx - 0.5)}-{min(1, fx + 0.5)})*{progress})"
     elif motion.endswith("right"):

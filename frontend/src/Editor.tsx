@@ -23,6 +23,13 @@ import { PanelPicker, VideoOptions } from "./dialogs";
 import { MotionOptions } from "./EffectOptions";
 import CameraControls from "./CameraControls";
 import Preview from "./Preview";
+import ProductionWorkflow, {
+  WorkflowSteps,
+  type Stage,
+  stages,
+} from "./ProductionWorkflow";
+import SceneQuickTools from "./SceneQuickTools";
+import { fitScenes, splitScene } from "./editing";
 import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
@@ -36,6 +43,7 @@ import type {
   RenderJob,
   Scene,
   VideoSettings,
+  SoundEffect,
 } from "./types";
 import {
   errorMessage,
@@ -73,6 +81,59 @@ export default function Editor({
   const [tab, setTab] = useState<"timeline" | "script" | "settings">(
     "timeline",
   );
+  const [stage, setStageValue] = useState<Stage>(() => {
+    try {
+      const saved = localStorage.getItem(`comic-beatdowns:step:${projectId}`);
+      return stages.some(([id]) => id === saved) ? (saved as Stage) : "files";
+    } catch {
+      return "files";
+    }
+  });
+  const setStage = (value: Stage) => {
+    setStageValue(value);
+    setTab("timeline");
+    try {
+      localStorage.setItem(`comic-beatdowns:step:${projectId}`, value);
+    } catch {
+      /* Navigation still works. */
+    }
+  };
+  useEffect(() => {
+    if (!project) return;
+    try {
+      if (!localStorage.getItem(`comic-beatdowns:step:${projectId}`))
+        setStageValue(project.scene_count ? "edit" : "files");
+    } catch {
+      setStageValue(project.scene_count ? "edit" : "files");
+    }
+  }, [project?.id]);
+  const [noteMoment, setNoteMoment] = useState<{
+    time: number;
+    nonce: number;
+  } | null>(null);
+  const [previewOverride, setPreviewOverride] = useState<Project | null>(null);
+  const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
+  const [effects, setEffects] = useState<SoundEffect[]>([]);
+  useEffect(() => {
+    const load = () => {
+      void api<SoundEffect[]>("/sound-effects")
+        .then(setEffects)
+        .catch((e) => onError(errorMessage(e)));
+    };
+    load();
+    window.addEventListener("studio:sounds-changed", load);
+    return () => window.removeEventListener("studio:sounds-changed", load);
+  }, [onError]);
+  const [autoOptionsOpen, setAutoOptionsOpen] = useState(() => {
+    try {
+      return (
+        localStorage.getItem(`comic-beatdowns:auto-options:${projectId}`) ===
+        "open"
+      );
+    } catch {
+      return false;
+    }
+  });
   const [picker, setPicker] = useState(false),
     [notice, setNotice] = useState("");
   const [templateName, setTemplateName] = useState("");
@@ -86,9 +147,9 @@ export default function Editor({
   const dragged = useRef<number | null>(null),
     finished = useRef("");
   useEffect(() => {
-    onDirty(dirty);
+    onDirty(dirty || busy);
     return () => onDirty(false);
-  }, [dirty, onDirty]);
+  }, [dirty, busy, onDirty]);
   useEffect(() => {
     let alive = true,
       fetching = false;
@@ -201,6 +262,7 @@ export default function Editor({
     ...project,
     ...draft,
     caption_cues: cues,
+    workflow: draft.workflow,
     status: activeJob
       ? "rendering"
       : project.script_approved
@@ -219,11 +281,15 @@ export default function Editor({
     });
   const reorder = (from: number, to: number) =>
     update({ scenes: moveItem(scenes, from, to) });
-  async function render(quality: "draft" | "final") {
+  async function render(
+    quality: "draft" | "final",
+    start?: number,
+    end?: number,
+  ) {
     await perform(async () => {
       const job = await api<RenderJob>(
         `/projects/${projectId}/renders`,
-        json({ quality }),
+        json({ quality, start, end }),
       );
       setJobs((previous) => [job, ...previous]);
       onChanged();
@@ -257,27 +323,14 @@ export default function Editor({
     });
   }
   function fitNarration() {
-    const count = scenes.length,
-      fps = settings.fps,
-      target = Math.ceil(narrationLength * fps - 1e-6),
-      minimum = Math.ceil(0.25 * fps);
-    if (!count || target < count * minimum || target > count * 30 * fps) {
-      onError(
-        "Add or remove scenes so each can fit between 0.25 and 30 seconds.",
+    try {
+      update({ scenes: fitScenes(scenes, narrationLength, settings.fps) });
+      setNotice(
+        "Timeline fitted to the selected narration. Locked scenes kept their duration.",
       );
-      return;
+    } catch (error) {
+      onError(errorMessage(error));
     }
-    const base = Math.floor(target / count),
-      extra = target % count;
-    update({
-      scenes: scenes.map((scene, i) => ({
-        ...scene,
-        duration: (base + (i < extra ? 1 : 0)) / fps,
-      })),
-    });
-    setNotice(
-      "Timeline fitted to the selected narration. Drag waveform cuts to refine the timing.",
-    );
   }
   const uploadAsset = (kind: "narration" | "music" | "logo", file: File) =>
     void perform(async () => {
@@ -454,8 +507,55 @@ export default function Editor({
           {notice}
         </div>
       )}
+      <WorkflowSteps
+        stage={stage}
+        setStage={setStage}
+        completed={
+          new Set<Stage>([
+            ...(scenes.length > 0 && project.narration_url
+              ? ["files" as const]
+              : []),
+            ...(draft.workflow?.storyboard?.length ? ["match" as const] : []),
+            ...(canDraft ? ["edit" as const] : []),
+            ...(project.script_approved && !dirty ? ["review" as const] : []),
+            ...(exported ? ["export" as const] : []),
+          ])
+        }
+      />
       <div className="editor-layout">
         <div className="editor-workspace">
+          <ProductionWorkflow
+            noteMoment={noteMoment}
+            stage={stage}
+            setStage={setStage}
+            draft={draft}
+            project={view}
+            panels={panels}
+            jobs={jobs}
+            effects={effects}
+            update={update}
+            accept={accept}
+            perform={perform}
+            onChanged={onChanged}
+            onPreview={setPreviewOverride}
+            onSeek={(seconds) => {
+              setPreviewOverride(null);
+              setPreviewRequest({ seconds, nonce: Date.now() });
+            }}
+            onRender={(quality, start, end) => void render(quality, start, end)}
+            onPick={() => {
+              setReplaceIndex(null);
+              setPicker(true);
+            }}
+            onScript={() => {
+              setStage("edit");
+              setTab("script");
+            }}
+            onSettings={() => {
+              setStage("edit");
+              setTab("settings");
+            }}
+          />
           <div className="tabs">
             {(
               [
@@ -467,21 +567,42 @@ export default function Editor({
               <button
                 key={value}
                 className={tab === value ? "active" : ""}
-                onClick={() => setTab(value)}
+                onClick={() => {
+                  setStage("edit");
+                  setTab(value);
+                }}
               >
                 <Icon size={15} />
                 {label}
               </button>
             ))}
           </div>
-          {tab === "timeline" && (
+          {stage === "edit" && tab === "timeline" && (
             <>
-              <AutoEditControls
-                pace={settings.edit_pace}
-                ready={Boolean(scenes.length && project.narration_url)}
-                busy={busy}
-                onRun={(options) => void runAutoEdit(options)}
-              />
+              <details
+                className="surface workflow-advanced"
+                open={autoOptionsOpen}
+                onToggle={(e) => {
+                  const value = e.currentTarget.open;
+                  setAutoOptionsOpen(value);
+                  try {
+                    localStorage.setItem(
+                      `comic-beatdowns:auto-options:${projectId}`,
+                      value ? "open" : "closed",
+                    );
+                  } catch {
+                    /* Settings remain available. */
+                  }
+                }}
+              >
+                <summary>Auto Edit · pacing and excerpt options</summary>
+                <AutoEditControls
+                  pace={settings.edit_pace}
+                  ready={Boolean(scenes.length && project.narration_url)}
+                  busy={busy}
+                  onRun={(options) => void runAutoEdit(options)}
+                />
+              </details>
               <section className="surface timeline-section">
                 <div className="section-heading">
                   <div>
@@ -527,6 +648,7 @@ export default function Editor({
                       scenes={scenes}
                       fps={settings.fps}
                       start={settings.narration_start}
+                      cues={cues}
                       onChange={(values) => update({ scenes: values })}
                       onSeek={(seconds) =>
                         setPreviewRequest({ seconds, nonce: Date.now() })
@@ -545,7 +667,7 @@ export default function Editor({
                       onApply={(patch) =>
                         update({
                           scenes: scenes.map((scene) =>
-                            selected.has(scene.id!)
+                            selected.has(scene.id!) && !scene.locked
                               ? { ...scene, ...patch }
                               : scene,
                           ),
@@ -554,7 +676,7 @@ export default function Editor({
                       onDelete={() => {
                         update({
                           scenes: scenes.filter(
-                            (scene) => !selected.has(scene.id!),
+                            (scene) => scene.locked || !selected.has(scene.id!),
                           ),
                         });
                         setSelected(new Set());
@@ -614,7 +736,7 @@ export default function Editor({
                             <button
                               className="icon-button"
                               aria-label={`Move scene ${index + 1} up`}
-                              disabled={index === 0}
+                              disabled={scene.locked || index === 0}
                               onClick={() => reorder(index, index - 1)}
                             >
                               <ArrowUp size={14} />
@@ -622,7 +744,9 @@ export default function Editor({
                             <button
                               className="icon-button"
                               aria-label={`Move scene ${index + 1} down`}
-                              disabled={index === scenes.length - 1}
+                              disabled={
+                                scene.locked || index === scenes.length - 1
+                              }
                               onClick={() => reorder(index, index + 1)}
                             >
                               <ArrowDown size={14} />
@@ -630,6 +754,7 @@ export default function Editor({
                             <button
                               className="icon-button danger"
                               aria-label={`Remove scene ${index + 1}`}
+                              disabled={scene.locked}
                               onClick={() =>
                                 update({
                                   scenes: scenes.filter((_, i) => i !== index),
@@ -655,6 +780,7 @@ export default function Editor({
                                     min="0.25"
                                     max="30"
                                     step="0.01"
+                                    disabled={scene.locked}
                                     value={scene.duration}
                                     onChange={(event) =>
                                       editScene(index, {
@@ -667,6 +793,7 @@ export default function Editor({
                                   Camera motion
                                   <select
                                     aria-label={`Scene ${index + 1} motion`}
+                                    disabled={scene.locked}
                                     value={scene.motion}
                                     onChange={(event) =>
                                       editScene(index, {
@@ -694,11 +821,60 @@ export default function Editor({
                               </label>
                             </div>
                           </div>
+                          <SceneQuickTools
+                            scene={scene}
+                            index={index}
+                            effects={effects}
+                            onChange={(patch) => editScene(index, patch)}
+                            onSplit={() =>
+                              update({
+                                scenes: splitScene(scenes, index, settings.fps),
+                              })
+                            }
+                            onDuplicate={() =>
+                              update({
+                                scenes: [
+                                  ...scenes.slice(0, index + 1),
+                                  {
+                                    ...scene,
+                                    id: newId(),
+                                    locked: false,
+                                    sfx_source_id:
+                                      scene.sfx_source_id ?? scene.id,
+                                  },
+                                  ...scenes.slice(index + 1),
+                                ],
+                              })
+                            }
+                            onReplace={() => {
+                              setReplaceIndex(index);
+                              setPicker(true);
+                            }}
+                            onPreview={() => {
+                              setPreviewOverride(null);
+                              setPreviewRequest({ index, nonce: Date.now() });
+                            }}
+                            onRender={() => {
+                              const start = timelineSeconds(
+                                scenes.slice(0, index),
+                                settings.fps,
+                              );
+                              void render(
+                                "draft",
+                                start,
+                                start +
+                                  Math.round(scene.duration * settings.fps) /
+                                    settings.fps,
+                              );
+                            }}
+                          />
                           <CameraControls
                             scene={scene}
                             index={index}
                             settings={settings}
-                            onChange={(patch) => editScene(index, patch)}
+                            onChange={(patch) => {
+                              if (!scene.locked) editScene(index, patch);
+                            }}
                             onPreview={() =>
                               setPreviewRequest({ index, nonce: Date.now() })
                             }
@@ -928,8 +1104,8 @@ export default function Editor({
               />
             </>
           )}
-          {tab === "script" && (
-            <section className="surface script-section">
+          {stage === "edit" && tab === "script" && (
+            <section className="surface script-section" id="script-editor">
               <div className="section-heading">
                 <div>
                   <h3>Give Verdict a voice.</h3>
@@ -1040,7 +1216,7 @@ export default function Editor({
               </div>
             </section>
           )}
-          {tab === "settings" && (
+          {stage === "edit" && tab === "settings" && (
             <section className="surface settings-section">
               <h3>Project settings & brand kit</h3>
               <label>
@@ -1167,6 +1343,19 @@ export default function Editor({
               </button>
             </section>
           )}
+          {stage === "edit" && (
+            <div className="workflow-next">
+              <button
+                className="button secondary"
+                onClick={() => setStage("match")}
+              >
+                Back: Match narration
+              </button>
+              <button className="button" onClick={() => setStage("review")}>
+                Next: Review →
+              </button>
+            </div>
+          )}
           {jobs.length > 0 && (
             <section className="surface render-history">
               <div className="section-heading">
@@ -1185,6 +1374,22 @@ export default function Editor({
                     </strong>
                     <small>{new Date(job.created_at).toLocaleString()}</small>
                     {job.error && <p className="inline-error">{job.error}</p>}
+                    {job.section && (
+                      <small>
+                        Section {job.section.start.toFixed(2)}–
+                        {job.section.end.toFixed(2)} seconds
+                      </small>
+                    )}
+                    {job.video_url &&
+                      (stage === "review" || stage === "export") && (
+                        <video
+                          className="review-video"
+                          src={job.video_url}
+                          controls
+                          loop
+                          preload="metadata"
+                        />
+                      )}
                     {["queued", "running"].includes(job.status) && (
                       <progress
                         value={job.progress}
@@ -1209,7 +1414,54 @@ export default function Editor({
           )}
         </div>
         <aside className="editor-preview">
-          <Preview scenes={scenes} project={view} request={previewRequest} />
+          {previewOverride && (
+            <div className="notice">
+              Previewing proposed / saved edit
+              <button
+                className="text-button"
+                onClick={() => setPreviewOverride(null)}
+              >
+                Return to current edit
+              </button>
+            </div>
+          )}
+          <Preview
+            scenes={previewOverride?.scenes ?? scenes}
+            project={previewOverride ?? view}
+            key={previewOverride ? "proposed" : "current"}
+            request={previewRequest}
+            rememberPosition={!previewOverride}
+            onMoment={(time) => {
+              setStage("review");
+              setNoteMoment({ time, nonce: Date.now() });
+            }}
+            onFocus={(id, patch) => {
+              const index = scenes.findIndex((s) => s.id === id);
+              if (index >= 0 && !scenes[index].locked && !previewOverride)
+                editScene(index, patch);
+            }}
+          />
+          <div className="workflow-actions">
+            <button className="text-button" onClick={() => setStage("files")}>
+              Add / recover files
+            </button>
+            <button
+              className="text-button"
+              onClick={fitNarration}
+              disabled={!scenes.length || !project.narration_url}
+            >
+              Fix timing
+            </button>
+            <button
+              className="text-button"
+              onClick={() => {
+                setStage("edit");
+                setTab("script");
+              }}
+            >
+              Review script
+            </button>
+          </div>
           <section className="surface preflight">
             <span className="eyebrow">EXPORT CHECKLIST</span>
             <Checklist
@@ -1226,9 +1478,30 @@ export default function Editor({
       {picker && (
         <PanelPicker
           panels={panels}
-          onClose={() => setPicker(false)}
+          onClose={() => {
+            setPicker(false);
+            setReplaceIndex(null);
+          }}
           onAdd={(chosen) => {
+            if (replaceIndex !== null && chosen.length) {
+              editScene(replaceIndex, {
+                panel: chosen[0],
+                panel_id: chosen[0].id,
+              });
+              setReplaceIndex(null);
+              setPicker(false);
+              return;
+            }
             update({
+              workflow: {
+                ...draft.workflow,
+                panel_ids: [
+                  ...new Set([
+                    ...(draft.workflow?.panel_ids ?? []),
+                    ...chosen.map((p) => p.id),
+                  ]),
+                ],
+              },
               scenes: [
                 ...scenes,
                 ...chosen.map((panel, i) => ({

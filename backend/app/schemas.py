@@ -84,6 +84,14 @@ class SceneInput(StrictModel):
     transition: Transition | None = None
     transition_duration: float | None = Field(default=None, ge=0.08, le=0.8)
     caption: str = Field(default="", max_length=300)
+    locked: bool = False
+    note: str = Field(default="", max_length=2000)
+    beat: Literal["custom", "hit", "reveal", "reaction", "read"] = "custom"
+    sfx_id: str | None = None
+    sfx_offset: float = Field(default=0, ge=0, le=30)
+    framing: Literal["fill", "fit"] = "fill"
+    sfx_source_id: str | None = None
+    clear_sfx: bool = False
 
 
 class SceneList(StrictModel):
@@ -123,6 +131,7 @@ class WorkspaceInput(CaptionList):
     script: str = Field(default="", max_length=20000)
     settings: VideoSettings
     scenes: list[SceneInput] = Field(max_length=240)
+    workflow: dict = Field(default_factory=dict)
 
 
 class RevisionInput(StrictModel):
@@ -137,6 +146,41 @@ class AutoEditInput(StrictModel):
 
 class RenderInput(StrictModel):
     quality: Literal["final", "draft"] = "final"
+    start: float | None = Field(default=None, ge=0, lt=180)
+    end: float | None = Field(default=None, gt=0, le=180)
+
+    @model_validator(mode="after")
+    def section_range(self):
+        if (self.start is None) != (self.end is None):
+            raise ValueError("Select both ends of a preview section")
+        if self.start is not None and (self.end - self.start < 0.25 or self.quality != "draft"):
+            raise ValueError("Section previews must be drafts of at least 0.25 seconds")
+        return self
+
+
+class BuildDraftInput(StrictModel):
+    pace: Literal["fast", "slow"] = "fast"
+    match_panels: bool = True
+    camera_moves: bool = True
+    sound_effects: bool = True
+    captions: bool = False
+
+
+class AudioPrepareInput(StrictModel):
+    reduce_noise: bool = True
+    shorten_pauses: bool = False
+
+
+class VersionInput(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class BatchRenderInput(StrictModel):
+    project_ids: list[str] = Field(min_length=1, max_length=20)
+
+
+class WatchInput(StrictModel):
+    enabled: bool
 
 
 class TemplateInput(StrictModel):

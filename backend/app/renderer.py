@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import re
 import shutil
 import subprocess
 import tempfile
@@ -99,13 +100,19 @@ def scene_frames(duration: float, fps: int) -> int:
     return max(1, math.floor(duration * fps + 0.5))
 
 
-def prepare_scene_image(source: Path, target: Path, focus_x=0.5, focus_y=0.5, size=(1080, 1920)):
+def prepare_scene_image(
+    source: Path, target: Path, focus_x=0.5, focus_y=0.5, size=(1080, 1920), framing="fill"
+):
     # Fit before FFmpeg scaling so extreme source aspect ratios cannot allocate
     # an enormous intermediate frame. Pillow crops before resizing.
     with Image.open(source) as image:
         frame = ImageOps.fit(
             image, size, method=Image.Resampling.LANCZOS, centering=(focus_x, focus_y)
         )
+        if framing == "fit":
+            frame = Image.new("RGB", size, "#03090f")
+            fitted = ImageOps.contain(image.convert("RGB"), size, method=Image.Resampling.LANCZOS)
+            frame.paste(fitted, ((size[0] - fitted.width) // 2, (size[1] - fitted.height) // 2))
         frame.convert("RGB").save(target, "PNG")
 
 
@@ -115,7 +122,12 @@ def timeline_duration(scenes: list[dict], fps: int) -> float:
 
 def scene_filter(scene, fps, size=(1080, 1920)):
     frames = scene_frames(scene["duration"], fps)
-    zoom, x, y = camera_expressions(scene, frames)
+    zoom, x, y = camera_expressions(scene, scene.get("motion_total_frames", frames))
+    if scene.get("motion_offset_frames"):
+        zoom, x, y = [
+            re.sub(r"\bon\b", f"(on+{scene['motion_offset_frames']})", value)
+            for value in (zoom, x, y)
+        ]
     return (
         "setsar=1,"
         f"zoompan=z='{zoom}':x='{x}':y='{y}':d={frames}:s={size[0]}x{size[1]}:fps={fps},"
@@ -280,17 +292,18 @@ def mix_audio(snapshot, storage, total, command):
     if snapshot.get("music_key"):
         command += ["-stream_loop", "-1", "-i", str(storage.path(snapshot["music_key"]))]
         filters.append(
-            f"[{index}:a]aresample=48000,atrim=duration={total},asetpts=PTS-STARTPTS,volume={settings.get('music_volume', 0.12)}[music]"
+            f"[{index}:a]aresample=48000,atrim=start={snapshot.get('music_offset', 0)}:duration={total},asetpts=PTS-STARTPTS,volume={settings.get('music_volume', 0.12)}[music]"
         )
         beds.append("[music]")
         index += 1
     cursor = 0
     for scene in snapshot["scenes"]:
         length = scene_frames(scene["duration"], settings["fps"]) / settings["fps"]
-        if scene.get("sfx_key"):
+        offset = scene.get("sfx_offset", 0)
+        if scene.get("sfx_key") and offset < length:
             command += ["-i", str(storage.path(scene["sfx_key"]))]
             filters.append(
-                f"[{index}:a]aresample=48000,atrim=duration={length},asetpts=PTS-STARTPTS,volume={settings.get('sfx_volume', 0.35)},adelay={round(cursor * 1000)}:all=1,apad,atrim=duration={total}[sfx{index}]"
+                f"[{index}:a]aresample=48000,atrim=start={scene.get('sfx_trim', 0)}:duration={length - offset},asetpts=PTS-STARTPTS,volume={settings.get('sfx_volume', 0.35)},adelay={round((cursor + offset) * 1000)}:all=1,apad,atrim=duration={total}[sfx{index}]"
             )
             beds.append(f"[sfx{index}]")
             index += 1
@@ -369,6 +382,7 @@ class RenderService:
                         scene.get("focus_x", 0.5),
                         scene.get("focus_y", 0.5),
                         size,
+                        scene.get("framing", "fill"),
                     )
                     render_scene(
                         scene,

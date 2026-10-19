@@ -38,6 +38,7 @@ import {
 } from "./components";
 import { ImportPanels, NewProject, PanelDetail } from "./dialogs";
 import Editor from "./Editor";
+import BatchQueue from "./BatchQueue";
 import type {
   Integrations,
   Panel,
@@ -191,6 +192,13 @@ export default function App() {
     setDirty(false);
     setPage(next);
     setSelectedId(id);
+    if (id) {
+      try {
+        localStorage.setItem("comic-beatdowns:last-project", id);
+      } catch {
+        /* Navigation remains available. */
+      }
+    }
     setQuery("");
   }
   const navItems = [
@@ -470,6 +478,36 @@ export default function App() {
                           <small>READY TO DROP</small>
                         </div>
                       </div>
+                      <div
+                        className="workflow-actions"
+                        style={{ marginBottom: 16 }}
+                      >
+                        <button
+                          className="button secondary"
+                          onClick={() => {
+                            try {
+                              const id = localStorage.getItem(
+                                "comic-beatdowns:last-project",
+                              );
+                              if (projects.some((p) => p.id === id))
+                                navigate("production", id);
+                              else if (projects[0])
+                                navigate("production", projects[0].id);
+                            } catch {
+                              if (projects[0])
+                                navigate("production", projects[0].id);
+                            }
+                          }}
+                          disabled={!projects.length}
+                        >
+                          Resume last project
+                        </button>
+                      </div>
+                      <BatchQueue
+                        projects={projects}
+                        jobs={jobs}
+                        onChanged={refresh}
+                      />
                       <div className="production-layout">
                         <section className="projects-section">
                           <div className="section-heading">
@@ -554,7 +592,13 @@ export default function App() {
                                         {project.scene_count} scenes
                                       </span>
                                       <span>
-                                        Open workspace
+                                        {project.scene_count === 0
+                                          ? "Add files"
+                                          : !project.narration_url
+                                            ? "Add narration"
+                                            : !project.script_approved
+                                              ? "Continue editing"
+                                              : "Review & export"}
                                         <ArrowRight size={14} />
                                       </span>
                                     </div>
@@ -986,42 +1030,45 @@ export default function App() {
         >
           <ol className="guide-list">
             <li>
-              <strong>Collect the evidence.</strong>
+              <strong>Add files.</strong>
               <p>
-                Import your authorized images, PDF, or CBZ. Open any panel to
-                select a crop, resize it, and record series, issue, page,
-                characters, and fight notes.
+                Create a project and drop in your panels, narration, music, and
+                captions. Check the file roles, then import. Crop and tag source
+                pages in the Panel library when needed.
               </p>
             </li>
             <li>
-              <strong>Build your production.</strong>
+              <strong>Match narration.</strong>
               <p>
-                Create a project. Add panels to its timeline, drag them into
-                order, and adjust timing, camera motion, and on-screen captions.
-                Save the timeline.
+                Write the script or import timed captions. Suggest panel
+                matches, check the line cards, and choose which picture belongs
+                with each line.
               </p>
             </li>
             <li>
-              <strong>Write the verdict.</strong>
+              <strong>Build your draft.</strong>
               <p>
-                Use panel-specific jokes and fight commentary. Aim for 65–90
-                seconds. Save your draft, review it, then approve the script.
+                Choose Fast cuts or Smooth holds and click Build My Draft.
+                Preview the suggestions and accept the ones you want. Use Hit,
+                Reveal, Reaction, Read Panel, and Aim camera to refine shots.
+                Lock any finished shot.
               </p>
             </li>
             <li>
-              <strong>Bring it to life.</strong>
+              <strong>Review.</strong>
               <p>
-                Upload narration and optional scene sound effects. Extend the
-                timeline if needed to fit all speech. Save changes and click
-                Render MP4.
+                Render a review copy, check the sound mix and captions, and use
+                Check Loop to hear the ending lead back into the opening. Leave
+                notes, compare named versions, and approve the final script.
               </p>
             </li>
             <li>
-              <strong>Review and export.</strong>
+              <strong>Export.</strong>
               <p>
-                Preview motion in the editor and review the actual video in
-                Exports. Download your vertical MP4. Write a looping final line
-                and play the export on repeat to review it.
+                Export the final vertical MP4, or render just a selected section
+                to check it quickly. Queue several approved projects from the
+                Production desk. Changes save automatically; Undo restores
+                earlier edits.
               </p>
             </li>
           </ol>

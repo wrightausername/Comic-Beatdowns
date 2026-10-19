@@ -1,6 +1,11 @@
 import type { CSSProperties } from "react";
 
 export const CAMERA_MOVES = [
+  {
+    value: "impact_shake",
+    label: "Impact shake · settles quickly",
+    group: "Still & zoom",
+  },
   { value: "hold", label: "Hold frame", group: "Still & zoom" },
   { value: "zoom_in", label: "Slow push in", group: "Still & zoom" },
   { value: "zoom_out", label: "Pull back", group: "Still & zoom" },
@@ -166,6 +171,12 @@ export function cameraPosition(scene: CameraSettings, ratio: number) {
   else if (scene.motion === "breathe") zoom += strength * Math.sin(Math.PI * t);
   else if (scene.motion.startsWith("pan_") || scene.motion.startsWith("drift_"))
     zoom += strength;
+  if (scene.motion === "impact_shake") {
+    zoom = 1 + strength;
+    const time = clamp(ratio);
+    x = clamp(fx + 0.35 * Math.sin(80 * Math.PI * time) * Math.exp(-15 * time));
+    y = clamp(fy + 0.22 * Math.sin(70 * Math.PI * time) * Math.exp(-15 * time));
+  }
   if (scene.motion.endsWith("left"))
     x = clamp(fx + 0.5) + (clamp(fx - 0.5) - clamp(fx + 0.5)) * t;
   else if (scene.motion.endsWith("right"))

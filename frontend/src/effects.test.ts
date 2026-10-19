@@ -17,7 +17,7 @@ const base: CameraSettings = {
 };
 describe("camera and transition preview", () => {
   it("provides the expanded camera and transition catalogs", () => {
-    expect(CAMERA_MOVES).toHaveLength(20);
+    expect(CAMERA_MOVES).toHaveLength(21);
     expect(TRANSITIONS).toHaveLength(12);
   });
   it("keeps every path inside the image across all easing choices", () => {

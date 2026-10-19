@@ -8,21 +8,80 @@ export default function Preview({
   scenes,
   project,
   request,
+  onFocus,
+  onMoment,
+  rememberPosition = true,
 }: {
   scenes: Scene[];
   project: Project;
   request?: { index?: number; seconds?: number; nonce: number } | null;
+  onFocus?: (id: string, patch: Partial<Scene>) => void;
+  onMoment?: (seconds: number) => void;
+  rememberPosition?: boolean;
 }) {
+  const [safeAreas, setSafeAreas] = useState(false),
+    [loopCheck, setLoopCheck] = useState(false),
+    [aim, setAim] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
   const [audioError, setAudioError] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
   const duration = timelineSeconds(scenes, project.settings.fps);
+  const latestPosition = useRef(0);
+  latestPosition.current = cursor;
+  const resumeKey = `comic-beatdowns:playhead:${project.id}`;
   useEffect(() => {
     setPlaying(false);
-    setCursor(0);
+    setLoopCheck(false);
+    setCursor((value) =>
+      Math.max(0, Math.min(value, duration - 1 / project.settings.fps)),
+    );
     audio.current?.pause();
   }, [duration, project.narration_url]);
+  useEffect(() => {
+    if (!rememberPosition) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(resumeKey) || "null");
+      if (saved?.audio === project.narration_url)
+        setCursor(
+          Math.max(
+            0,
+            Math.min(duration - 1 / project.settings.fps, saved.time || 0),
+          ),
+        );
+    } catch {
+      /* Playback remains available. */
+    }
+  }, [project.id, rememberPosition]);
+  useEffect(() => {
+    if (!rememberPosition || playing) return;
+    try {
+      localStorage.setItem(
+        resumeKey,
+        JSON.stringify({ audio: project.narration_url, time: cursor }),
+      );
+    } catch {
+      /* Browser storage is optional. */
+    }
+  }, [cursor, playing, rememberPosition, resumeKey, project.narration_url]);
+  useEffect(
+    () => () => {
+      if (rememberPosition) {
+        try {
+          localStorage.setItem(
+            resumeKey,
+            JSON.stringify({
+              audio: project.narration_url,
+              time: latestPosition.current,
+            }),
+          );
+        } catch {
+          /* Browser storage is optional. */
+        }
+      }
+    },
+    [resumeKey, rememberPosition, project.narration_url],
+  );
   useEffect(() => {
     if (!request) return;
     const seconds =
@@ -38,11 +97,20 @@ export default function Preview({
   }, [request]);
   useEffect(() => {
     if (!playing) return;
-    const started = performance.now(),
+    let started = performance.now(),
       initial = cursor;
     let frame = 0;
     function tick(now: number) {
-      const next = initial + (now - started) / 1000;
+      let next = initial + (now - started) / 1000;
+      if (loopCheck && duration > 6 && next >= 3 && next < duration - 3) {
+        next = duration - 3;
+        initial = next;
+        started = now;
+        if (audio.current) {
+          audio.current.currentTime = next + project.settings.narration_start;
+          void audio.current.play().catch(() => setAudioError(true));
+        }
+      }
       if (
         next >=
         (project.settings.narration_end ??
@@ -51,6 +119,15 @@ export default function Preview({
           project.settings.narration_start
       )
         audio.current?.pause();
+      if (next >= duration && loopCheck) {
+        initial = 0;
+        started = now;
+        next = 0;
+        if (audio.current) {
+          audio.current.currentTime = project.settings.narration_start;
+          void audio.current.play().catch(() => setAudioError(true));
+        }
+      }
       if (next >= duration) {
         setCursor(0);
         setPlaying(false);
@@ -64,7 +141,7 @@ export default function Preview({
     return () => cancelAnimationFrame(frame);
     // Cursor changes every animation frame; capture its value only when playback starts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, duration]);
+  }, [playing, duration, loopCheck]);
   useEffect(
     () => () => {
       audio.current?.pause();
@@ -132,14 +209,92 @@ export default function Preview({
         </h3>
         <span className="mini-tag">9:16</span>
       </div>
+      <div className="preview-tools">
+        <button
+          aria-pressed={safeAreas}
+          onClick={() => setSafeAreas(!safeAreas)}
+        >
+          Safe areas
+        </button>
+        <button
+          aria-pressed={loopCheck}
+          disabled={!scenes.length}
+          onClick={() => {
+            if (loopCheck) {
+              setLoopCheck(false);
+              setPlaying(false);
+              audio.current?.pause();
+              return;
+            }
+            const start = Math.max(0, duration - 3);
+            setCursor(start);
+            setPlaying(false);
+            setLoopCheck(true);
+            if (audio.current) {
+              audio.current.currentTime =
+                start + project.settings.narration_start;
+              void audio.current.play().catch(() => setAudioError(true));
+            }
+            requestAnimationFrame(() => setPlaying(true));
+          }}
+        >
+          Check Loop
+        </button>
+        {onFocus && (
+          <button
+            aria-pressed={aim}
+            onClick={() => {
+              setAim(!aim);
+              setPlaying(false);
+              audio.current?.pause();
+            }}
+          >
+            Aim in preview
+          </button>
+        )}
+      </div>
       <div className="phone-frame">
         <div
-          className="preview-screen"
+          className={`preview-screen ${aim ? "aiming" : ""}`}
+          onClick={(e) => {
+            if (!aim || !current?.id || current.locked) return;
+            const rect = e.currentTarget.getBoundingClientRect(),
+              ratio = current.panel.width / current.panel.height,
+              view = 9 / 16;
+            const cropX = Math.min(1, view / ratio),
+              cropY = Math.min(1, ratio / view);
+            const x =
+              (1 - cropX) * current.focus_x +
+              ((e.clientX - rect.left) / rect.width) * cropX;
+            const y =
+              (1 - cropY) * current.focus_y +
+              ((e.clientY - rect.top) / rect.height) * cropY;
+            onFocus?.(current.id, {
+              focus_x:
+                cropX === 1
+                  ? 0.5
+                  : Math.max(0, Math.min(1, (x - cropX / 2) / (1 - cropX))),
+              focus_y:
+                cropY === 1
+                  ? 0.5
+                  : Math.max(0, Math.min(1, (y - cropY / 2) / (1 - cropY))),
+            });
+          }}
           style={{
             background:
               blending && effect === "dip_white" ? "white" : "#03090f",
           }}
         >
+          {safeAreas && (
+            <div
+              className="safe-area-overlay"
+              aria-label="Approximate Shorts safe areas"
+            >
+              <span className="safe-top">Top overlay</span>
+              <span className="safe-right">Platform buttons</span>
+              <span className="safe-bottom">Title & platform captions</span>
+            </div>
+          )}
           {current ? (
             <>
               {blending && previous && (
@@ -151,7 +306,11 @@ export default function Preview({
                   <img
                     src={previous.panel.image_url}
                     alt=""
-                    style={cameraStyle(previous, 1)}
+                    style={{
+                      ...cameraStyle(previous, 1),
+                      objectFit:
+                        previous.framing === "fit" ? "contain" : "cover",
+                    }}
                   />
                 </div>
               )}
@@ -162,7 +321,10 @@ export default function Preview({
                 <img
                   src={current.panel.image_url}
                   alt={current.panel.title}
-                  style={cameraStyle(current, progress)}
+                  style={{
+                    ...cameraStyle(current, progress),
+                    objectFit: current.framing === "fit" ? "contain" : "cover",
+                  }}
                 />
               </div>
               {project.logo_url && (
@@ -258,6 +420,28 @@ export default function Preview({
           <RotateCcw size={15} />
         </button>
       </div>
+      {onMoment && (
+        <button
+          className="text-button"
+          onClick={() => {
+            setPlaying(false);
+            audio.current?.pause();
+            onMoment(cursor);
+          }}
+        >
+          Note this moment · {cursor.toFixed(2)}s
+        </button>
+      )}
+      {loopCheck && (
+        <p className="help">
+          Repeating the final 3 seconds into the opening 3 seconds.
+        </p>
+      )}
+      {safeAreas && (
+        <p className="help">
+          Approximate guides; platform overlays vary. Guides are not exported.
+        </p>
+      )}
       {project.narration_url && (
         <audio ref={audio} src={project.narration_url} preload="metadata" />
       )}

@@ -16,6 +16,74 @@ def audio_range(settings, duration):
 def auto_edit(scenes, settings, duration, options, pauses=()):
     if not scenes:
         raise ValueError("Add panels before creating an automatic edit")
+    if any(getattr(scene, "locked", False) for scene in scenes):
+        # Locked shots retain all their settings; distribute remaining time only
+        # across existing unlocked shots instead of replacing their identities.
+        start, end = audio_range(settings, duration)
+        if options.length == "short":
+            end = min(end, start + 30)
+        fps = settings["fps"]
+        total = math.ceil((end - start) * fps - 1e-6)
+        fixed = sum(round(s.duration * fps) for s in scenes if s.locked)
+        unlocked = [s for s in scenes if not s.locked]
+        remaining = total - fixed
+        minimum = math.ceil(0.25 * fps)
+        if (
+            (not unlocked and remaining)
+            or remaining < len(unlocked) * minimum
+            or remaining > len(unlocked) * 30 * fps
+        ):
+            raise ValueError(
+                "Locked scenes leave too little or too much time. Unlock a scene or change the narration range."
+            )
+        result, used_frames = [], 0
+        for scene in scenes:
+            values = {
+                key: getattr(scene, key, default)
+                for key, default in {
+                    "id": None,
+                    "panel_id": "",
+                    "duration": 5,
+                    "motion": "hold",
+                    "motion_strength": 0.1,
+                    "easing": "smooth",
+                    "focus_x": 0.5,
+                    "focus_y": 0.5,
+                    "transition": None,
+                    "transition_duration": None,
+                    "caption": "",
+                    "locked": False,
+                    "note": "",
+                    "beat": "custom",
+                    "sfx_id": None,
+                    "sfx_offset": 0,
+                    "framing": "fill",
+                }.items()
+            }
+            if not scene.locked:
+                i = unlocked.index(scene)
+                frames = remaining // len(unlocked) + (i < remaining % len(unlocked))
+                used_frames += frames
+                values.update(
+                    duration=frames / fps,
+                    motion=("punch_in" if i % 2 == 0 else "pan_right")
+                    if options.pace == "fast"
+                    else "zoom_in",
+                    motion_strength=0.22 if options.pace == "fast" else 0.08,
+                    easing="ease_out" if options.pace == "fast" else "smooth",
+                    transition="cut" if options.pace == "fast" else "crossfade",
+                )
+            result.append(values)
+        return {
+            "scenes": result,
+            "settings": {
+                **settings,
+                "edit_pace": options.pace,
+                "narration_start": start,
+                "narration_end": end,
+            },
+            "duration": total / fps,
+        }
     # Rebuilding a fast cut as a slow cut should consolidate its reframings.
     groups = []
     for scene in scenes:
@@ -78,6 +146,12 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
             {
                 **values,
                 "id": source.id if keep else uid(),
+                "locked": False,
+                "framing": getattr(source, "framing", "fill"),
+                "note": getattr(source, "note", "") if keep else "",
+                "beat": getattr(source, "beat", "custom"),
+                "sfx_id": getattr(source, "sfx_id", None) if keep else None,
+                "sfx_offset": getattr(source, "sfx_offset", 0) if keep else 0,
                 "caption": source.caption if keep else "",
                 "duration": (boundaries[i + 1] - boundaries[i]) / fps,
                 "motion": (fast_moves if options.pace == "fast" else slow_moves)[

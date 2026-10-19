@@ -4,6 +4,7 @@ import { Check, FileImage, Plus, Scissors, Upload, X } from "lucide-react";
 import { api, json } from "./api";
 import { Modal } from "./components";
 import BrandOptions from "./BrandOptions";
+import { guessKind } from "./ProductionWorkflow";
 import type {
   Easing,
   Motion,
@@ -119,17 +120,41 @@ export function NewProject({
   const [template, setTemplate] = useState(
     initialTemplateId ?? templates[0]?.id ?? "",
   );
+  const [files, setFiles] = useState<{ file: File; kind: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  function addProjectFiles(chosen: File[]) {
+    setFiles((old) => [
+      ...old,
+      ...chosen.map((file) => ({ file, kind: guessKind(file.name) })),
+    ]);
+    if (!title && chosen.length)
+      setTitle(chosen[0].name.replace(/\.[^.]+$/, "").slice(0, 200));
+  }
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      onCreated(
-        await api<Project>(
-          "/projects",
-          json({ title, idea, template_id: template || null }),
-        ),
+      let created = await api<Project>(
+        "/projects",
+        json({ title, idea, template_id: template || null }),
       );
+      for (const item of files) {
+        try {
+          const body = new FormData();
+          body.append("file", item.file);
+          body.append("kind", item.kind);
+          const result = await api<{ project: Project }>(
+            `/projects/${created.id}/import-file`,
+            { method: "POST", body },
+          );
+          created = result.project;
+        } catch (error) {
+          onError(
+            `${item.file.name}: ${errorMessage(error)}. Add it again in step 1.`,
+          );
+        }
+      }
+      onCreated(created);
     } catch (error) {
       onError(errorMessage(error));
     } finally {
@@ -143,6 +168,64 @@ export function NewProject({
       onClose={onClose}
     >
       <form onSubmit={submit}>
+        <div
+          className="project-dropzone"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            addProjectFiles(Array.from(e.dataTransfer.files));
+          }}
+        >
+          <strong>Drop files to start your episode</strong>
+          <label className="button secondary">
+            Choose project files
+            <input
+              type="file"
+              aria-label="New project files"
+              hidden
+              multiple
+              accept="image/*,.pdf,.cbz,audio/*,.srt"
+              onChange={(e) => {
+                addProjectFiles(Array.from(e.target.files ?? []));
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {files.map((item, index) => (
+          <div className="import-file-row" key={index}>
+            <span>{item.file.name}</span>
+            <select
+              aria-label={`New project role for ${item.file.name}`}
+              value={item.kind}
+              onChange={(e) =>
+                setFiles((old) =>
+                  old.map((v, i) =>
+                    i === index ? { ...v, kind: e.target.value } : v,
+                  ),
+                )
+              }
+            >
+              {["panels", "narration", "music", "sfx", "captions"].map(
+                (kind) => (
+                  <option key={kind} value={kind}>
+                    {kind}
+                  </option>
+                ),
+              )}
+            </select>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={`Remove new file ${item.file.name}`}
+              onClick={() =>
+                setFiles((old) => old.filter((_, i) => i !== index))
+              }
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
         <label>
           Project title
           <input

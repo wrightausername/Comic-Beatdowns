@@ -88,6 +88,13 @@ def scene_dict(scene, db):
         "transition_duration": scene.transition_duration,
         "caption": scene.caption,
         "sfx_url": media_url(scene.sfx_key),
+        "sfx_id": scene.sfx_id,
+        "sfx_offset": scene.sfx_offset,
+        "locked": scene.locked,
+        "note": scene.note,
+        "beat": scene.beat,
+        "framing": scene.framing,
+        "sfx_source_id": scene.id if scene.sfx_key else None,
         "panel": panel_dict(db.get(Panel, scene.panel_id)),
     }
 
@@ -116,6 +123,8 @@ def project_dict(project, db, detail=False):
         "music_duration": project.music_duration,
         "logo_url": media_url(project.logo_key),
         "caption_cues": project.caption_cues,
+        "workflow": project.workflow,
+        "watch_enabled": project.watch_enabled,
         "can_undo": bool((project.edit_history or {}).get("past")),
         "can_redo": bool((project.edit_history or {}).get("future")),
         "revision": project.revision,
@@ -144,6 +153,7 @@ def job_dict(job):
         "created_at": job.created_at,
         "finished_at": job.finished_at,
         "quality": job.snapshot.get("quality", "final"),
+        "section": job.snapshot.get("section"),
     }
 
 
@@ -389,16 +399,7 @@ def replace_scenes(project_id: str, data: SceneList, db: Session = Depends(sessi
         raise HTTPException(422, "Scene IDs must be unique and belong to this project")
     for item in data.scenes:
         get_or_404(db, Panel, item.panel_id)
-    keep = set(ids)
-    for scene in old.values():
-        if scene.id not in keep:
-            db.delete(scene)
-    for position, item in enumerate(data.scenes):
-        scene = old.get(item.id) if item.id else Scene(project_id=project_id)
-        for key, value in item.model_dump(exclude={"id"}).items():
-            setattr(scene, key, value)
-        scene.position = position
-        db.add(scene)
+    replace_workspace_scenes(db, project, data.scenes, project.settings["fps"])
     touch(project, invalidate_approval=True)
     db.commit()
     return project_dict(project, db, True)
@@ -431,6 +432,7 @@ async def upload_narration(
     # Older files are retained because already queued render snapshots may use them.
     project.narration_key, project.narration_duration = key, duration
     project.caption_cues = []
+    project.workflow = {**(project.workflow or {}), "storyboard": []}
     values = VideoSettings.model_validate(project.settings).model_dump()
     project.settings = {**values, "narration_start": 0, "narration_end": None}
     touch(project, invalidate_approval=True)
@@ -452,6 +454,7 @@ async def upload_sfx(
         raise HTTPException(404, "Scene does not belong to this project")
     remember(db, project)
     scene.sfx_key, _ = await save_audio(file, request, "sfx", 30)
+    scene.sfx_id, scene.sfx_offset = None, 0
     touch(project)
     db.commit()
     return project_dict(project, db, True)
@@ -464,7 +467,7 @@ def remove_sfx(project_id: str, scene_id: str, db: Session = Depends(session)):
     if scene.project_id != project_id:
         raise HTTPException(404, "Scene does not belong to this project")
     remember(db, project)
-    scene.sfx_key = None
+    scene.sfx_key, scene.sfx_id, scene.sfx_offset = None, None, 0
     touch(project)
     db.commit()
     return project_dict(project, db, True)
@@ -478,10 +481,13 @@ def start_render(
     db: Session = Depends(session),
 ):
     with request.app.state.render_lock:
-        return queue_render(project_id, request, db, (data or RenderInput()).quality)
+        options = data or RenderInput()
+        return queue_render(project_id, request, db, options.quality, options.start, options.end)
 
 
-def queue_render(project_id: str, request: Request, db: Session, quality="final"):
+def queue_render(
+    project_id: str, request: Request, db: Session, quality="final", start=None, end=None
+):
     project = get_or_404(db, Project, project_id)
     scenes = scenes_for(db, project_id)
     if not tools_available(request.app.state.settings):
@@ -495,7 +501,7 @@ def queue_render(project_id: str, request: Request, db: Session, quality="final"
             422, "Add scenes, upload narration, and approve the script before rendering"
         )
     active = list(db.scalars(select(RenderJob).where(RenderJob.status.in_(["queued", "running"]))))
-    if len(active) >= 5 or any(j.project_id == project_id for j in active):
+    if len(active) >= 20 or any(j.project_id == project_id for j in active):
         raise HTTPException(409, "A render is already active for this project or the queue is full")
     settings = VideoSettings.model_validate(project.settings).model_dump()
     values = [
@@ -511,6 +517,8 @@ def queue_render(project_id: str, request: Request, db: Session, quality="final"
             "caption": s.caption,
             "storage_key": db.get(Panel, s.panel_id).storage_key,
             "sfx_key": s.sfx_key,
+            "sfx_offset": s.sfx_offset,
+            "framing": s.framing,
         }
         for s in scenes
     ]
@@ -533,6 +541,18 @@ def queue_render(project_id: str, request: Request, db: Session, quality="final"
         "logo_key": project.logo_key,
         "quality": quality,
     }
+    from .automation import missing_assets, section_snapshot
+
+    missing = missing_assets(snapshot, request.app.state.storage)
+    if missing:
+        raise HTTPException(
+            422, "Source files are missing. Open Add files → Recover missing files."
+        )
+    if start is not None:
+        try:
+            snapshot = section_snapshot(snapshot, start, end)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
     job = RenderJob(project_id=project_id, project_revision=project.revision, snapshot=snapshot)
     if quality == "final":
         project.status = "rendering"
@@ -562,6 +582,9 @@ def save_workspace(project_id: str, data: WorkspaceInput, db: Session = Depends(
         data.settings.model_dump(),
         [cue.model_dump() for cue in data.cues],
     )
+    from .automation import validate_workflow
+
+    project.workflow = validate_workflow(data.workflow, db)
     touch(project, invalidate_approval=True)
     db.commit()
     return project_dict(project, db, True)
@@ -730,10 +753,9 @@ def download_render(job_id: str, request: Request, db: Session = Depends(session
     path = request.app.state.storage.public_path(job.output_key)
     if not path.is_file():
         raise HTTPException(404, "Export file is missing")
-    quality = job.snapshot.get("quality", "final")
-    return FileResponse(
-        path, media_type="video/mp4", filename=f"comic-beatdowns-{quality}-{job.id[:8]}.mp4"
-    )
+    from .automation import export_filename
+
+    return FileResponse(path, media_type="video/mp4", filename=export_filename(job))
 
 
 @router.get("/templates")

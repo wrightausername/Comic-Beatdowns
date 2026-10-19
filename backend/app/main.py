@@ -10,9 +10,12 @@ from sqlalchemy import select
 
 from .api import router
 from .auth import authenticated
+from .automation import ensure_builtin_effects
 from .config import ROOT, Settings
 from .database import Template, connect
+from .inbox import InboxWatcher
 from .limits import BodyLimitMiddleware
+from .production import router as production_router
 from .renderer import RenderService
 from .schemas import VideoSettings
 from .storage import LocalStorage
@@ -34,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.renderer = RenderService(config, app.state.storage, sessions, executor)
         app.state.renderer.recover()
         with sessions() as db:
+            ensure_builtin_effects(db, app.state.storage)
             if db.scalar(select(Template.id).limit(1)) is None:
                 db.add(Template(name="Verdict · Impact", settings=VideoSettings().model_dump()))
                 db.add(
@@ -45,7 +49,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     )
                 )
                 db.commit()
+        watcher = InboxWatcher(config, app.state.storage, sessions)
+        app.state.inbox = watcher
+        watcher.start()
         yield
+        watcher.stop()
         executor.shutdown(wait=True, cancel_futures=False)
         engine.dispose()
 
@@ -82,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_middleware(BodyLimitMiddleware, max_bytes=config.max_upload_bytes + 1024 * 1024)
     app.include_router(router)
+    app.include_router(production_router)
     dist = ROOT / "frontend" / "dist"
     if dist.is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")

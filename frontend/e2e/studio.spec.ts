@@ -119,6 +119,7 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
   await expect(
     page.getByRole("heading", { name: "An original browser beatdown" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
   await page.getByRole("button", { name: "Add panels", exact: true }).click();
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
@@ -251,12 +252,13 @@ test("mobile navigation remains usable without horizontal overflow", async ({
 test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand kit, and draft export", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(150_000);
+  test.setTimeout(240_000);
   const saved = () =>
     expect(page.getByLabel("Autosave status")).toHaveText("All changes saved");
   await page.getByRole("button", { name: "New project", exact: true }).click();
   await page.getByLabel("Project title").fill("Effortless editing");
   await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
   await page.getByRole("button", { name: "Add panels", exact: true }).click();
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
@@ -269,6 +271,9 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   await expect(
     page.getByText("Narration uploaded and normalized."),
   ).toBeVisible();
+  await page
+    .getByText("Auto Edit · pacing and excerpt options", { exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Fast · punchy", exact: false })
     .click();
@@ -428,4 +433,148 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
     path: testInfo.outputPath("streamlined-mobile.png"),
     fullPage: true,
   });
+});
+
+test("guided draft builder, storyboard, locked shots, versions, review notes, and section export", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "Azure punch.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "Slate reveal.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "narration.wav", mimeType: "audio/wav", buffer: silentWav(6) },
+    {
+      name: "captions.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:03,000\nAzure punches hard!\n\n2\n00:00:03,000 --> 00:00:06,000\nSlate reveals a surprise!\n",
+      ),
+    },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Guided automation");
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "1. Add your files" }),
+  ).toBeVisible();
+  await expect(page.locator(".tray-panel")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Verdict script", exact: true })
+    .click();
+  await page
+    .getByLabel("Verdict’s script", { exact: true })
+    .fill("Azure punches hard! Slate reveals a surprise!");
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await page.locator(".workflow-steps button").nth(1).click();
+  await page
+    .getByRole("button", { name: "Suggest panel matches", exact: true })
+    .click();
+  await expect(page.locator(".storyboard-card")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "Use these assignments", exact: true })
+    .click();
+  await expect(page.getByLabel("Autosave status")).toHaveText(
+    "All changes saved",
+  );
+  await page.locator(".workflow-steps button").nth(2).click();
+  await page
+    .getByRole("button", { name: "Build My Draft", exact: true })
+    .click();
+  await expect(page.locator(".suggestion-row")).toHaveCount(5);
+  await page
+    .getByRole("button", { name: "Preview proposed draft", exact: true })
+    .click();
+  await expect(
+    page.getByText("Previewing proposed / saved edit"),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Accept selected suggestions", exact: true })
+    .click();
+  await expect(page.locator(".scene-card")).toHaveCount(5);
+  await expect(page.getByLabel("Autosave status")).toHaveText(
+    "All changes saved",
+  );
+  await page.getByRole("button", { name: "Lock scene 1", exact: true }).click();
+  await expect(
+    page
+      .locator(".scene-card")
+      .first()
+      .getByRole("button", { name: "Split", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Unlock scene 1", exact: true })
+    .click();
+  await page
+    .locator(".scene-card")
+    .first()
+    .getByRole("button", { name: "Read Panel", exact: true })
+    .click();
+  await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
+    "hold",
+  );
+  await page.getByRole("button", { name: "Safe areas", exact: true }).click();
+  await expect(page.getByLabel("Approximate Shorts safe areas")).toBeVisible();
+  await page.getByRole("button", { name: "Check Loop", exact: true }).click();
+  await expect(
+    page.getByText("Repeating the final 3 seconds", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Check Loop", exact: true }).click();
+  await page.locator(".workflow-steps button").nth(3).click();
+  await page.getByLabel("Version name", { exact: true }).fill("Edit A");
+  await page
+    .getByRole("button", { name: "Save named version", exact: true })
+    .click();
+  await expect(page.locator(".version-list")).toContainText("Edit A");
+  await page.getByLabel("Note time", { exact: true }).fill("2");
+  await page
+    .getByLabel("Review note", { exact: true })
+    .fill("Check the impact framing");
+  await page.getByRole("button", { name: "Add note", exact: true }).click();
+  await expect(
+    page.getByLabel("Resolve note Check the impact framing"),
+  ).toBeVisible();
+  await page.getByLabel("Resolve note Check the impact framing").check();
+  await expect(page.getByLabel("Autosave status")).toHaveText(
+    "All changes saved",
+  );
+  await page.locator(".workflow-steps button").nth(4).click();
+  await page.getByText("Preview only a section", { exact: true }).click();
+  await page.getByLabel("Section start", { exact: true }).fill("1");
+  await page.getByLabel("Section end", { exact: true }).fill("2");
+  await page
+    .getByRole("button", { name: "Render selected section", exact: true })
+    .click();
+  await expect(page.locator(".render-row").first()).toContainText("completed", {
+    timeout: 60_000,
+  });
+  await expect(page.locator(".review-video").first()).toBeVisible();
+  const downloadEvent = page.waitForEvent("download");
+  await page
+    .locator(".render-row")
+    .first()
+    .getByRole("link", { name: "MP4", exact: true })
+    .click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/Guided_automation_Section_v/);
+  await page.screenshot({
+    path: testInfo.outputPath("guided-export.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+  await page.screenshot({
+    path: testInfo.outputPath("guided-mobile.png"),
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
 });

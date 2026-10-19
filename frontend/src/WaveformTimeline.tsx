@@ -11,6 +11,7 @@ export default function WaveformTimeline({
   start,
   onChange,
   onSeek,
+  cues = [],
 }: {
   projectId: string;
   audioUrl: string | null;
@@ -19,7 +20,9 @@ export default function WaveformTimeline({
   start: number;
   onChange: (scenes: Scene[]) => void;
   onSeek: (seconds: number) => void;
+  cues?: { start: number; end: number }[];
 }) {
+  const [snap, setSnap] = useState(true);
   const [wave, setWave] = useState<Waveform | null>(null),
     [error, setError] = useState("");
   const [moving, setMoving] = useState<{
@@ -54,9 +57,26 @@ export default function WaveformTimeline({
   function move(clientX: number) {
     if (!moving || !svg.current || !duration) return;
     const rect = svg.current.getBoundingClientRect();
-    const position = Math.round(
+    let position = Math.round(
       ((clientX - rect.left) / rect.width) * duration * fps,
     );
+    if (snap) {
+      const points = [
+        ...(wave?.pauses ?? []).map(([a, b]) => (a + b) / 2),
+        ...cues.flatMap((c) => [c.start, c.end]),
+      ].map((time) => Math.round((time - start) * fps));
+      const near = points.filter(
+        (frame) => Math.abs(frame - position) <= fps * 0.15,
+      );
+      if (near.length)
+        position = near.reduce(
+          (best, frame) =>
+            Math.abs(frame - position) < Math.abs(best - position)
+              ? frame
+              : best,
+          near[0],
+        );
+    }
     const before = moving.scenes
       .slice(0, moving.index)
       .reduce((sum, scene) => sum + Math.round(scene.duration * fps), 0);
@@ -87,6 +107,14 @@ export default function WaveformTimeline({
         <small>Click to seek · drag cuts or use arrow keys</small>
       </div>
       {error && <p className="inline-error">{error}</p>}
+      <label className="check-label">
+        <input
+          type="checkbox"
+          checked={snap}
+          onChange={(e) => setSnap(e.target.checked)}
+        />
+        Snap cuts to speech / pauses
+      </label>
       <svg
         ref={svg}
         className="waveform-svg"
