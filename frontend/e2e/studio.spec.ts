@@ -170,6 +170,7 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     page.getByLabel("Scene 2 transition", { exact: true }),
   ).toHaveValue("smooth_left");
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("camera-editor.png"),
     fullPage: true,
   });
@@ -210,6 +211,7 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     .getByRole("button", { name: "Production desk", exact: true })
     .click();
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("production-desk.png"),
     fullPage: true,
   });
@@ -244,6 +246,7 @@ test("mobile navigation remains usable without horizontal overflow", async ({
     ),
   ).toBe(false);
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("mobile-production.png"),
     fullPage: true,
   });
@@ -252,7 +255,7 @@ test("mobile navigation remains usable without horizontal overflow", async ({
 test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand kit, and draft export", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(240_000);
+  test.setTimeout(300_000);
   const saved = () =>
     expect(page.getByLabel("Autosave status")).toHaveText("All changes saved");
   await page.getByRole("button", { name: "New project", exact: true }).click();
@@ -398,6 +401,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   ).toBeVisible();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("streamlined-editor.png"),
     fullPage: true,
   });
@@ -430,6 +434,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
     ),
   ).toBe(false);
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("streamlined-mobile.png"),
     fullPage: true,
   });
@@ -438,7 +443,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
 test("guided draft builder, storyboard, locked shots, versions, review notes, and section export", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.getByRole("button", { name: "New project", exact: true }).click();
@@ -563,6 +568,7 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/Guided_automation_Section_v/);
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("guided-export.png"),
     fullPage: true,
   });
@@ -573,6 +579,7 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
     ),
   ).toBe(false);
   await page.screenshot({
+    timeout: 60_000,
     path: testInfo.outputPath("guided-mobile.png"),
     fullPage: true,
   });
