@@ -78,7 +78,7 @@ def validate_workflow(value, db):
         or len(overrides) > 200
         or any(
             not isinstance(key, str)
-            or not re.fullmatch(r"\\d+:\\d+:(?:disbelief|frustrated|shouting|sarcastic|deadpan|whisper|escalating|pause|emphasis)", key)
+            or not re.fullmatch(r"\d+:\d+:(?:disbelief|frustrated|shouting|sarcastic|deadpan|whisper|escalating|pause|emphasis)", key)
             or isinstance(seconds, bool)
             or not isinstance(seconds, (float, int))
             or not math.isfinite(seconds)
