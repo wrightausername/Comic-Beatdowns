@@ -308,7 +308,10 @@ def send(body: PublishInput, request: Request):
         attempts = records.setdefault("attempts", {})
         cached_url = records.setdefault("media", {}).get(body.render_id)
         results = []
-        required = [cid for cid in body.channel_ids if f"{body.render_id}:{cid}" not in attempts]
+        required = [
+            cid for cid in body.channel_ids
+            if attempts.get(f"{body.render_id}:{cid}", {}).get("status") in (None, "failed")
+        ]
         if required and not cached_url:
             try:
                 cached_url = upload_video(settings, path)
@@ -318,7 +321,7 @@ def send(body: PublishInput, request: Request):
             atomic_json(private_path(request, ".publisher-history.json"), records)
         for cid in body.channel_ids:
             key = f"{body.render_id}:{cid}"
-            if key in attempts:
+            if key in attempts and attempts[key].get("status") != "failed":
                 old = attempts[key]
                 results.append({**old, "already_submitted": True})
                 continue
