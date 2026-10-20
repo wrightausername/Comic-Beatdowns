@@ -3690,3 +3690,130 @@ progress::-webkit-progress-value {
   cursor: pointer;
   color: #a9dbe3;
 }
+
+/* Explicit script direction track, synchronized with narration and shot timing. */
+.emotion-timeline {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #315663;
+  border-radius: 12px;
+  background: #0b1c26;
+}
+.emotion-timeline h3 {
+  margin: 0;
+}
+.emotion-timeline .section-heading p {
+  max-width: 650px;
+}
+.emotion-track {
+  position: relative;
+  height: 48px;
+  margin-top: 18px;
+  border: 1px solid #355666;
+  border-radius: 8px;
+  background: repeating-linear-gradient(
+    90deg,
+    #102d37 0,
+    #102d37 1px,
+    #10212b 1px,
+    #10212b 10%
+  );
+}
+.emotion-track-cue {
+  position: absolute;
+  top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: #5ddce7;
+  cursor: pointer;
+}
+.emotion-track-cue:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+.emotion-track-cue.emotion-deadpan,
+.emotion-track-cue.emotion-sarcastic,
+.emotion-track-cue.emotion-pause {
+  background: #b5b8da;
+}
+.emotion-track-cue.emotion-frustrated,
+.emotion-track-cue.emotion-shouting {
+  background: #f39780;
+}
+.emotion-track-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: #a6becb;
+  font-size: 12px;
+}
+.emotion-cue-list {
+  display: grid;
+  gap: 8px;
+  margin: 15px 0;
+}
+.emotion-cue-row {
+  display: grid;
+  grid-template-columns: minmax(95px, 1fr) 145px 85px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid #304651;
+  border-radius: 8px;
+}
+.emotion-cue-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #73e0e8;
+  overflow-wrap: anywhere;
+}
+.emotion-cue-name.emotion-pause,
+.emotion-cue-name.emotion-deadpan,
+.emotion-cue-name.emotion-sarcastic {
+  color: #b6b9de;
+}
+.emotion-cue-name.emotion-frustrated,
+.emotion-cue-name.emotion-shouting {
+  color: #f3a08c;
+}
+.emotion-cue-row label {
+  font-size: 11px;
+  color: #a8bec7;
+}
+.emotion-cue-row input {
+  display: block;
+  width: 100%;
+  min-width: 70px;
+  margin-top: 4px;
+}
+.emotion-cue-row .muted {
+  font-size: 12px;
+}
+.emotion-dialogue {
+  white-space: pre-wrap;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.emotion-timeline details {
+  margin-top: 15px;
+}
+@media (max-width: 700px) {
+  .emotion-timeline {
+    padding: 12px;
+  }
+  .emotion-cue-row {
+    grid-template-columns: minmax(100px, 1fr) 115px;
+  }
+  .emotion-cue-row .muted {
+    grid-column: 1;
+  }
+  .emotion-cue-row > button {
+    justify-self: end;
+  }
+}

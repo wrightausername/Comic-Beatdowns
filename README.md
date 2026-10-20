@@ -67,6 +67,22 @@ The duration target is advisory; short clips and videos up to 180 seconds are al
 7. **Fast draft exports:** **Draft preview** renders at **360 × 640** using smaller intermediate frames. It works before script approval. Final **Render MP4** remains **1080 × 1920** and requires approval after changes. Drafts and final exports are labeled in history and filenames. All exports capture a fixed saved revision.
 8. **Reusable brand kits:** templates now preserve editing pace, camera defaults, transition settings, caption style/size/colors/position, logo placement/size, the logo image, music track, and audio levels. New projects reuse the assets and reset narration in/out points. Upload assets you are authorized to use.
 
+### Script performance cues and Emotion Timeline
+
+Studio can now import a UTF-8 `.txt` or `.md` script from the **Verdict script** tab, or you can paste dialogue directly. Write explicit stage directions inline, such as:
+
+```text
+[DISBELIEF, ESCALATING] He actually outran death?!
+[PAUSE 0.8s, DEADPAN] And Captain Cold is supposed to stop him?
+[FRUSTRATED] With a COLD GUN?
+```
+
+In the **Verdict emotion timeline** (visible in the Script and Timeline tabs), supported bracketed or parenthetical directions become clickable timeline markers. The timeline recognizes disbelief, frustration, shouting, sarcasm, deadpan, whispers, escalation, emphasis, and timed pauses. It leaves unrecognized bracketed text untouched. Expand **Spoken dialogue only** to see the script without recognized stage directions before you record it.
+
+Markers align approximately to the text of imported/transcribed timed captions when a majority of the spoken words match; otherwise timing is estimated from the dialogue length. You can adjust marker seconds manually. Those timing overrides autosave with the episode, survive reloads, and participate in undo/redo.
+
+Choose **Apply camera cues to unlocked shots** to translate directions into conservative holds, punch-ins, or pushes. Every affected scene remains editable; scene length, panel selection, spoken narration, and locked shots remain unchanged. Applying cues does not synthesize speech, insert a real pause into a recording, or claim perfect alignment. Preview and approve the result before exporting. Optional AI analysis is separate, and stage directions are never treated as instructions to alter the source dialogue.
+
 ### Verdict Autopilot: panels + voice → video
 
 1. Click **Verdict Autopilot** on the production desk. Drop panels and one narration recording into the new-project window. Choose Basic or your saved Vision AI connection, Fast or Slow pacing, and preview or automatic final delivery. Check the file roles and create the project.

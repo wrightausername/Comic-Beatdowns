@@ -35,6 +35,8 @@ import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
 import WaveformTimeline from "./WaveformTimeline";
+import EmotionTimeline from "./EmotionTimeline";
+import { parsePerformanceScript } from "./emotion";
 import type {
   CaptionCue,
   Integrations,
@@ -236,6 +238,7 @@ export default function Editor({
       </div>
     );
   const { scenes, settings, script, title, idea, cues } = draft;
+  const spokenScript = parsePerformanceScript(script).dialogue;
   const duration = timelineSeconds(scenes, settings.fps);
   const narrationLength = Math.max(
     0,
@@ -274,6 +277,22 @@ export default function Editor({
           ? "scripting"
           : project.status,
   };
+  const emotionTimeline = (
+    <EmotionTimeline
+      script={script}
+      captions={cues}
+      scenes={scenes}
+      fps={settings.fps}
+      narrationStart={settings.narration_start}
+      duration={duration || narrationLength || spokenSeconds(spokenScript)}
+      overrides={draft.workflow?.emotion_overrides ?? {}}
+      onOverridesChange={(emotion_overrides) =>
+        update({ workflow: { ...draft.workflow, emotion_overrides } })
+      }
+      onApply={(next) => update({ scenes: next })}
+      onSeek={(seconds) => setPreviewRequest({ seconds, nonce: Date.now() })}
+    />
+  );
   const editScene = (index: number, patch: Partial<Scene>) =>
     update({
       scenes: scenes.map((scene, i) =>
@@ -653,6 +672,7 @@ export default function Editor({
                   </Empty>
                 ) : (
                   <>
+                    {emotionTimeline}
                     <WaveformTimeline
                       projectId={projectId}
                       audioUrl={project.narration_url}
@@ -1137,6 +1157,45 @@ export default function Editor({
                   onChange={(e) => update({ idea: e.target.value })}
                 />
               </label>
+              <div className="workflow-actions">
+                <label className="button secondary small-button">
+                  <Upload size={15} />
+                  Import script (.txt / .md)
+                  {fileInput(
+                    "Import Verdict script",
+                    ".txt,.md,text/plain,text/markdown",
+                    (file) => {
+                      if (
+                        script.trim() &&
+                        !window.confirm(
+                          "Replace the current script with this file?",
+                        )
+                      )
+                        return;
+                      if (file.size > 50000) {
+                        onError(
+                          "Script file is too large. Choose a text file under 50 KB.",
+                        );
+                        return;
+                      }
+                      void file
+                        .text()
+                        .then((content) => {
+                          if (content.length > 20000) {
+                            onError(
+                              "Script exceeds the 20,000-character limit.",
+                            );
+                            return;
+                          }
+                          update({ script: content });
+                        })
+                        .catch(() =>
+                          onError("Could not read that script file."),
+                        );
+                    },
+                  )}
+                </label>
+              </div>
               <label>
                 Verdict’s script
                 <textarea
@@ -1151,12 +1210,15 @@ export default function Editor({
               </label>
               <div className="script-stats">
                 <span>
-                  {script.trim().split(/\s+/).filter(Boolean).length} words
+                  {spokenScript.trim().split(/\s+/).filter(Boolean).length}{" "}
+                  spoken words
                 </span>
                 <span>
-                  ~{timecode(spokenSeconds(script))} spoken · target 1:05–1:30
+                  ~{timecode(spokenSeconds(spokenScript))} spoken · target
+                  1:05–1:30
                 </span>
               </div>
+              {emotionTimeline}
               <div className="script-actions">
                 <button
                   className="button secondary"

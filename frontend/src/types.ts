@@ -95,6 +95,7 @@ export interface Workflow {
   panel_ids?: string[];
   storyboard?: StoryCard[];
   notes?: EditNote[];
+  emotion_overrides?: Record<string, number>;
 }
 export interface SoundEffect {
   id: string;
