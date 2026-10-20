@@ -309,7 +309,8 @@ def send(body: PublishInput, request: Request):
         cached_url = records.setdefault("media", {}).get(body.render_id)
         results = []
         required = [
-            cid for cid in body.channel_ids
+            cid
+            for cid in body.channel_ids
             if attempts.get(f"{body.render_id}:{cid}", {}).get("status") in (None, "failed")
         ]
         if required and not cached_url:
