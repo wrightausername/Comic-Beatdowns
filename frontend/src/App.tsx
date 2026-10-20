@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Upload,
+  Send,
   X,
   Zap,
 } from "lucide-react";
@@ -38,6 +39,7 @@ import {
 } from "./components";
 import { ImportPanels, NewProject, PanelDetail } from "./dialogs";
 import Editor from "./Editor";
+import PublishingDesk from "./PublishingDesk";
 import BatchQueue from "./BatchQueue";
 import type {
   Integrations,
@@ -49,7 +51,13 @@ import type {
 } from "./types";
 import { errorMessage, timecode } from "./utils";
 
-type Page = "production" | "library" | "exports" | "templates" | "connections";
+type Page =
+  | "production"
+  | "library"
+  | "exports"
+  | "publishing"
+  | "templates"
+  | "connections";
 const initialIntegrations: Integrations = {
   writing_enabled: false,
   voice_generation_enabled: false,
@@ -220,6 +228,12 @@ export default function App() {
       icon: ArrowDownToLine,
       title: "Exports",
       count: jobs.filter((j) => j.status === "completed").length,
+    },
+    {
+      id: "publishing" as const,
+      icon: Send,
+      title: "Publishing",
+      count: 0,
     },
   ];
   const filteredProjects = projects.filter(
@@ -395,9 +409,11 @@ export default function App() {
                         ? "Every panel. Every punch."
                         : page === "exports"
                           ? "Ready for the spotlight."
-                          : page === "templates"
-                            ? "Your signature. On repeat."
-                            : "Build your production stack."}
+                          : page === "publishing"
+                            ? "From export to every channel."
+                            : page === "templates"
+                              ? "Your signature. On repeat."
+                              : "Build your production stack."}
                   </h1>
                   <p>
                     {page === "production"
@@ -406,9 +422,11 @@ export default function App() {
                         ? "Collect the evidence. Organize your sources. Find the perfect beat."
                         : page === "exports"
                           ? "Review your rendered videos and download the finished cut."
-                          : page === "templates"
-                            ? "Reusable motion, timing, and caption defaults for your next beatdown."
-                            : "The core studio works locally. Add optional services when you need them."}
+                          : page === "publishing"
+                            ? "Queue approved Reels, Shorts, and TikToks from one place."
+                            : page === "templates"
+                              ? "Reusable motion, timing, and caption defaults for your next beatdown."
+                              : "The core studio works locally. Add optional services when you need them."}
                   </p>
                 </div>
                 {page === "production" ? (
@@ -801,6 +819,7 @@ export default function App() {
                       )}
                     </>
                   )}
+                  {page === "publishing" && <PublishingDesk jobs={jobs} />}
                   {page === "exports" &&
                     (jobs.length ? (
                       <div className="exports-grid">
