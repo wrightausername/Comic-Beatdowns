@@ -99,7 +99,11 @@ def test_approved_video_sent_once_per_channel(configured, monkeypatch):
             {"id": "yt1", "name": "Comic YT", "service": "youtube", "paused": False},
         ],
     )
-    monkeypatch.setattr(publishing, "upload_video", lambda keys, path: "https://res.cloudinary.com/demo/video/upload/test.mp4")
+    monkeypatch.setattr(
+        publishing,
+        "upload_video",
+        lambda keys, path: "https://res.cloudinary.com/demo/video/upload/test.mp4",
+    )
 
     def fake_post(key, channel_id, caption, video_url, draft, service, title):
         calls.append((channel_id, draft, service, title))
@@ -123,7 +127,9 @@ def test_approved_video_sent_once_per_channel(configured, monkeypatch):
 def test_missing_channel_rejected_before_upload(configured, monkeypatch):
     identifier = fake_export(configured)
     monkeypatch.setattr(publishing, "fetch_channels", lambda key: [])
-    monkeypatch.setattr(publishing, "upload_video", lambda *args: pytest.fail("Upload should not start"))
+    monkeypatch.setattr(
+        publishing, "upload_video", lambda *args: pytest.fail("Upload should not start")
+    )
     response = configured.post("/api/publishing/send", json=send_body(identifier))
     assert response.status_code == 422
 
@@ -132,9 +138,7 @@ def test_graphql_video_metadata_uses_reels_and_youtube_category():
     assert publishing.channel_metadata("instagram", "Title") == {
         "instagram": {"type": "reel", "shouldShareToFeed": True}
     }
-    assert publishing.channel_metadata("facebook", "Title") == {
-        "facebook": {"type": "reel"}
-    }
+    assert publishing.channel_metadata("facebook", "Title") == {"facebook": {"type": "reel"}}
     assert publishing.channel_metadata("youtube", "Title")["youtube"]["categoryId"] == "24"
     assert publishing.channel_metadata("tiktok", "Title") is None
 

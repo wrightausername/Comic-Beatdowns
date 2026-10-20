@@ -51,7 +51,13 @@ import type {
 } from "./types";
 import { errorMessage, timecode } from "./utils";
 
-type Page = "production" | "library" | "exports" | "publishing" | "templates" | "connections";
+type Page =
+  | "production"
+  | "library"
+  | "exports"
+  | "publishing"
+  | "templates"
+  | "connections";
 const initialIntegrations: Integrations = {
   writing_enabled: false,
   voice_generation_enabled: false,
@@ -405,9 +411,9 @@ export default function App() {
                           ? "Ready for the spotlight."
                           : page === "publishing"
                             ? "From export to every channel."
-                          : page === "templates"
-                            ? "Your signature. On repeat."
-                            : "Build your production stack."}
+                            : page === "templates"
+                              ? "Your signature. On repeat."
+                              : "Build your production stack."}
                   </h1>
                   <p>
                     {page === "production"
@@ -418,9 +424,9 @@ export default function App() {
                           ? "Review your rendered videos and download the finished cut."
                           : page === "publishing"
                             ? "Queue approved Reels, Shorts, and TikToks from one place."
-                          : page === "templates"
-                            ? "Reusable motion, timing, and caption defaults for your next beatdown."
-                            : "The core studio works locally. Add optional services when you need them."}
+                            : page === "templates"
+                              ? "Reusable motion, timing, and caption defaults for your next beatdown."
+                              : "The core studio works locally. Add optional services when you need them."}
                   </p>
                 </div>
                 {page === "production" ? (

@@ -94,7 +94,9 @@ def connection(request: Request) -> dict:
 
 
 def state(request: Request) -> dict:
-    return read_json(private_path(request, ".publisher-history.json"), {"media": {}, "attempts": {}})
+    return read_json(
+        private_path(request, ".publisher-history.json"), {"media": {}, "attempts": {}}
+    )
 
 
 def connection_status(settings: dict) -> dict:
@@ -149,7 +151,9 @@ def buffer_query(key: str, query: str, variables: dict | None = None) -> dict:
         raise RuntimeError("Buffer could not be reached or rejected the request") from error
     if result.get("errors"):
         # GraphQL errors can be detailed and may contain data supplied by the service.
-        raise RuntimeError("Buffer rejected this API operation. Check account access and channel permissions.")
+        raise RuntimeError(
+            "Buffer rejected this API operation. Check account access and channel permissions."
+        )
     return result.get("data") or {}
 
 
@@ -161,12 +165,14 @@ def fetch_channels(key: str) -> list[dict]:
         for ch in values:
             service = str(ch.get("service") or "").lower()
             if service in SUPPORTED:
-                output.append({
-                    "id": str(ch["id"]),
-                    "service": service,
-                    "name": str(ch.get("displayName") or ch.get("name") or service)[:200],
-                    "paused": bool(ch.get("isQueuePaused")),
-                })
+                output.append(
+                    {
+                        "id": str(ch["id"]),
+                        "service": service,
+                        "name": str(ch.get("displayName") or ch.get("name") or service)[:200],
+                        "paused": bool(ch.get("isQueuePaused")),
+                    }
+                )
     return output
 
 
@@ -214,7 +220,9 @@ def upload_video(settings: dict, path: Path) -> str:
         response.raise_for_status()
         url = response.json()["secure_url"]
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as error:
-        raise RuntimeError("Cloudinary upload failed; check credentials and video limits") from error
+        raise RuntimeError(
+            "Cloudinary upload failed; check credentials and video limits"
+        ) from error
     parsed = urlsplit(url)
     if parsed.scheme != "https" or parsed.hostname != "res.cloudinary.com":
         raise RuntimeError("Cloudinary returned an unexpected media URL")
@@ -223,11 +231,13 @@ def upload_video(settings: dict, path: Path) -> str:
 
 def channel_metadata(service: str, title: str) -> dict | None:
     if service == "youtube":
-        return {"youtube": {
-            "title": title,
-            "categoryId": "24",  # Entertainment
-            "madeForKids": False,
-        }}
+        return {
+            "youtube": {
+                "title": title,
+                "categoryId": "24",  # Entertainment
+                "madeForKids": False,
+            }
+        }
     if service == "instagram":
         return {"instagram": {"type": "reel", "shouldShareToFeed": True}}
     if service == "facebook":
@@ -235,15 +245,23 @@ def channel_metadata(service: str, title: str) -> dict | None:
     return None
 
 
-def buffer_create(key: str, channel_id: str, caption: str, video_url: str,
-                  draft: bool, service: str, title: str) -> str:
-    data = buffer_query(key, BUFFER_CREATE, {
-        "channelId": channel_id,
-        "text": caption,
-        "url": video_url,
-        "draft": draft,
-        "metadata": channel_metadata(service, title),
-    }).get("createPost") or {}
+def buffer_create(
+    key: str, channel_id: str, caption: str, video_url: str, draft: bool, service: str, title: str
+) -> str:
+    data = (
+        buffer_query(
+            key,
+            BUFFER_CREATE,
+            {
+                "channelId": channel_id,
+                "text": caption,
+                "url": video_url,
+                "draft": draft,
+                "metadata": channel_metadata(service, title),
+            },
+        ).get("createPost")
+        or {}
+    )
     if data.get("message"):
         raise ValueError(str(data["message"])[:500])
     identifier = (data.get("post") or {}).get("id")
@@ -290,10 +308,7 @@ def send(body: PublishInput, request: Request):
         attempts = records.setdefault("attempts", {})
         cached_url = records.setdefault("media", {}).get(body.render_id)
         results = []
-        required = [
-            cid for cid in body.channel_ids
-            if f"{body.render_id}:{cid}" not in attempts
-        ]
+        required = [cid for cid in body.channel_ids if f"{body.render_id}:{cid}" not in attempts]
         if required and not cached_url:
             try:
                 cached_url = upload_video(settings, path)
@@ -323,13 +338,20 @@ def send(body: PublishInput, request: Request):
             atomic_json(private_path(request, ".publisher-history.json"), records)
             try:
                 post_id = buffer_create(
-                    settings["buffer_api_key"], cid, body.caption.strip(),
-                    cached_url, body.mode == "draft", ch["service"], title
+                    settings["buffer_api_key"],
+                    cid,
+                    body.caption.strip(),
+                    cached_url,
+                    body.mode == "draft",
+                    ch["service"],
+                    title,
                 )
                 attempt.update(
                     status="draft" if body.mode == "draft" else "queued",
                     post_id=post_id,
-                    message="Saved in Buffer" if body.mode == "draft" else "Accepted into Buffer queue",
+                    message="Saved in Buffer"
+                    if body.mode == "draft"
+                    else "Accepted into Buffer queue",
                 )
             except ValueError as error:
                 attempt.update(status="failed", message=str(error)[:500])
