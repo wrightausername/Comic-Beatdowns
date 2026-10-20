@@ -18,6 +18,7 @@ from .director import router as director_router
 from .inbox import InboxWatcher
 from .limits import BodyLimitMiddleware
 from .production import router as production_router
+from .publishing import router as publishing_router
 from .renderer import RenderService
 from .schemas import VideoSettings
 from .storage import LocalStorage
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(production_router)
     app.include_router(director_router)
+    app.include_router(publishing_router)
     dist = ROOT / "frontend" / "dist"
     if dist.is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
