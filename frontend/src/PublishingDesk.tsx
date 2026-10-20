@@ -174,7 +174,7 @@ export default function PublishingDesk({ jobs }: { jobs: RenderJob[] }) {
           {channels.map((channel) => (
             <label key={channel.id}>
               <input type="checkbox" checked={selected.includes(channel.id)} disabled={busy} onChange={(e) =>
-                setSelected((old) => e.target.checked ? [...old, channel.id] : old.filter((id) => id !== channel.id)
+                setSelected((old) => e.target.checked ? [...old, channel.id] : old.filter((id) => id !== channel.id))
               } />
               <strong>{labels[channel.service]}</strong>
               <span>{channel.name}{channel.paused ? " · Queue paused in Buffer" : ""}</span>
