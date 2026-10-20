@@ -119,6 +119,30 @@ Use **Preview scene** to seek to a scene, then press play. **Video settings** se
 - **Recovery and reuse:** reconnect missing original panels/audio through **Recover missing files**; panel dimensions and narration/music duration must match. For a different asset, use Replace. Duplicate episodes get independent scene IDs and require approval again. Versions preserve asset references; deleting a version never deletes files needed by another revision. The browser remembers the last project, workflow step, and paused preview position.
 - **Section previews** render only intersecting shots, retain their original camera phase, and offset narration/captions/effects. Final exports always cover the full selected project timeline. Batch exports validate projects individually and report ones that cannot be queued instead of silently skipping them.
 
+## Publishing Desk: Facebook, Instagram, TikTok, and YouTube
+
+The **Publishing** page can upload your approved **1080 × 1920 final MP4** to Cloudinary and hand a single video to multiple Buffer channels for scheduled posting. Each target gets its own Buffer post ID and result. You choose which channels to post to, supply a caption and YouTube title, and explicitly approve the public video upload. Studio will not automatically post every newly rendered video.
+
+### One-time account setup
+
+1. Create a [Buffer account](https://publish.buffer.com/) and connect your **Facebook Page**, **Instagram professional account**, **TikTok**, and **YouTube** in Buffer's own connection flow. Studio never needs those platforms' passwords. **Buffer Free currently supports only three channels**; connecting all four requires a qualifying paid Buffer subscription.
+2. In Buffer Settings → API, create a personal API key.
+3. Create a [Cloudinary account](https://cloudinary.com/), get its cloud name, API key, and API secret.
+4. Start Studio and open **Publishing → Set up or update publishing credentials**. Save Buffer and Cloudinary credentials there. The Studio server stores the secrets only in its private local `.data/.publisher-connection.json`, never in GitHub, database responses, or JavaScript bundles. Do not share your Studio data directory or token.
+5. Click **Refresh** to load the social channels linked to Buffer.
+
+### Upload a finished video
+
+1. Export an approved **final** video and open the **Publishing** tab.
+2. Pick the finished video and the channels. Enter a caption for all channels and a separate YouTube title. Review all wording for platform suitability.
+3. Keep **Save drafts in Buffer** selected for a safe first test. Check the public-hosting approval box and choose **Create Buffer drafts**.
+4. After confirming everything works, choose **Add to Buffer publishing queue**. This requests automatic publishing at times configured on each Buffer channel. Posts may require extra per-platform confirmation; review each result in Buffer.
+5. The **Publishing history** records accepted post IDs, errors, and uncertain submissions. Do not retry a request with an uncertain outcome until you check Buffer, otherwise duplicate posts may result.
+
+The video is sent to **public Cloudinary hosting** because Buffer requires a stable public HTTPS URL. A video available on Cloudinary is technically accessible to anyone with the link, even if the Buffer post is only a draft. Do not use media you lack permission to upload or distribute. The public URL must remain reachable through the eventual publication date. The first integration supports uploads under 95 MiB; larger MP4s need a later resumable/chunked uploader. Publishing integrations are independent of your local project files and do not bypass copyrighted-source restrictions.
+
+**Scope:** This is *one-click review and multi-channel submission*, not unattended end-to-end social posting. You must link accounts, review the final render and caption, and approve each submission. Buffer's actual publication schedule and social-network acceptance remain external. Live connections and real-world posts require your own account configuration; automated tests mock both providers.
+
 ## Configuration and privacy
 
 Copy `.env.example` to `.env` only if you want overrides. The backend loads it from the repository root. Existing process variables take precedence. Both `.env` and `.data/` are ignored by Git.
