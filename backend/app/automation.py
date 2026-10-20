@@ -66,12 +66,27 @@ def beat_for(text):
 def validate_workflow(value, db):
     if len(json.dumps(value)) > 128_000:
         raise HTTPException(422, "Project notes and storyboard are too large")
-    allowed = {"panel_ids", "storyboard", "notes", "sound_choices"}
+    allowed = {"panel_ids", "storyboard", "notes", "sound_choices", "emotion_overrides"}
     if set(value) - allowed:
         raise HTTPException(422, "Unknown workflow fields")
     for key in ("panel_ids", "storyboard", "notes"):
         if key in value and (not isinstance(value[key], list) or len(value[key]) > 600):
             raise HTTPException(422, "Too many workflow entries")
+    overrides = value.get("emotion_overrides", {})
+    if (
+        not isinstance(overrides, dict)
+        or len(overrides) > 200
+        or any(
+            not isinstance(key, str)
+            or not re.fullmatch(r"\\d+:\\d+:(?:disbelief|frustrated|shouting|sarcastic|deadpan|whisper|escalating|pause|emphasis)", key)
+            or isinstance(seconds, bool)
+            or not isinstance(seconds, (float, int))
+            or not math.isfinite(seconds)
+            or not 0 <= seconds <= 180
+            for key, seconds in overrides.items()
+        )
+    ):
+        raise HTTPException(422, "Emotion cue timing needs valid seconds between 0 and 180")
     choices = value.get("sound_choices", {})
     if (
         not isinstance(choices, dict)
