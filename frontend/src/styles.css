@@ -3711,7 +3711,13 @@ progress::-webkit-progress-value {
   margin-top: 18px;
   border: 1px solid #355666;
   border-radius: 8px;
-  background: repeating-linear-gradient(90deg, #102d37 0, #102d37 1px, #10212b 1px, #10212b 10%);
+  background: repeating-linear-gradient(
+    90deg,
+    #102d37 0,
+    #102d37 1px,
+    #10212b 1px,
+    #10212b 10%
+  );
 }
 .emotion-track-cue {
   position: absolute;

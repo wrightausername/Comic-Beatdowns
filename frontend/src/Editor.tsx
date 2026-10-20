@@ -290,9 +290,7 @@ export default function Editor({
         update({ workflow: { ...draft.workflow, emotion_overrides } })
       }
       onApply={(next) => update({ scenes: next })}
-      onSeek={(seconds) =>
-        setPreviewRequest({ seconds, nonce: Date.now() })
-      }
+      onSeek={(seconds) => setPreviewRequest({ seconds, nonce: Date.now() })}
     />
   );
   const editScene = (index: number, patch: Partial<Scene>) =>
@@ -1163,20 +1161,39 @@ export default function Editor({
                 <label className="button secondary small-button">
                   <Upload size={15} />
                   Import script (.txt / .md)
-                  {fileInput("Import Verdict script", ".txt,.md,text/plain,text/markdown", (file) => {
-                    if (script.trim() && !window.confirm("Replace the current script with this file?")) return;
-                    if (file.size > 50000) {
-                      onError("Script file is too large. Choose a text file under 50 KB.");
-                      return;
-                    }
-                    void file.text().then((content) => {
-                      if (content.length > 20000) {
-                        onError("Script exceeds the 20,000-character limit.");
+                  {fileInput(
+                    "Import Verdict script",
+                    ".txt,.md,text/plain,text/markdown",
+                    (file) => {
+                      if (
+                        script.trim() &&
+                        !window.confirm(
+                          "Replace the current script with this file?",
+                        )
+                      )
+                        return;
+                      if (file.size > 50000) {
+                        onError(
+                          "Script file is too large. Choose a text file under 50 KB.",
+                        );
                         return;
                       }
-                      update({ script: content });
-                    }).catch(() => onError("Could not read that script file."));
-                  })}
+                      void file
+                        .text()
+                        .then((content) => {
+                          if (content.length > 20000) {
+                            onError(
+                              "Script exceeds the 20,000-character limit.",
+                            );
+                            return;
+                          }
+                          update({ script: content });
+                        })
+                        .catch(() =>
+                          onError("Could not read that script file."),
+                        );
+                    },
+                  )}
                 </label>
               </div>
               <label>
@@ -1193,10 +1210,12 @@ export default function Editor({
               </label>
               <div className="script-stats">
                 <span>
-                  {spokenScript.trim().split(/\s+/).filter(Boolean).length} spoken words
+                  {spokenScript.trim().split(/\s+/).filter(Boolean).length}{" "}
+                  spoken words
                 </span>
                 <span>
-                  ~{timecode(spokenSeconds(spokenScript))} spoken · target 1:05–1:30
+                  ~{timecode(spokenSeconds(spokenScript))} spoken · target
+                  1:05–1:30
                 </span>
               </div>
               {emotionTimeline}

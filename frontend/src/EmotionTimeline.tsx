@@ -1,6 +1,10 @@
 import { useState } from "react";
 import type { CaptionCue, Scene } from "./types";
-import { applyPerformanceCues, parsePerformanceScript, timePerformanceCues } from "./emotion";
+import {
+  applyPerformanceCues,
+  parsePerformanceScript,
+  timePerformanceCues,
+} from "./emotion";
 
 interface Props {
   script: string;
@@ -29,7 +33,13 @@ export default function EmotionTimeline({
 }: Props) {
   const [notice, setNotice] = useState("");
   const parsed = parsePerformanceScript(script);
-  const marks = timePerformanceCues(script, captions, duration, narrationStart, overrides);
+  const marks = timePerformanceCues(
+    script,
+    captions,
+    duration,
+    narrationStart,
+    overrides,
+  );
   const ordered = [...marks].sort((a, b) => a.time - b.time);
 
   return (
@@ -37,24 +47,33 @@ export default function EmotionTimeline({
       <div className="section-heading">
         <div>
           <h3>Verdict emotion timeline</h3>
-          <p>Script directions control the performance. Preview each cue, adjust its timing, then apply restrained camera suggestions.</p>
+          <p>
+            Script directions control the performance. Preview each cue, adjust
+            its timing, then apply restrained camera suggestions.
+          </p>
         </div>
       </div>
       {!marks.length ? (
         <p className="help">
-          Add directions in the script, such as [DISBELIEF], [DEADPAN],
-          [PAUSE 0.8s], [WHISPERING], or [FRUSTRATED]. Known cues are never treated
-          as spoken words. Everything else stays in the dialogue.
+          Add directions in the script, such as [DISBELIEF], [DEADPAN], [PAUSE
+          0.8s], [WHISPERING], or [FRUSTRATED]. Known cues are never treated as
+          spoken words. Everything else stays in the dialogue.
         </p>
       ) : (
         <>
-          <div className="emotion-track" role="group" aria-label="Performance cues on the video timeline">
+          <div
+            className="emotion-track"
+            role="group"
+            aria-label="Performance cues on the video timeline"
+          >
             {ordered.map((cue) => (
               <button
                 type="button"
                 key={cue.id}
                 className={`emotion-track-cue emotion-${cue.kind}`}
-                style={{ left: `${duration ? Math.min(98, (cue.time / duration) * 100) : 0}%` }}
+                style={{
+                  left: `${duration ? Math.min(98, (cue.time / duration) * 100) : 0}%`,
+                }}
                 title={`${cue.label} at ${cue.time.toFixed(2)} seconds`}
                 aria-label={`Seek to ${cue.label} at ${cue.time.toFixed(2)} seconds`}
                 onClick={() => onSeek(cue.time)}
@@ -70,7 +89,9 @@ export default function EmotionTimeline({
           <div className="emotion-cue-list">
             {ordered.map((cue) => (
               <div className="emotion-cue-row" key={cue.id}>
-                <span className={`emotion-cue-name emotion-${cue.kind}`}>{cue.label}</span>
+                <span className={`emotion-cue-name emotion-${cue.kind}`}>
+                  {cue.label}
+                </span>
                 <label>
                   At (seconds)
                   <input
@@ -94,7 +115,11 @@ export default function EmotionTimeline({
                 <span className="muted">
                   {cue.estimated ? "Estimated" : "Aligned"}
                 </span>
-                <button type="button" className="text-button" onClick={() => onSeek(cue.time)}>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => onSeek(cue.time)}
+                >
                   Preview
                 </button>
               </div>
@@ -108,9 +133,11 @@ export default function EmotionTimeline({
               onClick={() => {
                 const result = applyPerformanceCues(scenes, marks, fps);
                 if (result.changed) onApply(result.scenes);
-                setNotice(result.changed
-                  ? `Applied suggestions to ${result.changed} unlocked shots. Review before export.`
-                  : "No eligible shots changed. Locked shots are always preserved.");
+                setNotice(
+                  result.changed
+                    ? `Applied suggestions to ${result.changed} unlocked shots. Review before export.`
+                    : "No eligible shots changed. Locked shots are always preserved.",
+                );
               }}
             >
               Apply camera cues to unlocked shots
@@ -126,13 +153,19 @@ export default function EmotionTimeline({
             )}
           </div>
           <p className="help">
-            Explicit directions take precedence over automatic suggestions when you apply them.
+            Explicit directions take precedence over automatic suggestions when
+            you apply them.
             {captions.length
               ? " Aligned markers use your timed captions when the words match; unmatched markers are estimated."
-              : " Timing is estimated until you add timed narration captions."}
-            {" "}Applying moves never changes scene length, dialogue, panel assignments, or locked shots.
+              : " Timing is estimated until you add timed narration captions."}{" "}
+            Applying moves never changes scene length, dialogue, panel
+            assignments, or locked shots.
           </p>
-          {notice && <p role="status" className="help">{notice}</p>}
+          {notice && (
+            <p role="status" className="help">
+              {notice}
+            </p>
+          )}
         </>
       )}
       {parsed.dialogue && (

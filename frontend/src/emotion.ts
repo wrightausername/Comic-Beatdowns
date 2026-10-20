@@ -25,17 +25,26 @@ export interface TimedPerformanceCue extends PerformanceCue {
 }
 
 const words = (value: string) =>
-  (value.toLowerCase().match(/[a-z0-9]+(?:'[a-z0-9]+)*/g) ?? []);
+  value.toLowerCase().match(/[a-z0-9]+(?:'[a-z0-9]+)*/g) ?? [];
 
 const kinds: [PerformanceKind, RegExp][] = [
   ["pause", /^(?:pause|beat|silence)\b/i],
   ["deadpan", /^(?:deadpan|dry|flat)\b/i],
   ["sarcastic", /^(?:sarcastic|sarcasm|mocking|ironic)\b/i],
-  ["disbelief", /^(?:disbelief|disbelieving|in disbelief|incredulous|shocked)\b/i],
-  ["frustrated", /^(?:frustrated|frustration|angry|furious|irritated|exasperated)\b/i],
+  [
+    "disbelief",
+    /^(?:disbelief|disbelieving|in disbelief|incredulous|shocked)\b/i,
+  ],
+  [
+    "frustrated",
+    /^(?:frustrated|frustration|angry|furious|irritated|exasperated)\b/i,
+  ],
   ["shouting", /^(?:shouting|shout|yelling|yell|screaming|loud)\b/i],
   ["whisper", /^(?:whisper|whispering|quietly|hushed)\b/i],
-  ["escalating", /^(?:escalating|build|building|slow build|rising intensity)\b/i],
+  [
+    "escalating",
+    /^(?:escalating|build|building|slow build|rising intensity)\b/i,
+  ],
   ["emphasis", /^(?:emphasis|emphasize|stressed|stress)\b/i],
 ];
 
@@ -66,9 +75,10 @@ export function parsePerformanceScript(script: string): {
     } else {
       for (let i = 0; i < identified.length; i++) {
         const item = identified[i]!;
-        const pause = item.kind === "pause"
-          ? item.fragment.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|seconds?)\b/i)
-          : null;
+        const pause =
+          item.kind === "pause"
+            ? item.fragment.match(/(\d+(?:\.\d+)?)\s*(?:s|sec|seconds?)\b/i)
+            : null;
         cues.push({
           id: `${position}:${i}:${item.kind}`,
           kind: item.kind,
@@ -83,7 +93,13 @@ export function parsePerformanceScript(script: string): {
     cursor = position + match[0].length;
   }
   dialogueParts.push(script.slice(cursor));
-  return { dialogue: dialogueParts.join("").replace(/[ \t]{2,}/g, " ").trim(), cues };
+  return {
+    dialogue: dialogueParts
+      .join("")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim(),
+    cues,
+  };
 }
 
 export function timePerformanceCues(
@@ -97,35 +113,48 @@ export function timePerformanceCues(
   const dialogueWords = words(parsed.dialogue);
   const availableDuration = Math.max(0, duration);
   const transcript = captions
-    .filter((cue) => cue.end > narrationStart && cue.start < narrationStart + availableDuration)
+    .filter(
+      (cue) =>
+        cue.end > narrationStart &&
+        cue.start < narrationStart + availableDuration,
+    )
     .flatMap((cue) => {
       const list = words(cue.text);
       return list.map((token, index) => ({
         token,
-        time: Math.max(0, cue.start - narrationStart + ((cue.end - cue.start) * index) / Math.max(1, list.length)),
+        time: Math.max(
+          0,
+          cue.start -
+            narrationStart +
+            ((cue.end - cue.start) * index) / Math.max(1, list.length),
+        ),
       }));
     });
   const aligned = new Map<number, number>();
   let pointer = 0;
   dialogueWords.forEach((token, index) => {
-    const candidate = transcript.findIndex((item, at) =>
-      at >= pointer && at < pointer + 15 && item.token === token,
+    const candidate = transcript.findIndex(
+      (item, at) => at >= pointer && at < pointer + 15 && item.token === token,
     );
     if (candidate >= 0) {
       aligned.set(index, transcript[candidate].time);
       pointer = candidate + 1;
     }
   });
-  const usable = dialogueWords.length > 0 &&
-    aligned.size / dialogueWords.length >= 0.5;
+  const usable =
+    dialogueWords.length > 0 && aligned.size / dialogueWords.length >= 0.5;
   return parsed.cues.map((cue) => {
     const fallback = dialogueWords.length
-      ? availableDuration * cue.wordOffset / dialogueWords.length
+      ? (availableDuration * cue.wordOffset) / dialogueWords.length
       : 0;
     let time = fallback;
     let estimated = true;
     if (usable) {
-      for (let i = cue.wordOffset; i < Math.min(cue.wordOffset + 5, dialogueWords.length); i++) {
+      for (
+        let i = cue.wordOffset;
+        i < Math.min(cue.wordOffset + 5, dialogueWords.length);
+        i++
+      ) {
         if (aligned.has(i)) {
           time = aligned.get(i)!;
           estimated = false;
@@ -168,15 +197,35 @@ export function applyPerformanceCues(
     if (index < 0 || used.has(index) || updated[index].locked) continue;
     const scene = updated[index];
     const visual = {
-      disbelief: { motion: "punch_in", motion_strength: 0.16, easing: "ease_out" },
-      frustrated: { motion: "zoom_in", motion_strength: 0.13, easing: "ease_out" },
-      shouting: { motion: "punch_in", motion_strength: 0.18, easing: "ease_out" },
+      disbelief: {
+        motion: "punch_in",
+        motion_strength: 0.16,
+        easing: "ease_out",
+      },
+      frustrated: {
+        motion: "zoom_in",
+        motion_strength: 0.13,
+        easing: "ease_out",
+      },
+      shouting: {
+        motion: "punch_in",
+        motion_strength: 0.18,
+        easing: "ease_out",
+      },
       sarcastic: { motion: "hold", motion_strength: 0.02, easing: "smooth" },
       deadpan: { motion: "hold", motion_strength: 0.02, easing: "smooth" },
       whisper: { motion: "zoom_in", motion_strength: 0.06, easing: "smooth" },
-      escalating: { motion: "zoom_in", motion_strength: 0.12, easing: "ease_in" },
+      escalating: {
+        motion: "zoom_in",
+        motion_strength: 0.12,
+        easing: "ease_in",
+      },
       pause: { motion: "hold", motion_strength: 0.02, easing: "smooth" },
-      emphasis: { motion: "punch_in", motion_strength: 0.12, easing: "ease_out" },
+      emphasis: {
+        motion: "punch_in",
+        motion_strength: 0.12,
+        easing: "ease_out",
+      },
     } as const;
     Object.assign(scene, visual[cue.kind]);
     used.add(index);

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CaptionCue, Scene } from "./types";
-import { applyPerformanceCues, parsePerformanceScript, timePerformanceCues } from "./emotion";
+import {
+  applyPerformanceCues,
+  parsePerformanceScript,
+  timePerformanceCues,
+} from "./emotion";
 
 describe("Verdict script performance directions", () => {
   it("strips only recognized directions from spoken dialogue", () => {
@@ -8,7 +12,10 @@ describe("Verdict script performance directions", () => {
       "[DISBELIEF, escalating] Flash outran death. [PAUSE 0.8s, DEADPAN] And Captain Cold won? (Issue #17)",
     );
     expect(result.cues.map((cue) => cue.kind)).toEqual([
-      "disbelief", "escalating", "pause", "deadpan",
+      "disbelief",
+      "escalating",
+      "pause",
+      "deadpan",
     ]);
     expect(result.cues[2].pauseSeconds).toBe(0.8);
     expect(result.dialogue).not.toContain("DEADPAN");
@@ -22,7 +29,8 @@ describe("Verdict script performance directions", () => {
     ];
     const marks = timePerformanceCues(
       "Flash outran death. [DEADPAN] And Cold won.",
-      captions, 6,
+      captions,
+      6,
     );
     expect(marks).toHaveLength(1);
     expect(marks[0].time).toBeCloseTo(3);
@@ -32,9 +40,9 @@ describe("Verdict script performance directions", () => {
   it("uses explicit manual timing overrides without editing dialogue", () => {
     const script = "What? [FRUSTRATED] How?";
     const original = timePerformanceCues(script, [], 10);
-    const cues = timePerformanceCues(
-      script, [], 10, 0, { [original[0].id]: 7.2 },
-    );
+    const cues = timePerformanceCues(script, [], 10, 0, {
+      [original[0].id]: 7.2,
+    });
     expect(cues[0].time).toBe(7.2);
     expect(cues[0].estimated).toBe(false);
   });
@@ -46,7 +54,8 @@ describe("Verdict script performance directions", () => {
     ] as Scene[];
     const cues = timePerformanceCues(
       "[SHOUTING] No! [PAUSE 0.8s] Seriously?",
-      [], 6,
+      [],
+      6,
     );
     const outcome = applyPerformanceCues(scenes, cues, 30);
     expect(outcome.changed).toBe(1);
