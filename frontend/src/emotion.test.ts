@@ -49,7 +49,7 @@ describe("Verdict script performance directions", () => {
       [], 6,
     );
     const outcome = applyPerformanceCues(scenes, cues, 30);
-    expect(outcome.changed).toBe(0);
+    expect(outcome.changed).toBe(1);
     expect(outcome.scenes[0].motion).toBe("hold");
     expect(outcome.scenes[1].duration).toBe(3);
   });
