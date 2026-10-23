@@ -244,7 +244,7 @@ def test_prerequisites_and_connection_secret_storage(client, settings):
     assert not connection_path(settings).exists()
 
 
-def mock_vision(monkeypatch, panel_id, invalid=False):
+def mock_vision(monkeypatch, panel_id, invalid=False, confidence=None):
     def post(url, **kwargs):
         content = kwargs["json"]["messages"][1]["content"]
         assert any(c["type"] == "image_url" for c in content)
@@ -257,6 +257,7 @@ def mock_vision(monkeypatch, panel_id, invalid=False):
                 "target_y": 0.3,
                 "framing": "fill",
                 "reason": "Fist at the right edge",
+                **({"confidence": confidence} if confidence is not None else {}),
             }
             for _ in cards
         ]
@@ -296,6 +297,10 @@ def test_vision_uses_images_and_validates_provider_plan(client, image_bytes, mon
     assert result["report"]["mode"] == "vision"
     assert "private" not in json.dumps(result)
     assert saved["scenes"][0]["focus_x"] > 0.5
+    assert saved["workflow"]["storyboard"][0]["panel_id"] == second["id"]
+    assert result["report"]["smart_crops"]
+    assert result["report"]["smart_crops"][0]["reason"] == "Fist at the right edge"
+    assert result["report"]["smart_crops"][0]["review_required"]
     # A hallucinated panel must never reach the timeline.
     mock_vision(monkeypatch, second["id"], invalid=True)
     before = saved["revision"]
@@ -303,6 +308,46 @@ def test_vision_uses_images_and_validates_provider_plan(client, image_bytes, mon
     result = wait_job(client, url)
     assert result["status"] == "failed" and "usable panel plan" in result["message"]
     assert client.get(url).json()["revision"] == before
+
+
+def test_uncertain_vision_crop_uses_safe_framing_and_is_reviewable(
+    client, image_bytes, monkeypatch, settings
+):
+    project, url, _, second = fixture_project(client, image_bytes)
+    save_connection(
+        settings,
+        VisionConnection(base_url="https://example.com/v1", model="test", api_key="secret"),
+    )
+    project = enable(client, project, mode="vision")
+    mock_vision(monkeypatch, second["id"], confidence=0.2)
+    fake_render(client, monkeypatch)
+    start(client, url, project)
+    result = wait_job(client, url)
+    assert result["status"] == "completed", result
+    assert any("uncertain" in warning for warning in result["report"]["warnings"])
+    reviews = result["report"]["smart_crops"]
+    assert reviews
+    assert all(review["review_required"] and not review["applied"] for review in reviews)
+    saved = client.get(url).json()
+    assert all(scene["framing"] == "fit" for scene in saved["scenes"])
+    assert all(scene["focus_x"] == 0.5 for scene in saved["scenes"])
+
+
+def test_vision_rejects_invalid_model_confidence(
+    client, image_bytes, monkeypatch, settings
+):
+    project, url, _, second = fixture_project(client, image_bytes)
+    save_connection(
+        settings,
+        VisionConnection(base_url="https://example.com/v1", model="test"),
+    )
+    project = enable(client, project, mode="vision")
+    mock_vision(monkeypatch, second["id"], confidence=4.2)
+    fake_render(client, monkeypatch)
+    start(client, url, project)
+    result = wait_job(client, url)
+    assert result["status"] == "failed"
+    assert client.get(url).json()["revision"] == project["revision"]
 
 
 def test_provider_failure_is_redacted_and_does_not_fallback_silently(
