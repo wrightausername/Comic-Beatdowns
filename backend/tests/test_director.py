@@ -333,9 +333,7 @@ def test_uncertain_vision_crop_uses_safe_framing_and_is_reviewable(
     assert all(scene["focus_x"] == 0.5 for scene in saved["scenes"])
 
 
-def test_vision_rejects_invalid_model_confidence(
-    client, image_bytes, monkeypatch, settings
-):
+def test_vision_rejects_invalid_model_confidence(client, image_bytes, monkeypatch, settings):
     project, url, _, second = fixture_project(client, image_bytes)
     save_connection(
         settings,
