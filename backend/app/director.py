@@ -239,6 +239,7 @@ class DirectorService:
                 else "Arranging panels using your order, tags, and narration timing…",
             )
             decisions = []
+            crop_reviews = []
             summary = "Basic mode uses tags and upload order. It does not see the artwork."
             if provider:
                 # Group tiny ASR cues into readable spoken cards. Keep exact timing/text.
@@ -274,6 +275,13 @@ class DirectorService:
                 summary = (
                     plan.summary or "Vision AI matched panels and focal points to the narration."
                 )
+                # Feed validated vision assignments into the existing storyboard
+                # matcher *before* building the shots. Otherwise the camera could
+                # be aimed at the right action on the wrong panel.
+                if any(d.confidence is not None and d.confidence < 0.55 for _, d in decisions):
+                    warnings.append(
+                        "Some Smart Crop targets are uncertain and use whole-panel framing. Review them before approval."
+                    )
             self.progress(
                 job_id,
                 "editing",
@@ -303,14 +311,45 @@ class DirectorService:
                         key=lambda pair: abs((pair[0]["start"] + pair[0]["end"]) / 2 - middle),
                     )
                     panel = panel_map[shot["panel_id"]]
-                    if panel.id == decision.panel_id:
-                        shot.update(
-                            focus_x=focus_position(decision.target_x, panel.width / panel.height),
-                            focus_y=focus_position(
-                                decision.target_y, panel.width / panel.height, vertical=True
+                    matches = panel.id == decision.panel_id
+                    low_confidence = (
+                        decision.confidence is not None and decision.confidence < 0.55
+                    )
+                    if matches:
+                        if low_confidence:
+                            # Never force a speculative close-up when the vision
+                            # provider says it cannot identify the action.
+                            shot.update(focus_x=0.5, focus_y=0.5, framing="fit")
+                        else:
+                            shot.update(
+                                focus_x=focus_position(
+                                    decision.target_x, panel.width / panel.height
+                                ),
+                                focus_y=focus_position(
+                                    decision.target_y, panel.width / panel.height, vertical=True
+                                ),
+                                framing=decision.framing,
+                            )
+                    crop_reviews.append(
+                        {
+                            "scene_id": shot["id"],
+                            "panel_id": panel.id,
+                            "start": round(cursor, 3),
+                            "text": card["text"][:240],
+                            "target_x": decision.target_x if matches else 0.5,
+                            "target_y": decision.target_y if matches else 0.5,
+                            "framing": shot.get("framing", "fill"),
+                            "reason": decision.reason if matches else "Panel assignment differs from the selected shot",
+                            "confidence": decision.confidence if matches else None,
+                            "review_required": (
+                                not matches
+                                or low_confidence
+                                or decision.confidence is None
+                                or decision.confidence < 0.75
                             ),
-                            framing=decision.framing,
-                        )
+                            "applied": matches and not low_confidence,
+                        }
+                    )
                 cursor += shot["duration"]
             items = [SceneInput.model_validate(s) for s in cut["scenes"]]
             with self.sessions() as db:
@@ -363,6 +402,7 @@ class DirectorService:
                     "warnings": warnings,
                     "scene_count": len(items),
                     "caption_count": len(project.caption_cues),
+                    "smart_crops": crop_reviews,
                 }
                 # queue_render commits edit and immutable render together.
                 queue_render_for_state(
