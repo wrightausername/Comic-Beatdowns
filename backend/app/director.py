@@ -312,9 +312,7 @@ class DirectorService:
                     )
                     panel = panel_map[shot["panel_id"]]
                     matches = panel.id == decision.panel_id
-                    low_confidence = (
-                        decision.confidence is not None and decision.confidence < 0.55
-                    )
+                    low_confidence = decision.confidence is not None and decision.confidence < 0.55
                     if matches:
                         if low_confidence:
                             # Never force a speculative close-up when the vision
@@ -339,7 +337,9 @@ class DirectorService:
                             "target_x": decision.target_x if matches else 0.5,
                             "target_y": decision.target_y if matches else 0.5,
                             "framing": shot.get("framing", "fill"),
-                            "reason": decision.reason if matches else "Panel assignment differs from the selected shot",
+                            "reason": decision.reason
+                            if matches
+                            else "Panel assignment differs from the selected shot",
                             "confidence": decision.confidence if matches else None,
                             "review_required": (
                                 not matches
