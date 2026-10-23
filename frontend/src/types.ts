@@ -167,6 +167,20 @@ export interface AutopilotOptions {
   delivery: "draft" | "final";
   voice_approved?: boolean;
 }
+export interface SmartCropSuggestion {
+  scene_id: string;
+  panel_id: string;
+  start: number;
+  text: string;
+  target_x: number;
+  target_y: number;
+  framing: "fit" | "fill";
+  reason: string;
+  confidence: number | null;
+  review_required: boolean;
+  applied: boolean;
+}
+
 export interface DirectorJob {
   id: string;
   project_id: string;
@@ -183,6 +197,7 @@ export interface DirectorJob {
     warnings?: string[];
     scene_count?: number;
     caption_count?: number;
+    smart_crops?: SmartCropSuggestion[];
   };
   render: RenderJob | null;
 }
