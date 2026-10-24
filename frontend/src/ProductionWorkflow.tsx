@@ -54,6 +54,13 @@ interface Inbox {
   enabled: boolean;
   files: { id: string; name: string; status: string; message: string }[];
 }
+interface PreflightFinding {
+  code: string;
+  message: string;
+  severity: "warning" | "critical";
+  seconds: number | null;
+  scene_index: number | null;
+}
 interface Asset {
   kind: string;
   id: string;
@@ -151,6 +158,8 @@ export default function ProductionWorkflow(props: Props) {
     { file: File; kind: string; status: string }[]
   >([]);
   const [message, setMessage] = useState("");
+  const [preflight, setPreflight] = useState<PreflightFinding[] | null>(null);
+  const [preflightError, setPreflightError] = useState("");
   const [inbox, setInbox] = useState<Inbox | null>(null),
     [assets, setAssets] = useState<Asset[]>([]);
   const [unused, setUnused] = useState(false);
@@ -196,6 +205,23 @@ export default function ProductionWorkflow(props: Props) {
   const available = panels.filter((p) => projectIds.has(p.id));
   const used = new Set(scenes.map((s) => s.panel_id));
   const notes = workflow.notes ?? [];
+  useEffect(() => {
+    if (stage !== "review") return;
+    let active = true;
+    void api<{ findings: PreflightFinding[] }>(url + "/preflight")
+      .then((response) => {
+        if (active) {
+          setPreflight(response.findings);
+          setPreflightError("");
+        }
+      })
+      .catch((error) => {
+        if (active) setPreflightError(errorMessage(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, [stage, url, project.revision]);
   useEffect(() => {
     setCards(workflow.storyboard ?? []);
   }, [workflow.storyboard]);
@@ -1219,6 +1245,34 @@ export default function ProductionWorkflow(props: Props) {
               Review / approve script
             </button>
           </div>
+          <details className="workflow-advanced" open>
+            <summary>
+              Verdict preflight · {preflight ? preflight.length : "checking"} items
+            </summary>
+            <p className="help">
+              Automated technical checks of the saved edit. It cannot verify the
+              artwork, humor, or whether a caption covers a face. Review the video too.
+            </p>
+            {preflightError && <p className="notice">{preflightError}</p>}
+            {preflight?.length === 0 && (
+              <p className="help">No technical problems detected in the saved edit.</p>
+            )}
+            {preflight?.map((finding, index) => (
+              <div className="framing-check" key={`${finding.code}-${index}`}>
+                <button
+                  className="text-button"
+                  disabled={finding.seconds == null}
+                  onClick={() => {
+                    if (finding.seconds != null) onSeek(finding.seconds);
+                  }}
+                >
+                  {finding.severity === "critical" ? "Needs fixing" : "Review"}
+                  {finding.seconds != null ? ` · ${timecode(finding.seconds)}` : ""}
+                </button>
+                <p className="help">{finding.message}</p>
+              </div>
+            ))}
+          </details>
           <h3>One-click fixes</h3>
           <div className="fix-list">
             {!project.narration_url && (
