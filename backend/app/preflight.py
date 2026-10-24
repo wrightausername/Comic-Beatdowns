@@ -26,7 +26,8 @@ def check_episode(project):
         add("scenes_missing", "There are no shots. Add or generate a timeline.", "critical")
         return findings
 
-    frames = lambda duration: max(1, int(duration * fps + 0.5))
+    def frames(duration):
+        return max(1, int(duration * fps + 0.5))
     length = sum(frames(scene["duration"]) for scene in scenes) / fps
     narration = project.get("narration_duration") or 0
     start = settings.get("narration_start") or 0
