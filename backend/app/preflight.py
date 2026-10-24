@@ -28,6 +28,7 @@ def check_episode(project):
 
     def frames(duration):
         return max(1, int(duration * fps + 0.5))
+
     length = sum(frames(scene["duration"]) for scene in scenes) / fps
     narration = project.get("narration_duration") or 0
     start = settings.get("narration_start") or 0
