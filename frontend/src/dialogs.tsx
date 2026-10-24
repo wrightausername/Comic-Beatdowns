@@ -684,7 +684,7 @@ export function PanelDetail({
             {suggestions && suggestions.length > 0 && (
               <>
                 <div className="smart-panel-choices">
-                  {suggestions.map((suggestion, index) => (
+                  {suggestions.map((_, index) => (
                     <label className="check-label" key={index}>
                       <input
                         type="checkbox"
