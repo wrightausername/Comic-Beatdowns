@@ -18,16 +18,15 @@ from .auth import COOKIE, SESSION_AGE, authenticated, session_cookie
 from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
+from .integrations import OpenAICompatibleWriter
 from .panel_detection import suggest_panels
 from .preflight import check_episode
-from .integrations import OpenAICompatibleWriter
 from .renderer import normalize_audio, timeline_duration, tools_available
 from .schemas import (
     AutoEditInput,
     CaptionGenerateInput,
     CaptionList,
     Crop,
-    SmartCropSelection,
     Login,
     PanelMetadata,
     ProjectCreate,
@@ -35,6 +34,7 @@ from .schemas import (
     RenderInput,
     RevisionInput,
     SceneList,
+    SmartCropSelection,
     TemplateInput,
     VideoSettings,
     WorkspaceInput,
