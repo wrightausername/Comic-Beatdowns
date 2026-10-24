@@ -2,8 +2,8 @@
 
 import io
 
-from PIL import Image, ImageDraw
 from conftest import add_panel, add_project
+from PIL import Image, ImageDraw
 
 from app.panel_detection import suggest_panels
 from app.preflight import check_episode
