@@ -4,7 +4,7 @@ Returns suggestions only. The original image stays unchanged until a user accept
 Irregular/inset, dark and gutterless pages intentionally require manual review.
 """
 
-from PIL import Image, ImageOps
+from PIL import ImageOps
 
 
 def _bands(flags, minimum):
