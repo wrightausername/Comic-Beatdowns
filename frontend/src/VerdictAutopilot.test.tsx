@@ -155,34 +155,45 @@ test("Smart Crop review shows source image, focal point, and uncertainty", async
   mocked.mockImplementation(async (path) =>
     path === "/verdict/connection"
       ? { configured: false }
-      : [{
-          id: "crop-run",
-          status: "completed",
-          message: "Preview ready",
-          output_revision: 4,
-          report: {
-            mode: "vision",
-            smart_crops: [{
-              scene_id: "scene-one",
-              panel_id: "panel",
-              start: 1.5,
-              text: "Batman gets punched.",
-              target_x: 0.7,
-              target_y: 0.3,
-              framing: "fill",
-              reason: "Fist at the right edge",
-              confidence: null,
-              review_required: true,
-              applied: true,
-            }],
+      : [
+          {
+            id: "crop-run",
+            status: "completed",
+            message: "Preview ready",
+            output_revision: 4,
+            report: {
+              mode: "vision",
+              smart_crops: [
+                {
+                  scene_id: "scene-one",
+                  panel_id: "panel",
+                  start: 1.5,
+                  text: "Batman gets punched.",
+                  target_x: 0.7,
+                  target_y: 0.3,
+                  framing: "fill",
+                  reason: "Fist at the right edge",
+                  confidence: null,
+                  review_required: true,
+                  applied: true,
+                },
+              ],
+            },
+            render: null,
           },
-          render: null,
-        }],
+        ],
   );
   render(
     <VerdictAutopilot
       project={project}
-      panels={[{ id: "panel", title: "Impact panel", thumbnail_url: "/impact.jpg", image_url: "/impact.jpg" } as never]}
+      panels={[
+        {
+          id: "panel",
+          title: "Impact panel",
+          thumbnail_url: "/impact.jpg",
+          image_url: "/impact.jpg",
+        } as never,
+      ]}
       dirty={false}
       busy={false}
       accept={vi.fn()}
@@ -193,7 +204,10 @@ test("Smart Crop review shows source image, focal point, and uncertainty", async
     />,
   );
   expect(await screen.findByText("Fist at the right edge")).toBeInTheDocument();
-  expect(screen.getByAltText("Impact panel")).toHaveAttribute("src", "/impact.jpg");
+  expect(screen.getByAltText("Impact panel")).toHaveAttribute(
+    "src",
+    "/impact.jpg",
+  );
   expect(screen.getByText(/Confidence not supplied/)).toBeInTheDocument();
   expect(screen.getByText(/Smart Crop review/)).toBeInTheDocument();
 });

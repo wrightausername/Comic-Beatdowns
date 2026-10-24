@@ -533,16 +533,19 @@ export function PanelDetail({
   const [crop, setCrop] = useState({ x: 0, y: 0, width: 1, height: 1 });
   const [outputWidth, setOutputWidth] = useState("");
   const [busy, setBusy] = useState(false);
-  const [suggestions, setSuggestions] = useState<SuggestedPanelCrop[] | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestedPanelCrop[] | null>(
+    null,
+  );
   const [chosen, setChosen] = useState<number[]>([]);
   const [detectMessage, setDetectMessage] = useState("");
   const start = useRef<{ x: number; y: number } | null>(null);
   async function detectPanels() {
     setBusy(true);
     try {
-      const response = await api<{ candidates: SuggestedPanelCrop[]; notice: string }>(
-        `/panels/${panel.id}/smart-crops`,
-      );
+      const response = await api<{
+        candidates: SuggestedPanelCrop[];
+        notice: string;
+      }>(`/panels/${panel.id}/smart-crops`);
       setSuggestions(response.candidates);
       setChosen(response.candidates.map((_, i) => i));
       setDetectMessage(

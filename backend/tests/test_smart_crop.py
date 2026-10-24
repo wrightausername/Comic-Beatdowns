@@ -76,22 +76,25 @@ def test_preflight_warns_about_timing_and_low_resolution():
     }
     codes = {issue["code"] for issue in check_episode(project)}
     assert {"duration_mismatch", "captions_missing", "flash_cut", "low_resolution"} <= codes
-    assert not check_episode(
-        {
-            **project,
-            "settings": {**project["settings"], "captions": False},
-            "narration_duration": 0.2,
-            "scenes": [
-                {
-                    "duration": 0.2,
-                    "panel_id": "tiny",
-                    "motion": "hold",
-                    "framing": "fit",
-                    "panel": {"width": 350, "height": 480},
-                }
-            ],
-        }
-    ) == []  # A 0.2-second shot is still too short.
+    assert (
+        not check_episode(
+            {
+                **project,
+                "settings": {**project["settings"], "captions": False},
+                "narration_duration": 0.2,
+                "scenes": [
+                    {
+                        "duration": 0.2,
+                        "panel_id": "tiny",
+                        "motion": "hold",
+                        "framing": "fit",
+                        "panel": {"width": 350, "height": 480},
+                    }
+                ],
+            }
+        )
+        == []
+    )  # A 0.2-second shot is still too short.
 
 
 def test_project_preflight_api_reports_clean_missing_requirements(client):

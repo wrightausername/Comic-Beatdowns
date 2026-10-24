@@ -43,9 +43,7 @@ def _splits(image, axis):
     gutters = _bands(bright, max(3, round(scan * 0.007)))
     # Ignore the pale margin around a page. Only clear interior gutters count.
     candidates = [
-        (a, b)
-        for a, b in gutters
-        if a > scan * 0.12 and b < scan * 0.88 and b - a <= scan * 0.09
+        (a, b) for a, b in gutters if a > scan * 0.12 and b < scan * 0.88 and b - a <= scan * 0.09
     ]
     if not candidates:
         return []
