@@ -58,6 +58,17 @@ class Crop(StrictModel):
     output_width: int | None = Field(default=None, ge=16, le=4096)
 
 
+class SmartCropSelection(StrictModel):
+    indices: list[int] = Field(min_length=1, max_length=12)
+
+    @field_validator("indices")
+    @classmethod
+    def validate_indices(cls, value):
+        if any(index < 0 for index in value):
+            raise ValueError("Panel indices must be nonnegative")
+        return value
+
+
 class ProjectCreate(StrictModel):
     title: str = Field(min_length=1, max_length=200)
     idea: str = Field(default="", max_length=8000)
