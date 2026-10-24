@@ -19,6 +19,8 @@ from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
+from .panel_detection import suggest_panels
+from .preflight import check_episode
 from .renderer import normalize_audio, timeline_duration, tools_available
 from .schemas import (
     AutoEditInput,
@@ -32,6 +34,7 @@ from .schemas import (
     RenderInput,
     RevisionInput,
     SceneList,
+    SmartCropSelection,
     TemplateInput,
     VideoSettings,
     WorkspaceInput,
@@ -294,6 +297,66 @@ def update_panel(panel_id: str, data: PanelMetadata, db: Session = Depends(sessi
     return panel_dict(panel)
 
 
+@router.get("/panels/{panel_id}/smart-crops")
+def smart_crop_candidates(panel_id: str, request: Request, db: Session = Depends(session)):
+    """Local read-only page segmentation. Empty means manual cropping is needed."""
+    source = get_or_404(db, Panel, panel_id)
+    with Image.open(request.app.state.storage.path(source.storage_key)) as image:
+        candidates = suggest_panels(image)
+    return {
+        "candidates": candidates,
+        "method": "straight_pale_gutters",
+        "notice": (
+            "Conservative straight-gutter suggestions, not character or action recognition. "
+            "Confirm the outlined panels before creating crops."
+        ),
+    }
+
+
+@router.post("/panels/{panel_id}/smart-crops", status_code=201)
+def create_smart_crops(
+    panel_id: str, data: SmartCropSelection, request: Request, db: Session = Depends(session)
+):
+    """Create explicitly selected child panels without changing the source page."""
+    source = get_or_404(db, Panel, panel_id)
+    storage = request.app.state.storage
+    with Image.open(storage.path(source.storage_key)) as image:
+        candidates = suggest_panels(image)
+        if not candidates:
+            raise HTTPException(422, "No clear straight gutters found. Crop this page manually.")
+        if len(set(data.indices)) != len(data.indices):
+            raise HTTPException(422, "Choose each suggested panel once")
+        if any(index >= len(candidates) for index in data.indices):
+            raise HTTPException(422, "Panel suggestion no longer exists. Analyze the page again.")
+        created = []
+        try:
+            for index in sorted(data.indices):
+                choice = candidates[index]
+                x1 = round(choice["x"] * image.width)
+                y1 = round(choice["y"] * image.height)
+                x2 = round((choice["x"] + choice["width"]) * image.width)
+                y2 = round((choice["y"] + choice["height"]) * image.height)
+                region = image.crop((x1, y1, x2, y2))
+                metadata = PanelMetadata(
+                    **{key: getattr(source, key) for key in PanelMetadata.model_fields}
+                )
+                metadata.title = f"{source.title[:172]} · panel {index + 1}"
+                created.append(
+                    save_panel(
+                        region, metadata, source.source_name, None, storage, parent_id=source.id
+                    )
+                )
+            db.add_all(created)
+            db.commit()
+        except Exception:
+            db.rollback()
+            for panel in created:
+                storage.delete(panel.storage_key)
+                storage.delete(panel.thumbnail_key)
+            raise
+    return [panel_dict(panel) for panel in created]
+
+
 @router.post("/panels/{panel_id}/crop", status_code=201)
 def crop_panel(panel_id: str, data: Crop, request: Request, db: Session = Depends(session)):
     source = get_or_404(db, Panel, panel_id)
@@ -361,6 +424,13 @@ def create_project(data: ProjectCreate, db: Session = Depends(session)):
 @router.get("/projects/{project_id}")
 def get_project(project_id: str, db: Session = Depends(session)):
     return project_dict(get_or_404(db, Project, project_id), db, True)
+
+
+@router.get("/projects/{project_id}/preflight")
+def episode_preflight(project_id: str, db: Session = Depends(session)):
+    project = get_or_404(db, Project, project_id)
+    findings = check_episode(project_dict(project, db, True))
+    return {"findings": findings, "critical": sum(i["severity"] == "critical" for i in findings)}
 
 
 @router.patch("/projects/{project_id}")

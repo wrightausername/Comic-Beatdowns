@@ -4,10 +4,11 @@ import { api, json } from "./api";
 import type {
   AutopilotOptions,
   DirectorJob,
+  Panel,
   Project,
   VisionConnection,
 } from "./types";
-import { errorMessage } from "./utils";
+import { errorMessage, timecode } from "./utils";
 
 export const defaultAutopilot: AutopilotOptions = {
   enabled: false,
@@ -42,8 +43,88 @@ export async function handToVerdict(project: Project) {
   return null;
 }
 
+function SmartCropReview({
+  crops,
+  panels,
+  onReview,
+}: {
+  crops: NonNullable<DirectorJob["report"]["smart_crops"]>;
+  panels: Panel[];
+  onReview: () => void;
+}) {
+  const needsReview = crops.filter((crop) => crop.review_required).length;
+  return (
+    <details className="autopilot-crop-review">
+      <summary>
+        Smart Crop review · {crops.length} shots
+        {needsReview ? ` · ${needsReview} flagged` : ""}
+      </summary>
+      <p className="muted">
+        Each marker shows Verdict's suggested focal point on the source artwork,
+        not an exact crop boundary. Confirm the punch, reaction and any
+        important dialogue remain visible in the rendered preview.
+      </p>
+      <div className="autopilot-crop-list">
+        {crops.slice(0, 12).map((crop, index) => {
+          const panel = panels.find((item) => item.id === crop.panel_id);
+          return (
+            <div className="autopilot-crop-item" key={crop.scene_id + index}>
+              {panel && (
+                <div className="autopilot-crop-image">
+                  <img
+                    src={panel.thumbnail_url || panel.image_url}
+                    alt={panel.title || "Comic source artwork"}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="autopilot-crop-target"
+                    style={{
+                      left: `${crop.target_x * 100}%`,
+                      top: `${crop.target_y * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+              <div className="autopilot-crop-text">
+                <strong>
+                  Shot {index + 1} · {timecode(crop.start)}
+                </strong>
+                <p>{crop.text}</p>
+                <p className="muted">
+                  {crop.reason || "No visual evidence described"}
+                </p>
+                <small>
+                  {crop.framing === "fit"
+                    ? "Whole-panel framing"
+                    : "Close framing"}
+                  {" · "}
+                  {crop.confidence == null
+                    ? "Confidence not supplied"
+                    : `Model confidence: ${Math.round(crop.confidence * 100)}%`}
+                  {crop.review_required ? " · Check this shot" : ""}
+                  {!crop.applied ? " · Fallback framing" : ""}
+                </small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {crops.length > 12 && (
+        <p className="muted">
+          Showing the first 12 of {crops.length} shots. Review the full video
+          for remaining crops.
+        </p>
+      )}
+      <button className="button secondary" onClick={onReview}>
+        Review the edit and camera framing
+      </button>
+    </details>
+  );
+}
+
 export default function VerdictAutopilot({
   project,
+  panels = [],
   dirty,
   busy,
   accept,
@@ -53,6 +134,7 @@ export default function VerdictAutopilot({
   onError,
 }: {
   project: Project;
+  panels?: Panel[];
   dirty: boolean;
   busy: boolean;
   accept: (project: Project) => void;
@@ -338,6 +420,14 @@ export default function VerdictAutopilot({
               {warning}
             </p>
           ))}
+          {latest.report.smart_crops &&
+            latest.report.smart_crops.length > 0 && (
+              <SmartCropReview
+                crops={latest.report.smart_crops}
+                panels={panels}
+                onReview={onReview}
+              />
+            )}
           {latest.render?.status === "completed" && (
             <>
               {!currentResult && (

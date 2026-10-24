@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .effects import Easing, Motion, Transition
 
@@ -56,6 +56,17 @@ class Crop(StrictModel):
     width: float = Field(gt=0, le=1)
     height: float = Field(gt=0, le=1)
     output_width: int | None = Field(default=None, ge=16, le=4096)
+
+
+class SmartCropSelection(StrictModel):
+    indices: list[int] = Field(min_length=1, max_length=12)
+
+    @field_validator("indices")
+    @classmethod
+    def validate_indices(cls, value):
+        if any(index < 0 for index in value):
+            raise ValueError("Panel indices must be nonnegative")
+        return value
 
 
 class ProjectCreate(StrictModel):
