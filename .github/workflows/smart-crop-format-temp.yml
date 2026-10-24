@@ -1,0 +1,33 @@
+name: Temporary Smart Crop formatting
+on:
+  push:
+    branches:
+      - feature/verdict-smart-crop-review
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Format only this feature's Python and UI files
+        run: |
+          python -m pip install ruff==0.17.1
+          python -m ruff format backend/app/api.py backend/app/director.py backend/app/panel_detection.py backend/app/preflight.py backend/app/schemas.py backend/tests/test_director.py backend/tests/test_smart_crop.py
+          npm --prefix frontend ci
+          npm --prefix frontend exec -- prettier --write src/VerdictAutopilot.tsx src/VerdictAutopilot.test.tsx src/ProductionWorkflow.tsx src/dialogs.tsx
+          git add backend/app/api.py backend/app/director.py backend/app/panel_detection.py backend/app/preflight.py backend/app/schemas.py backend/tests/test_director.py backend/tests/test_smart_crop.py frontend/src/VerdictAutopilot.tsx frontend/src/VerdictAutopilot.test.tsx frontend/src/ProductionWorkflow.tsx frontend/src/dialogs.tsx
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Format Smart Crop and preflight files'
+            git push origin HEAD:feature/verdict-smart-crop-review
+          fi
