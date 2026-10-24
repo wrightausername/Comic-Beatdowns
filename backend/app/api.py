@@ -19,6 +19,7 @@ from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .panel_detection import suggest_panels
+from .preflight import check_episode
 from .integrations import OpenAICompatibleWriter
 from .renderer import normalize_audio, timeline_duration, tools_available
 from .schemas import (
@@ -423,6 +424,13 @@ def create_project(data: ProjectCreate, db: Session = Depends(session)):
 @router.get("/projects/{project_id}")
 def get_project(project_id: str, db: Session = Depends(session)):
     return project_dict(get_or_404(db, Project, project_id), db, True)
+
+
+@router.get("/projects/{project_id}/preflight")
+def episode_preflight(project_id: str, db: Session = Depends(session)):
+    project = get_or_404(db, Project, project_id)
+    findings = check_episode(project_dict(project, db))
+    return {"findings": findings, "critical": sum(i["severity"] == "critical" for i in findings)}
 
 
 @router.patch("/projects/{project_id}")
