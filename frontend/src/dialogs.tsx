@@ -27,6 +27,14 @@ import {
 } from "./EffectOptions";
 import { errorMessage } from "./utils";
 
+type SuggestedPanelCrop = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+};
+
 type ErrorHandler = (message: string) => void;
 const initialMetadata = {
   title: "",
@@ -525,7 +533,41 @@ export function PanelDetail({
   const [crop, setCrop] = useState({ x: 0, y: 0, width: 1, height: 1 });
   const [outputWidth, setOutputWidth] = useState("");
   const [busy, setBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestedPanelCrop[] | null>(null);
+  const [chosen, setChosen] = useState<number[]>([]);
+  const [detectMessage, setDetectMessage] = useState("");
   const start = useRef<{ x: number; y: number } | null>(null);
+  async function detectPanels() {
+    setBusy(true);
+    try {
+      const response = await api<{ candidates: SuggestedPanelCrop[]; notice: string }>(
+        `/panels/${panel.id}/smart-crops`,
+      );
+      setSuggestions(response.candidates);
+      setChosen(response.candidates.map((_, i) => i));
+      setDetectMessage(
+        response.candidates.length
+          ? response.notice
+          : "No clear straight gutters found. This page needs manual cropping.",
+      );
+    } catch (error) {
+      onError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function acceptPanels() {
+    setBusy(true);
+    try {
+      await api(`/panels/${panel.id}/smart-crops`, json({ indices: chosen }));
+      onSaved();
+    } catch (error) {
+      onError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function point(e: PointerEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     return {
@@ -601,6 +643,23 @@ export function PanelDetail({
                 height: `${crop.height * 100}%`,
               }}
             />
+            {suggestions?.map((suggestion, index) => (
+              <span
+                key={index}
+                className="crop-selection"
+                aria-hidden="true"
+                style={{
+                  left: `${suggestion.x * 100}%`,
+                  top: `${suggestion.y * 100}%`,
+                  width: `${suggestion.width * 100}%`,
+                  height: `${suggestion.height * 100}%`,
+                  outline: chosen.includes(index)
+                    ? "3px solid #53ebdb"
+                    : "2px dashed #dd9e56",
+                  pointerEvents: "none",
+                }}
+              />
+            ))}
           </div>
           <div className="crop-info">
             <span>
@@ -612,6 +671,45 @@ export function PanelDetail({
             >
               Reset selection
             </button>
+          </div>
+          <div className="smart-panel-detect">
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() => void detectPanels()}
+            >
+              <Scissors size={16} /> Detect comic panels
+            </button>
+            {detectMessage && <p className="help">{detectMessage}</p>}
+            {suggestions && suggestions.length > 0 && (
+              <>
+                <div className="smart-panel-choices">
+                  {suggestions.map((suggestion, index) => (
+                    <label className="check-label" key={index}>
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(index)}
+                        onChange={(e) =>
+                          setChosen((before) =>
+                            e.target.checked
+                              ? [...before, index]
+                              : before.filter((value) => value !== index),
+                          )
+                        }
+                      />
+                      Panel {index + 1} · suggested region
+                    </label>
+                  ))}
+                </div>
+                <button
+                  className="button"
+                  disabled={busy || chosen.length === 0}
+                  onClick={() => void acceptPanels()}
+                >
+                  Create {chosen.length} selected panel crops
+                </button>
+              </>
+            )}
           </div>
           <label>
             Resize crop to width (px)
