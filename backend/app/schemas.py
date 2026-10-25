@@ -192,6 +192,7 @@ class AutopilotOptions(StrictModel):
 
 class DirectorStart(StrictModel):
     base_revision: int = Field(ge=1)
+    vision_connection: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
 
 
 class VisionConnection(StrictModel):

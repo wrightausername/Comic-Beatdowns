@@ -32,7 +32,7 @@ from .automation import (
     storyboard,
 )
 from .database import InboxFile, Panel, Project, ProjectVersion, Scene, SoundEffect, uid
-from .importer import import_to_library
+from .importer import IMAGE_SUFFIXES, import_to_library
 from .renderer import normalize_audio, run, timeline_duration
 from .schemas import (
     AudioPrepareInput,
@@ -48,7 +48,7 @@ from .storage import media_url
 from .workspace import locked_project, remember, snapshot
 
 router = APIRouter(prefix="/api")
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf", ".cbz"}
+IMAGE_EXTS = {*IMAGE_SUFFIXES, ".pdf", ".cbz"}
 AUDIO_EXTS = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".aac", ".webm"}
 
 
@@ -458,7 +458,9 @@ def classify_file(filename):
         )
     if path.suffix.lower() == ".srt":
         return "captions"
-    raise ValueError("Choose images, PDF, CBZ, audio, or SRT captions")
+    if path.suffix.lower() in {".txt", ".md"}:
+        return "script"
+    raise ValueError("Choose images, PDF, CBZ, audio, TXT/MD script, or SRT captions")
 
 
 def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
@@ -516,6 +518,16 @@ def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
             setattr(project, f"{kind}_key", key)
             setattr(project, f"{kind}_duration", duration)
         message = f"Added {kind}"
+    elif kind == "script":
+        if Path(filename).suffix.lower() not in {".txt", ".md"}:
+            raise ValueError("Use a UTF-8 TXT or MD script")
+        script = raw.decode("utf-8-sig").strip()
+        if not script or len(script) > 20_000 or "\x00" in script:
+            raise ValueError(
+                "Script must contain 1–20,000 characters of UTF-8 text without null bytes"
+            )
+        project.script = script
+        message = "Imported source script; preview approval is still required"
     elif kind == "captions":
         from .audio import parse_srt
         from .schemas import CaptionList
@@ -525,7 +537,7 @@ def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
         ]
         message = "Imported timed captions"
     else:
-        raise ValueError("Choose panels, narration, music, sound effect, or captions")
+        raise ValueError("Choose panels, narration, music, sound effect, script, or captions")
     touch(project, invalidate_approval=True)
     if commit:
         db.commit()

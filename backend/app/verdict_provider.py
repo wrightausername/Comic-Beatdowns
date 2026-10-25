@@ -1,6 +1,7 @@
 """Optional OpenAI-compatible vision/speech connection. Secrets never leave private storage."""
 
 import base64
+import hashlib
 import io
 import json
 import os
@@ -62,10 +63,19 @@ def read_connection(config):
         return None
 
 
+def connection_authorization(data):
+    if data is None:
+        return None
+    # Endpoint/model consent only. Never hash or expose the private API key.
+    description = {key: getattr(data, key) for key in ("base_url", "model", "transcription_model")}
+    return hashlib.sha256(json.dumps(description, sort_keys=True).encode()).hexdigest()
+
+
 def connection_status(config):
     data = read_connection(config)
     return {
         "configured": data is not None,
+        "authorization_id": connection_authorization(data),
         "base_url": data.base_url if data else "",
         "model": data.model if data else "",
         "transcription_model": data.transcription_model if data else "",

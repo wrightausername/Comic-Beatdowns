@@ -83,6 +83,18 @@ Markers align approximately to the text of imported/transcribed timed captions w
 
 Choose **Apply camera cues to unlocked shots** to translate directions into conservative holds, punch-ins, or pushes. Every affected scene remains editable; scene length, panel selection, spoken narration, and locked shots remain unchanged. Applying cues does not synthesize speech, insert a real pause into a recording, or claim perfect alignment. Preview and approve the result before exporting. Optional AI analysis is separate, and stage directions are never treated as instructions to alter the source dialogue.
 
+### One-Click Episode (M0/M1, review-first)
+
+Use **Create episode → Verdict · Auto-Director** for the existing Studio's one-screen intake. Select authorized artwork (images/PDF/CBZ), exactly one Verdict narration recording, optional reviewed UTF-8 TXT/MD script and SRT captions. Confirm file roles, choose **Basic local** or explicitly authorize your configured **Vision AI** provider, then press **Create preview**. The new recipe defaults to fast pacing and draft delivery; templates and pace live under **Advanced settings**. The supplied recording is kept; 65–90 seconds is advisory. A script alone cannot start production: voice synthesis is not implemented.
+
+Staged file checks are provisional. Imports use the existing validated per-file endpoint (64 MiB per file; 65 MiB request ceiling with form overhead, up to 20 selected files), followed by read-only source eligibility against the saved revision. Duplicate selections, missing voice and invalid media have actionable errors. Script/SRT differences are heuristic review notices, not verified audio alignment. On an error, the dialog retains the created project and accepted upload ledger; retry skips accepted files or **Open saved project in editor** provides recovery. This ledger does not survive a browser refresh; use the dashboard's saved project after reloading. Durable intake resume and idempotency are M2.
+
+Basic makes no provider calls and does not understand artwork. Vision requires a configured image-capable model, explicit authorization naming its endpoint/model and possible speech upload/costs, and a matching provider descriptor at enqueue and worker startup. Saving a connection does not authorize sending files. Keys stay private. Provider failures never silently switch to Basic. Live provider compatibility and creative accuracy remain unverified.
+
+The existing director builds the edit and a 360×640 review copy, including captions when available, then returns to the existing editor/Autopilot card. Existing explicit final approval, 1080×1920 export, source preservation, Undo/version history and separate Publishing Desk permissions are unchanged. Create preview never calls Cloudinary/Buffer. Existing auto-final controls remain separately opt-in in the project's Autopilot card.
+
+See the [M0 audit and M1 contract](docs/one-click-episode-m0-m1.md) for the reuse/gap table, lifecycle and rollback strategy. Smart Crop/technical preflight [PR #4](https://github.com/wrightausername/Comic-Beatdowns/pull/4) remains separate and unmerged; this intake does not copy its segmentation, crop review or timeline QA. M2 orchestration/resume, M3 exception review/fixes, and M4 final-handoff metrics are deferred to reviewed follow-up PRs.
+
 ### Verdict Autopilot: panels + voice → video
 
 1. Click **Verdict Autopilot** on the production desk. Drop panels and one narration recording into the new-project window. Choose Basic or your saved Vision AI connection, Fast or Slow pacing, and preview or automatic final delivery. Check the file roles and create the project.
