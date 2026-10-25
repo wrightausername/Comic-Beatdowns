@@ -586,18 +586,38 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
   expect(errors).toEqual([]);
 });
 
-test("Verdict Autopilot turns uploaded panels and voice into a preview and approved final", async ({
+test("One-click episode reuses Verdict preview, source script and approved final", async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page
-    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .getByRole("button", { name: "Create episode", exact: true })
     .click();
   await expect(
     page.getByLabel("Let Verdict handle the edit after upload"),
   ).toBeChecked();
+  let projectsCreated = 0,
+    directorStarts = 0;
+  page.on("request", (request) => {
+    if (request.method() !== "POST") return;
+    const path = new URL(request.url()).pathname;
+    if (path === "/api/projects") projectsCreated++;
+    if (/\/projects\/[^/]+\/director$/.test(path)) directorStarts++;
+  });
   await page.getByLabel("New project files").setInputFiles([
+    {
+      name: "captions.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:02,000\nAzure throws the first punch.\n",
+      ),
+    },
+    {
+      name: "reviewed.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("Azure throws the first punch."),
+    },
     {
       name: "original-autopilot.png",
       mimeType: "image/png",
@@ -608,7 +628,18 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   await page
     .getByLabel("Project title", { exact: true })
     .fill("Verdict upload handoff");
-  await page.getByRole("button", { name: /Create project/ }).click();
+  await page.getByRole("radio", { name: /Basic local/ }).check();
+  await page
+    .getByLabel("I am authorized to use this artwork and recording.")
+    .check();
+  await page
+    .getByLabel(
+      "I reviewed the script for this recording. Final approval comes after playback.",
+    )
+    .check();
+  await page
+    .getByRole("button", { name: "Create preview", exact: true })
+    .click();
   const card = page.getByRole("region", {
     name: "Verdict Autopilot",
     exact: true,
@@ -621,7 +652,11 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
     /\.mp4$/,
   );
   await expect(approve).toBeDisabled();
-  await expect(card.getByText(/No timed speech found/)).toBeVisible();
+  expect(projectsCreated).toBe(1);
+  expect(directorStarts).toBe(1);
+  await expect(
+    card.getByText(/Basic mode uses tags and upload order/),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("verdict-autopilot.png"),
     timeout: 60_000,
@@ -642,4 +677,48 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   const file = await fileEvent;
   expect(file.suggestedFilename()).toContain("Verdict_upload_handoff_Final");
   expect(errors).toEqual([]);
+});
+
+test("episode intake on mobile blocks script-only production and keeps roles and recovery readable", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .getByRole("button", { name: "Create episode", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    {
+      name: "original-mobile.png",
+      mimeType: "image/png",
+      buffer: originalPng(),
+    },
+    {
+      name: "reviewed.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Original recorded commentary still needs a voice."),
+    },
+  ]);
+  await page.getByRole("radio", { name: /Basic local/ }).check();
+  await page
+    .getByLabel("I am authorized to use this artwork and recording.")
+    .check();
+  await page
+    .getByLabel(
+      "I reviewed the script for this recording. Final approval comes after playback.",
+    )
+    .check();
+  await expect(
+    page.getByRole("button", { name: "Create preview", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByLabel("Episode input readiness")).toContainText(
+    "narration recording is required",
+  );
+  const dialog = page.getByRole("dialog");
+  expect(
+    await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("episode-intake-mobile.png"),
+    timeout: 60_000,
+  });
 });

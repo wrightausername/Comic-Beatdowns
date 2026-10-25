@@ -27,6 +27,7 @@ from .schemas import (
 )
 from .verdict_provider import (
     VisionDirector,
+    connection_authorization,
     connection_path,
     connection_status,
     read_connection,
@@ -117,7 +118,7 @@ class DirectorService:
                     job.progress = 65 + int(render.progress * 0.34)
             db.commit()
 
-    def enqueue(self, project_id, revision):
+    def enqueue(self, project_id, revision, vision_connection=None):
         with self.lock, self.sessions() as db:
             project = locked_project(db, project_id, revision)
             options = AutopilotOptions.model_validate(
@@ -143,8 +144,18 @@ class DirectorService:
             panels = project_panels(db, project)
             if not project.narration_key or not panels:
                 raise HTTPException(422, "Add project panels and one narration file first")
-            if options.mode == "vision" and not read_connection(self.state.settings):
+            connection = read_connection(self.state.settings) if options.mode == "vision" else None
+            if options.mode == "vision" and not connection:
                 raise HTTPException(422, "Connect a vision model below, or choose Basic mode")
+            if (
+                options.mode == "vision"
+                and vision_connection
+                and vision_connection != connection_authorization(connection)
+            ):
+                raise HTTPException(
+                    409,
+                    "The Vision connection changed. Confirm the current provider before retrying.",
+                )
             for key in [project.narration_key, *(p.storage_key for p in panels)]:
                 if not self.state.storage.path(key).is_file():
                     raise HTTPException(
@@ -153,6 +164,8 @@ class DirectorService:
                     )
             source = snapshot(db, project)
             source["options"] = options.model_dump()
+            if connection:
+                source["vision_connection"] = connection_authorization(connection)
             source["panels"] = [
                 {
                     key: getattr(p, key)
@@ -204,6 +217,12 @@ class DirectorService:
             if options.mode == "vision" and not connection:
                 raise ValueError(
                     "The vision connection was removed. Reconnect it or choose Basic mode."
+                )
+            if source.get("vision_connection") and source[
+                "vision_connection"
+            ] != connection_authorization(connection):
+                raise ValueError(
+                    "The Vision connection changed after this job was queued. Confirm the provider and retry; no artwork was sent."
                 )
             provider = VisionDirector(connection) if connection else None
             if not project.caption_cues:
@@ -431,7 +450,9 @@ def set_autopilot(project_id: str, data: AutopilotUpdate, db: Session = Depends(
 
 @router.post("/projects/{project_id}/director", status_code=202)
 def start_director(project_id: str, data: DirectorStart, request: Request):
-    return request.app.state.director.enqueue(project_id, data.base_revision)
+    return request.app.state.director.enqueue(
+        project_id, data.base_revision, data.vision_connection
+    )
 
 
 @router.get("/projects/{project_id}/director")
