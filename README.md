@@ -48,6 +48,8 @@ Stop other servers before running browser tests, which own ports 8000 and 5173. 
 
 ## Make your first beatdown
 
+To remove uploads from the **Panel library**, click a panel's trash icon and confirm **Remove from library**. It disappears from the library, search results, and panel picker. **Removed panels** lets you restore it, including after restarting Studio. Artwork stays in local Studio storage so existing projects, queued renders, saved versions, crops, and Undo/Redo keep working. This does not erase the artwork from disk or remove it from an existing episode.
+
 1. **Add files:** choose **New project** and drop panels, narration, music, effects, and SRT captions together. Check each file’s role. After creating the project, the **Add files** step offers the same drop zone and your project panel tray. Existing material is available through **Choose from library**. Use the Panel library to record characters/fight tags and crop pages without replacing their originals.
 2. **Match narration:** write the script or import/generate timed captions. Click **Suggest panel matches**, check the line cards, select panels and moments, then **Use these assignments**. Caption timestamps are preferred; script-only timing is clearly marked as estimated.
 3. **Edit:** choose Fast cuts or Smooth holds, tick the jobs you want, then **Build My Draft**. Preview proposed shots and **Accept selected suggestions**. Keep a shot unchanged with **Lock**. Use **Hit / Reveal / Reaction / Read Panel**, **Aim camera**, **Replace panel**, **Split**, **Duplicate**, and sound favorites on each scene. Detailed timing, camera, caption, script, and settings controls remain accessible below.

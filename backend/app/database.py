@@ -44,6 +44,7 @@ class Panel(Base):
     width: Mapped[int] = mapped_column(Integer)
     height: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[str] = mapped_column(String, default=now)
+    in_library: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
 
 
 class Project(Base):
@@ -178,6 +179,11 @@ def connect(data_dir):
     Base.metadata.create_all(engine)
     migrate_scene_options(engine)
     with engine.begin() as connection:
+        existing = {c["name"] for c in inspect(connection).get_columns("panels")}
+        if "in_library" not in existing:
+            connection.exec_driver_sql(
+                'ALTER TABLE panels ADD COLUMN "in_library" BOOLEAN NOT NULL DEFAULT 1'
+            )
         existing = {c["name"] for c in inspect(connection).get_columns("projects")}
         for name, definition in {
             "caption_cues": "JSON NOT NULL DEFAULT '[]'",

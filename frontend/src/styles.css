@@ -1044,6 +1044,8 @@ main {
   gap: 19px;
 }
 .panel-card {
+  width: 100%;
+  height: 100%;
   padding: 0;
   background: #111a26;
   border: 1px solid #293646;
@@ -1053,6 +1055,34 @@ main {
   transition:
     transform 0.2s,
     border-color 0.2s;
+}
+.panel-library-item {
+  position: relative;
+  min-width: 0;
+}
+.panel-library-action {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 40px;
+  height: 40px;
+  background: #0b1520ed;
+  border: 1px solid #526477;
+}
+.remove-panel-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.remove-panel-summary img {
+  width: 72px;
+  height: 96px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+.remove-panel-summary strong {
+  overflow-wrap: anywhere;
 }
 .panel-card:hover {
   transform: translateY(-3px);

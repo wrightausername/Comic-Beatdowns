@@ -586,6 +586,118 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
   expect(errors).toEqual([]);
 });
 
+test("library removal confirms, persists, restores and keeps existing episode scenes", async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  const title = "Removable original artwork";
+  const imported = await page.request.post("/api/panels/import", {
+    multipart: {
+      files: {
+        name: "removable.png",
+        mimeType: "image/png",
+        buffer: originalPng(),
+      },
+      metadata: JSON.stringify({ title }),
+    },
+  });
+  expect(imported.status()).toBe(201);
+  const [panel] = await imported.json();
+  const created = await page.request.post("/api/projects", {
+    data: { title: "Episode keeps removed artwork" },
+  });
+  const project = await created.json();
+  const scene = await page.request.put(`/api/projects/${project.id}/scenes`, {
+    data: { scenes: [{ panel_id: panel.id, duration: 2 }] },
+  });
+  expect(scene.status()).toBe(200);
+  await page.reload();
+  const library = page.getByRole("button", {
+    name: "Panel library",
+    exact: true,
+  });
+  await library.click();
+  await page.getByLabel("Search panel library").fill(title);
+  const card = page.locator(".panel-card").filter({ hasText: title });
+  const remove = page.getByRole("button", {
+    name: `Remove ${title} from library`,
+    exact: true,
+  });
+  await remove.click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(card).toHaveCount(1);
+  await remove.click();
+  await expect(page.getByRole("dialog")).toContainText("Existing projects");
+  await page
+    .getByRole("button", { name: "Remove from library", exact: true })
+    .click();
+  await expect(card).toHaveCount(0);
+  await page.reload();
+  await library.click();
+  await page.getByLabel("Search panel library").fill(title);
+  await expect(card).toHaveCount(0);
+  await page.getByRole("button", { name: /^Removed panels/ }).click();
+  await expect(card).toHaveCount(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const restore = page.getByRole("button", {
+    name: `Restore ${title} to library`,
+  });
+  await expect(restore).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+  await page.screenshot({
+    path: testInfo.outputPath("removed-panels-mobile.png"),
+    fullPage: true,
+  });
+  await page.route(
+    `/api/panels/${panel.id}/restore`,
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Temporary restore failure" }),
+      }),
+    { times: 1 },
+  );
+  await restore.click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Temporary restore failure",
+  );
+  await expect(card).toHaveCount(1);
+  await page.getByLabel("Dismiss error").click();
+  await restore.click();
+  await expect(card).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Back to library", exact: true })
+    .click();
+  await expect(card).toHaveCount(1);
+  await remove.click();
+  await page
+    .getByRole("button", { name: "Remove from library", exact: true })
+    .click();
+  await expect(card).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Production desk", exact: true })
+    .click();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Episode keeps removed artwork" })
+    .click();
+  await expect(page.locator(".scene-card")).toHaveCount(1);
+  await expect(page.locator(".scene-card img").first()).toHaveAttribute(
+    "src",
+    panel.thumbnail_url,
+  );
+  await page.getByRole("button", { name: "Add panels", exact: true }).click();
+  await page.getByLabel("Search panels to add").fill(title);
+  await expect(page.locator(".picker-card")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("Verdict Autopilot turns uploaded panels and voice into a preview and approved final", async ({
   page,
 }, testInfo) => {

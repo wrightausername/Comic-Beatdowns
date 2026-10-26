@@ -209,8 +209,8 @@ def logout(response: Response):
 
 
 @router.get("/panels")
-def list_panels(q: str = "", db: Session = Depends(session)):
-    statement = select(Panel)
+def list_panels(q: str = "", removed: bool = False, db: Session = Depends(session)):
+    statement = select(Panel).where(Panel.in_library.is_(not removed))
     if q.strip():
         term = f"%{q.strip()[:200]}%"
         statement = statement.where(
@@ -222,6 +222,23 @@ def list_panels(q: str = "", db: Session = Depends(session)):
             )
         )
     return [panel_dict(p) for p in db.scalars(statement.order_by(Panel.created_at.desc()))]
+
+
+@router.delete("/panels/{panel_id}")
+def remove_panel(panel_id: str, db: Session = Depends(session)):
+    # Keep assets and IDs for scenes, history, versions, crops and queued jobs.
+    panel = get_or_404(db, Panel, panel_id)
+    panel.in_library = False
+    db.commit()
+    return {"id": panel.id, "removed": True}
+
+
+@router.post("/panels/{panel_id}/restore")
+def restore_panel(panel_id: str, db: Session = Depends(session)):
+    panel = get_or_404(db, Panel, panel_id)
+    panel.in_library = True
+    db.commit()
+    return panel_dict(panel)
 
 
 async def upload_bytes(upload: UploadFile, limit: int):

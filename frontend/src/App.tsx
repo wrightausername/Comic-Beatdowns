@@ -20,8 +20,9 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
+  Trash2,
+  Undo2,
   Upload,
   Send,
   X,
@@ -38,6 +39,7 @@ import {
   Verdict,
 } from "./components";
 import { ImportPanels, NewProject, PanelDetail } from "./dialogs";
+import RemovePanelDialog from "./RemovePanelDialog";
 import Editor from "./Editor";
 import PublishingDesk from "./PublishingDesk";
 import BatchQueue from "./BatchQueue";
@@ -142,6 +144,10 @@ export default function App() {
   const [autopilotStart, setAutopilotStart] = useState(false);
   const [dialog, setDialog] = useState<"new" | "import" | "help" | null>(null);
   const [selectedPanel, setSelectedPanel] = useState<Panel | null>(null);
+  const [panelToRemove, setPanelToRemove] = useState<Panel | null>(null);
+  const [removedPanels, setRemovedPanels] = useState<Panel[]>([]);
+  const [showRemovedPanels, setShowRemovedPanels] = useState(false);
+  const [restoringPanel, setRestoringPanel] = useState<string | null>(null);
   const [error, setError] = useState(""),
     [dirty, setDirty] = useState(false);
   const [query, setQuery] = useState(""),
@@ -150,15 +156,18 @@ export default function App() {
   const showError = useCallback((message: string) => setError(message), []);
   const refresh = useCallback(async () => {
     try {
-      const [p, assets, renders, presets, connections] = await Promise.all([
-        api<Project[]>("/projects"),
-        api<Panel[]>("/panels"),
-        api<RenderJob[]>("/renders"),
-        api<Template[]>("/templates"),
-        api<Integrations>("/integrations"),
-      ]);
+      const [p, assets, renders, presets, connections, removed] =
+        await Promise.all([
+          api<Project[]>("/projects"),
+          api<Panel[]>("/panels"),
+          api<RenderJob[]>("/renders"),
+          api<Template[]>("/templates"),
+          api<Integrations>("/integrations"),
+          api<Panel[]>("/panels?removed=true"),
+        ]);
       setProjects(p);
       setPanels(assets);
+      setRemovedPanels(removed);
       setJobs(renders);
       setTemplates(presets);
       setIntegrations(connections);
@@ -168,6 +177,20 @@ export default function App() {
       setLoading(false);
     }
   }, []);
+  async function restorePanel(panel: Panel) {
+    setRestoringPanel(panel.id);
+    try {
+      const restored = await api<Panel>(`/panels/${panel.id}/restore`, {
+        method: "POST",
+      });
+      setRemovedPanels((old) => old.filter((p) => p.id !== panel.id));
+      setPanels((old) => [restored, ...old.filter((p) => p.id !== panel.id)]);
+    } catch (error) {
+      showError(errorMessage(error));
+    } finally {
+      setRestoringPanel(null);
+    }
+  }
   useEffect(() => {
     api<{ authenticated: boolean }>("/auth/session")
       .then((s) => setAuthenticated(s.authenticated))
@@ -244,10 +267,11 @@ export default function App() {
           ["ready", "rendering"].includes(p.status))) &&
       `${p.title} ${p.idea}`.toLowerCase().includes(query.toLowerCase()),
   );
-  const filteredPanels = panels.filter((p) =>
-    `${p.title} ${p.series} ${p.issue} ${p.page ?? ""} ${p.characters} ${p.fight}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+  const filteredPanels = (showRemovedPanels ? removedPanels : panels).filter(
+    (p) =>
+      `${p.title} ${p.series} ${p.issue} ${p.page ?? ""} ${p.characters} ${p.fight}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
   );
   const toast = error && (
     <div className="error-toast" role="alert">
@@ -755,42 +779,78 @@ export default function App() {
                           />
                         </div>
                         <span className="muted">
-                          {filteredPanels.length} panels
+                          {filteredPanels.length}{" "}
+                          {showRemovedPanels ? "removed panels" : "panels"}
                         </span>
-                        <SlidersHorizontal size={17} className="muted" />
+                        <button
+                          className="button secondary small"
+                          aria-pressed={showRemovedPanels}
+                          onClick={() =>
+                            setShowRemovedPanels(!showRemovedPanels)
+                          }
+                        >
+                          {showRemovedPanels
+                            ? "Back to library"
+                            : `Removed panels (${removedPanels.length})`}
+                        </button>
                       </div>
                       {filteredPanels.length ? (
                         <div className="panel-grid">
                           {filteredPanels.map((panel) => (
-                            <button
-                              className="panel-card"
+                            <article
+                              className="panel-library-item"
                               key={panel.id}
-                              onClick={() => setSelectedPanel(panel)}
                             >
-                              <div>
-                                <img
-                                  src={panel.thumbnail_url}
-                                  alt={panel.title}
-                                  loading="lazy"
-                                />
-                                <span>
-                                  {panel.width} × {panel.height}
-                                </span>
-                                {panel.parent_id && <i>CROP</i>}
-                              </div>
-                              <section>
-                                <span className="eyebrow">
-                                  {panel.series || "UNSORTED SOURCE"}
-                                  {panel.issue && ` · #${panel.issue}`}
-                                </span>
-                                <h3>{panel.title}</h3>
-                                <p>
-                                  {panel.characters ||
-                                    "Add characters & fight details"}
-                                  {panel.page && ` · p.${panel.page}`}
-                                </p>
-                              </section>
-                            </button>
+                              <button
+                                className="panel-card"
+                                onClick={() => setSelectedPanel(panel)}
+                              >
+                                <div>
+                                  <img
+                                    src={panel.thumbnail_url}
+                                    alt={panel.title}
+                                    loading="lazy"
+                                  />
+                                  <span>
+                                    {panel.width} × {panel.height}
+                                  </span>
+                                  {panel.parent_id && <i>CROP</i>}
+                                </div>
+                                <section>
+                                  <span className="eyebrow">
+                                    {panel.series || "UNSORTED SOURCE"}
+                                    {panel.issue && ` · #${panel.issue}`}
+                                  </span>
+                                  <h3>{panel.title}</h3>
+                                  <p>
+                                    {panel.characters ||
+                                      "Add characters & fight details"}
+                                    {panel.page && ` · p.${panel.page}`}
+                                  </p>
+                                </section>
+                              </button>
+                              <button
+                                className={`icon-button panel-library-action ${showRemovedPanels ? "" : "danger"}`}
+                                aria-label={`${showRemovedPanels ? "Restore" : "Remove"} ${panel.title}${showRemovedPanels ? " to" : " from"} library`}
+                                title={
+                                  showRemovedPanels
+                                    ? "Restore to library"
+                                    : "Remove from library"
+                                }
+                                disabled={restoringPanel !== null}
+                                onClick={() => {
+                                  if (showRemovedPanels)
+                                    void restorePanel(panel);
+                                  else setPanelToRemove(panel);
+                                }}
+                              >
+                                {showRemovedPanels ? (
+                                  <Undo2 size={18} />
+                                ) : (
+                                  <Trash2 size={18} />
+                                )}
+                              </button>
+                            </article>
                           ))}
                         </div>
                       ) : (
@@ -799,21 +859,27 @@ export default function App() {
                             title={
                               query
                                 ? "No matching evidence"
-                                : "Build your panel library"
+                                : showRemovedPanels
+                                  ? "No removed panels"
+                                  : "Build your panel library"
                             }
                             action={
-                              <button
-                                className="button secondary"
-                                onClick={() => setDialog("import")}
-                              >
-                                <Upload size={16} />
-                                Import source files
-                              </button>
+                              !showRemovedPanels && (
+                                <button
+                                  className="button secondary"
+                                  onClick={() => setDialog("import")}
+                                >
+                                  <Upload size={16} />
+                                  Import source files
+                                </button>
+                              )
                             }
                           >
                             {query
                               ? "Try searching another series, character, or fight."
-                              : "Import images, PDF pages, or CBZ files. Crop and catalog individual panels without changing your source pages."}
+                              : showRemovedPanels
+                                ? "Panels you remove from the library appear here. Restore them whenever you need them."
+                                : "Import images, PDF pages, or CBZ files. Crop and catalog individual panels without changing your source pages."}
                           </Empty>
                         </div>
                       )}
@@ -1060,6 +1126,20 @@ export default function App() {
           onSaved={() => {
             setSelectedPanel(null);
             void refresh();
+          }}
+        />
+      )}
+      {panelToRemove && (
+        <RemovePanelDialog
+          panel={panelToRemove}
+          onClose={() => setPanelToRemove(null)}
+          onRemoved={() => {
+            setPanels((old) => old.filter((p) => p.id !== panelToRemove.id));
+            setRemovedPanels((old) => [
+              panelToRemove,
+              ...old.filter((p) => p.id !== panelToRemove.id),
+            ]);
+            setPanelToRemove(null);
           }}
         />
       )}
