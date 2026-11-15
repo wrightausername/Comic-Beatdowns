@@ -29,11 +29,17 @@ def verified_ffmpeg():
         try:
             encoders = subprocess.run(
                 [str(ffmpeg), "-hide_banner", "-encoders"],
-                capture_output=True, text=True, check=True, timeout=20
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=20,
             ).stdout
             filters = subprocess.run(
                 [str(ffmpeg), "-hide_banner", "-filters"],
-                capture_output=True, text=True, check=True, timeout=20
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=20,
             ).stdout
             subprocess.run(
                 [str(ffprobe), "-version"], capture_output=True, check=True, timeout=15
@@ -53,27 +59,49 @@ def main():
     ffmpeg, ffprobe = verified_ffmpeg()
     separator = os.pathsep
     command = [
-        sys.executable, "-m", "PyInstaller",
-        "--noconfirm", "--clean", "--onedir", "--windowed",
-        "--name", "Comic Beatdowns Studio",
-        "--paths", str(ROOT / "backend"),
-        "--distpath", str(ROOT / "desktop-dist"),
-        "--workpath", str(ROOT / "desktop-build"),
-        "--specpath", str(ROOT / "desktop-build"),
-        "--collect-all", "webview",
-        "--collect-all", "pypdfium2",
-        "--collect-all", "pocketsphinx",
-        "--collect-submodules", "app",
-        "--hidden-import", "clr",
-        "--add-data", str(ROOT / "frontend" / "dist") + separator + "frontend/dist",
-        "--add-binary", str(ffmpeg) + separator + "media-tools",
-        "--add-binary", str(ffprobe) + separator + "media-tools",
+        sys.executable,
+        "-m",
+        "PyInstaller",
+        "--noconfirm",
+        "--clean",
+        "--onedir",
+        "--windowed",
+        "--name",
+        "Comic Beatdowns Studio",
+        "--paths",
+        str(ROOT / "backend"),
+        "--distpath",
+        str(ROOT / "desktop-dist"),
+        "--workpath",
+        str(ROOT / "desktop-build"),
+        "--specpath",
+        str(ROOT / "desktop-build"),
+        "--collect-all",
+        "webview",
+        "--collect-all",
+        "pypdfium2",
+        "--collect-all",
+        "pocketsphinx",
+        "--collect-submodules",
+        "app",
+        "--hidden-import",
+        "clr",
+        "--add-data",
+        str(ROOT / "frontend" / "dist") + separator + "frontend/dist",
+        "--add-binary",
+        str(ffmpeg) + separator + "media-tools",
+        "--add-binary",
+        str(ffprobe) + separator + "media-tools",
         str(ROOT / "backend" / "app" / "desktop.py"),
     ]
     subprocess.run(command, cwd=ROOT, check=True)
-    exe = ROOT / "desktop-dist" / "Comic Beatdowns Studio" / "Comic Beatdowns Studio.exe"
+    exe = (
+        ROOT / "desktop-dist" / "Comic Beatdowns Studio" / "Comic Beatdowns Studio.exe"
+    )
     if not exe.is_file():
-        raise RuntimeError("PyInstaller completed without creating the desktop executable")
+        raise RuntimeError(
+            "PyInstaller completed without creating the desktop executable"
+        )
     print("Created", exe)
 
 
