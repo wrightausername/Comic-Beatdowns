@@ -148,7 +148,14 @@ export function NewProject({
       const orderedFiles = orderForProduction(files);
       let created = await api<Project>(
         "/projects",
-        json({ title, idea, template_id: template || null }),
+        json({
+          title:
+            title.trim() ||
+            idea.trim().split("\n")[0].slice(0, 120) ||
+            "New beatdown",
+          idea,
+          template_id: template || null,
+        }),
       );
       if (autopilot)
         created = await api<Project>(
@@ -201,6 +208,10 @@ export function NewProject({
       onClose={onClose}
     >
       <form onSubmit={submit}>
+        <p className="muted">
+          Start with an idea and whatever files you already have. You can finish
+          adding everything inside the project.
+        </p>
         <label className="autopilot-review">
           <input
             type="checkbox"
@@ -210,76 +221,79 @@ export function NewProject({
           Let Verdict handle the edit after upload
         </label>
         <p className="muted">
-          Autopilot builds and renders a preview from your panels and voice. No
-          API key needed. Connect vision AI inside the project for artwork
-          understanding.
+          For this build, automatic editing needs comic panels and one narration
+          recording. You can start without them and add files later. Publishing
+          always requires your approval.
         </p>
         {autopilot && (
-          <div className="form-grid">
-            <label>
-              Verdict mode
-              <select
-                value={directorOptions.mode}
-                onChange={(e) =>
-                  setDirectorOptions({
-                    ...directorOptions,
-                    mode: e.target.value as AutopilotOptions["mode"],
-                  })
-                }
-              >
-                <option value="basic">Basic · local, no API key</option>
-                <option value="vision">
-                  Vision AI · saved connection required
-                </option>
-              </select>
-            </label>
-            <label>
-              Editing pace
-              <select
-                value={directorOptions.pace}
-                onChange={(e) =>
-                  setDirectorOptions({
-                    ...directorOptions,
-                    pace: e.target.value as AutopilotOptions["pace"],
-                  })
-                }
-              >
-                <option value="fast">Fast · punchy Shorts camera</option>
-                <option value="slow">Slow · longer readable shots</option>
-              </select>
-            </label>
-            <label>
-              Verdict delivery
-              <select
-                value={directorOptions.delivery}
-                onChange={(e) =>
-                  setDirectorOptions({
-                    ...directorOptions,
-                    delivery: e.target.value as AutopilotOptions["delivery"],
-                  })
-                }
-              >
-                <option value="draft">Preview first · I approve</option>
-                <option value="final">
-                  Finish for me · automatic 1080p MP4
-                </option>
-              </select>
-            </label>
-            {directorOptions.delivery === "final" && (
-              <p className="notice">
-                You authorize Verdict to approve and render the final edit
-                automatically.
-              </p>
-            )}
-            {directorOptions.mode === "vision" && (
-              <p className="muted">
-                Uses your saved AI connection and sends resized panels and
-                narration text to that provider. Speech audio is sent only if a
-                Speech model is saved. Provider charges may apply. Connect the
-                model inside an existing project first.
-              </p>
-            )}
-          </div>
+          <details className="workflow-advanced">
+            <summary>Optional: change how Verdict edits</summary>
+            <div className="form-grid">
+              <label>
+                Verdict mode
+                <select
+                  value={directorOptions.mode}
+                  onChange={(e) =>
+                    setDirectorOptions({
+                      ...directorOptions,
+                      mode: e.target.value as AutopilotOptions["mode"],
+                    })
+                  }
+                >
+                  <option value="basic">Basic · local, no API key</option>
+                  <option value="vision">
+                    Vision AI · saved connection required
+                  </option>
+                </select>
+              </label>
+              <label>
+                Editing pace
+                <select
+                  value={directorOptions.pace}
+                  onChange={(e) =>
+                    setDirectorOptions({
+                      ...directorOptions,
+                      pace: e.target.value as AutopilotOptions["pace"],
+                    })
+                  }
+                >
+                  <option value="fast">Fast · punchy Shorts camera</option>
+                  <option value="slow">Slow · longer readable shots</option>
+                </select>
+              </label>
+              <label>
+                Verdict delivery
+                <select
+                  value={directorOptions.delivery}
+                  onChange={(e) =>
+                    setDirectorOptions({
+                      ...directorOptions,
+                      delivery: e.target.value as AutopilotOptions["delivery"],
+                    })
+                  }
+                >
+                  <option value="draft">Preview first · I approve</option>
+                  <option value="final">
+                    Finish for me · automatic 1080p MP4
+                  </option>
+                </select>
+              </label>
+              {directorOptions.delivery === "final" && (
+                <p className="notice">
+                  You authorize Verdict to approve and render the final edit
+                  automatically.
+                </p>
+              )}
+              {directorOptions.mode === "vision" && (
+                <p className="muted">
+                  Uses your saved AI connection and sends resized panels and
+                  narration text to that provider. Speech audio is sent only if
+                  a Speech model is saved. Provider charges may apply. Connect
+                  the model inside an existing project first.
+                </p>
+              )}
+            </div>
+          </details>
         )}
         <div
           className="project-dropzone"
@@ -343,11 +357,10 @@ export function NewProject({
           Project title
           <input
             autoFocus
-            required
             value={title}
             maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="A fight worth talking about"
+            placeholder="Optional: we can name it from your idea"
           />
         </label>
         <label>
@@ -381,7 +394,7 @@ export function NewProject({
           <button type="button" className="button secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="button" disabled={busy || !title.trim()}>
+          <button className="button" disabled={busy}>
             <Plus size={16} />
             {busy ? "Creating…" : "Create project"}
           </button>

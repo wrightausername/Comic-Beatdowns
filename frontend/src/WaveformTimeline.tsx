@@ -55,7 +55,14 @@ export default function WaveformTimeline({
   });
   if (!audioUrl || !scenes.length) return null;
   function move(clientX: number) {
-    if (!moving || !svg.current || !duration) return;
+    if (
+      !moving ||
+      !svg.current ||
+      !duration ||
+      scenes[moving.index].locked ||
+      scenes[moving.index + 1].locked
+    )
+      return;
     const rect = svg.current.getBoundingClientRect();
     let position = Math.round(
       ((clientX - rect.left) / rect.width) * duration * fps,
@@ -172,7 +179,10 @@ export default function WaveformTimeline({
           <g
             key={displayed[index].id}
             data-cut={index}
-            tabIndex={0}
+            tabIndex={scenes[index].locked || scenes[index + 1].locked ? -1 : 0}
+            aria-disabled={Boolean(
+              scenes[index].locked || scenes[index + 1].locked,
+            )}
             role="slider"
             aria-label={`Cut after scene ${index + 1}`}
             aria-valuenow={+time.toFixed(2)}
@@ -180,12 +190,14 @@ export default function WaveformTimeline({
             aria-valuemax={duration}
             onPointerDown={(e) => {
               e.stopPropagation();
+              if (scenes[index].locked || scenes[index + 1].locked) return;
               e.currentTarget.setPointerCapture(e.pointerId);
               setMoving({ index, scenes });
             }}
             onKeyDown={(e) => {
               if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
               e.preventDefault();
+              if (scenes[index].locked || scenes[index + 1].locked) return;
               const delta =
                 ((e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 5 : 1)) /
                 fps;

@@ -10,6 +10,9 @@ export default function Preview({
   request,
   onFocus,
   onMoment,
+  onTimeChange,
+  onPlayingChange,
+  toggleRequest,
   rememberPosition = true,
 }: {
   scenes: Scene[];
@@ -17,6 +20,9 @@ export default function Preview({
   request?: { index?: number; seconds?: number; nonce: number } | null;
   onFocus?: (id: string, patch: Partial<Scene>) => void;
   onMoment?: (seconds: number) => void;
+  onTimeChange?: (seconds: number) => void;
+  onPlayingChange?: (playing: boolean) => void;
+  toggleRequest?: number;
   rememberPosition?: boolean;
 }) {
   const [safeAreas, setSafeAreas] = useState(false),
@@ -24,8 +30,22 @@ export default function Preview({
     [aim, setAim] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
+  useEffect(() => {
+    onPlayingChange?.(playing);
+  }, [playing, onPlayingChange]);
+  const reportedCursor = useRef(-1);
+  useEffect(() => {
+    // Keep the whole editor from rerendering on every animation frame.
+    // Paused seeks still update the timeline immediately.
+    if (!playing || Math.abs(cursor - reportedCursor.current) >= 0.1) {
+      reportedCursor.current = cursor;
+      onTimeChange?.(cursor);
+    }
+  }, [cursor, onTimeChange, playing]);
   const [audioError, setAudioError] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
+  const music = useRef<HTMLAudioElement>(null);
+  const sound = useRef<HTMLAudioElement>(null);
   const duration = timelineSeconds(scenes, project.settings.fps);
   const latestPosition = useRef(0);
   latestPosition.current = cursor;
@@ -180,6 +200,78 @@ export default function Preview({
     effect,
     frames ? (elapsed * project.settings.fps) / frames : 1,
   );
+  useEffect(() => {
+    if (audio.current)
+      audio.current.volume = Math.min(1, project.settings.voice_volume ?? 1);
+    const speechActive =
+      Boolean(project.narration_url) &&
+      cursor <
+        (project.settings.narration_end ??
+          project.narration_duration ??
+          duration) -
+          project.settings.narration_start;
+    function sync(
+      element: HTMLAudioElement | null,
+      time: number,
+      active: boolean,
+      volume: number,
+    ) {
+      if (!element) return;
+      element.volume = Math.max(0, Math.min(1, volume));
+      if (!playing || !active) {
+        element.pause();
+        return;
+      }
+      if (element.readyState > 0 && Number.isFinite(element.duration)) {
+        if (time >= element.duration && !element.loop) {
+          element.pause();
+          return;
+        }
+        const target =
+          element.loop && element.duration > 0 ? time % element.duration : time;
+        if (Math.abs(element.currentTime - target) > 0.15)
+          element.currentTime = target;
+        if (element.paused)
+          void element.play().catch(() => setAudioError(true));
+      }
+    }
+    sync(
+      music.current,
+      cursor,
+      Boolean(project.music_url),
+      (project.settings.music_volume ?? 0.12) *
+        (project.settings.duck_audio && speechActive ? 0.35 : 1),
+    );
+    const soundTime = elapsed - (current?.sfx_offset ?? 0);
+    sync(
+      sound.current,
+      Math.max(0, soundTime),
+      Boolean(current?.sfx_url) &&
+        soundTime >= 0 &&
+        elapsed < (current?.duration ?? 0),
+      project.settings.sfx_volume ?? 0.35,
+    );
+  }, [
+    cursor,
+    playing,
+    current?.sfx_url,
+    project.music_url,
+    project.settings,
+    elapsed,
+    duration,
+  ]);
+  useEffect(() => {
+    const element = music.current;
+    return () => element?.pause();
+  }, [project.music_url]);
+  useEffect(() => {
+    const element = sound.current;
+    return () => element?.pause();
+  }, [current?.sfx_url]);
+  useEffect(() => {
+    const element = audio.current;
+    return () => element?.pause();
+  }, [project.narration_url]);
   async function toggle() {
     if (playing) {
       setPlaying(false);
@@ -201,6 +293,9 @@ export default function Preview({
     }
     setPlaying(true);
   }
+  useEffect(() => {
+    if (toggleRequest) void toggle();
+  }, [toggleRequest]);
   return (
     <section className="preview-section">
       <div className="section-heading">
@@ -441,6 +536,12 @@ export default function Preview({
         <p className="help">
           Approximate guides; platform overlays vary. Guides are not exported.
         </p>
+      )}
+      {project.music_url && (
+        <audio ref={music} src={project.music_url} preload="auto" loop />
+      )}
+      {current?.sfx_url && (
+        <audio ref={sound} src={current.sfx_url} preload="auto" />
       )}
       {project.narration_url && (
         <audio ref={audio} src={project.narration_url} preload="metadata" />
