@@ -54,6 +54,9 @@ def create_desktop_app(ticket: str, settings: Settings | None = None):
         response.headers["Referrer-Policy"] = "no-referrer"
         return response
 
+    # The SPA's /{path:path} fallback was registered by create_app first;
+    # place this narrow bootstrap route before it or it would never match.
+    app.router.routes.insert(0, app.router.routes.pop())
     return app
 
 
