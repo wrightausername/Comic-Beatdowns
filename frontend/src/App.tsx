@@ -213,6 +213,16 @@ export default function App() {
     }
     setQuery("");
   }
+  function resumeLastProject() {
+    let id: string | null = null;
+    try {
+      id = localStorage.getItem("comic-beatdowns:last-project");
+    } catch {
+      /* Use the newest project if browser storage is unavailable. */
+    }
+    const project = projects.find((item) => item.id === id) ?? projects[0];
+    if (project) navigate("production", project.id);
+  }
   const navItems = [
     {
       id: "production" as const,
@@ -471,6 +481,34 @@ export default function App() {
                   </button>
                 ) : null}
               </div>
+              {page === "production" && (
+                <section className="easy-launch surface" aria-label="Start here">
+                  <div>
+                    <span className="eyebrow">START HERE</span>
+                    <h2>Turn a comic beatdown into a video.</h2>
+                    <p>Describe the angle, add your panels and a voice recording, then let Verdict build a preview. Review it before you export.</p>
+                    <small>No editing experience required. This version still needs a recorded voice track.</small>
+                  </div>
+                  <div className="easy-launch-actions">
+                    <button
+                      className="button primary"
+                      onClick={() => {
+                        setAutopilotStart(true);
+                        setDialog("new");
+                      }}
+                    >
+                      <Sparkles size={17} />
+                      Make a video
+                    </button>
+                    {projects.length > 0 && (
+                      <button className="button secondary" onClick={resumeLastProject}>
+                        <ArrowRight size={16} />
+                        Continue my last video
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
               {loading ? (
                 <div className="loading">
                   <LoaderCircle className="spin" />
@@ -523,31 +561,6 @@ export default function App() {
                           </div>
                           <small>READY TO DROP</small>
                         </div>
-                      </div>
-                      <div
-                        className="workflow-actions"
-                        style={{ marginBottom: 16 }}
-                      >
-                        <button
-                          className="button secondary"
-                          onClick={() => {
-                            try {
-                              const id = localStorage.getItem(
-                                "comic-beatdowns:last-project",
-                              );
-                              if (projects.some((p) => p.id === id))
-                                navigate("production", id);
-                              else if (projects[0])
-                                navigate("production", projects[0].id);
-                            } catch {
-                              if (projects[0])
-                                navigate("production", projects[0].id);
-                            }
-                          }}
-                          disabled={!projects.length}
-                        >
-                          Resume last project
-                        </button>
                       </div>
                       <BatchQueue
                         projects={projects}
@@ -1044,6 +1057,15 @@ export default function App() {
           }}
           onError={showError}
           onCreated={(project) => {
+            // "New project" is the power-user path; Verdict Autopilot is guided.
+            try {
+              localStorage.setItem(
+                "comic-beatdowns:editor-mode",
+                autopilotStart ? "easy" : "advanced",
+              );
+            } catch {
+              /* Editor keeps a usable in-memory fallback. */
+            }
             setDialog(null);
             setPreferredTemplate(undefined);
             setAutopilotStart(false);
