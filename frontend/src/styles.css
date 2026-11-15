@@ -3908,3 +3908,63 @@ progress::-webkit-progress-value {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Creative DNA: a private, creator-controlled memory panel. */
+.creative-dna {
+  display: grid;
+  gap: 24px;
+  max-width: 1100px;
+  width: 100%;
+}
+.creative-dna-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.creative-dna-heading h2 { margin: 4px 0; }
+.creative-dna-heading p { max-width: 650px; }
+.creative-dna-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border, #343c4b);
+  border-radius: 12px;
+}
+.creative-dna-form label {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+}
+.creative-dna-form textarea,
+.creative-dna-form select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border, #343c4b);
+  border-radius: 7px;
+  padding: 10px;
+  background: #101821;
+  color: #f4f6f9;
+}
+.creative-dna-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.creative-dna-rule-list { display: grid; gap: 10px; }
+.creative-dna-rule-list h3 { display: flex; align-items: center; gap: 8px; }
+.creative-dna-rule {
+  border: 1px solid var(--border, #343c4b);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.creative-dna-rule p { margin: 8px 0 0; overflow-wrap: anywhere; }
+.creative-dna-rule .toolbar { flex-shrink: 0; }
+@media (max-width: 720px) {
+  .creative-dna-rule { align-items: flex-start; flex-direction: column; }
+}
