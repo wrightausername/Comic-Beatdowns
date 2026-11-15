@@ -743,7 +743,9 @@ test("AI timeline edits persist after reload", async ({ page }) => {
   const count = await timeline
     .getByRole("button", { name: /Timeline shot/ })
     .count();
-  await timeline.getByLabel("Video timeline playhead").fill("0.5");
+  await timeline
+    .getByLabel("Video timeline playhead")
+    .fill("0.375");
   await timeline
     .getByRole("button", { name: "Split shot at playhead" })
     .click();
