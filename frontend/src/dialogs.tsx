@@ -208,7 +208,7 @@ export function NewProject({
             checked={autopilot}
             onChange={(e) => setAutopilot(e.target.checked)}
           />
-          Let Verdict create a preview when my files are ready
+          Let Verdict handle the edit after upload
         </label>
         <p className="muted">
           For this build, automatic editing needs comic panels and one narration recording.
@@ -343,13 +343,13 @@ export function NewProject({
           </div>
         ))}
         <label>
-          Project title (optional)
+          Project title
           <input
             autoFocus
             value={title}
             maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Leave blank to name it from your idea"
+            placeholder="Optional: we can name it from your idea"
           />
         </label>
         <label>
@@ -385,7 +385,7 @@ export function NewProject({
           </button>
           <button className="button" disabled={busy}>
             <Plus size={16} />
-            {busy ? "Creating…" : "Start my video"}
+            {busy ? "Creating…" : "Create project"}
           </button>
         </div>
       </form>
