@@ -163,7 +163,6 @@ class DirectorJob(Base):
     finished_at: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
-
 class CreativeRule(Base):
     """Creator-controlled style instruction; no automatic promotion of audience opinions."""
 
