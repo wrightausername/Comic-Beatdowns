@@ -52,9 +52,11 @@ type Props = {
   scenes: Scene[];
   jobs: RenderJob[];
   dirty: boolean;
+  busy: boolean;
   canRender: boolean;
   onFiles: () => void;
   onAutopilot: () => void;
+  onGenerate: () => void;
   onSave: () => void;
   onReview: () => void;
   onRender: () => void;
@@ -66,9 +68,11 @@ export default function GuidedWorkspace({
   scenes,
   jobs,
   dirty,
+  busy,
   canRender,
   onFiles,
   onAutopilot,
+  onGenerate,
   onSave,
   onReview,
   onRender,
@@ -144,9 +148,11 @@ export default function GuidedWorkspace({
       ? onFiles
       : status === "save"
         ? onSave
-        : status === "working" || status === "generate" || status === "review"
-          ? onAutopilot
-          : status === "export"
+        : status === "generate"
+          ? onGenerate
+          : status === "working" || status === "review"
+            ? onAutopilot
+            : status === "export"
             ? onRender
             : undefined;
   const mainLabel = status === "done" ? "Finished" : "YOUR NEXT STEP";
@@ -231,7 +237,7 @@ export default function GuidedWorkspace({
             type="button"
             className="button primary"
             onClick={task}
-            disabled={status === "export" && !canRender}
+            disabled={busy || (status === "export" && !canRender)}
           >
             {status === "files" ? <FolderOpen size={17} /> : <Film size={17} />}
             {next.button}
