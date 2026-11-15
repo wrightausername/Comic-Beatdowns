@@ -210,10 +210,7 @@ def test_creative_dna_pagination_does_not_hide_old_rules_or_feedback(client):
     assert len(first["rules"]) == len(first["recent_feedback"]) == 50
     assert len(second["rules"]) == len(second["recent_feedback"]) == 5
     assert len({rule["id"] for rule in first["rules"] + second["rules"]}) == 55
-    assert (
-        len({item["id"] for item in first["recent_feedback"] + second["recent_feedback"]})
-        == 55
-    )
+    assert len({item["id"] for item in first["recent_feedback"] + second["recent_feedback"]}) == 55
     # Latest approved rules take priority within the bounded generation context.
     assert len(client.get("/api/creative-dna/guide").json()["instructions"]) == 30
     old = second["rules"][0]
