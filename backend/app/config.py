@@ -1,23 +1,45 @@
 import os
 import secrets
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
+
+
+def default_data_dir() -> Path:
+    """Persist desktop projects outside the replaceable application bundle."""
+    if getattr(sys, "frozen", False):
+        home = Path(os.getenv("LOCALAPPDATA") or Path.home())
+        return home / "ComicBeatdownsStudio"
+    return ROOT / ".data"
+
+
+def media_executable(name: str) -> str:
+    """Prefer the verified FFmpeg tools bundled with the Windows desktop build."""
+    if getattr(sys, "frozen", False):
+        candidate = ROOT / "media-tools" / (name + ".exe")
+        if candidate.is_file():
+            return str(candidate)
+    return name
 
 
 @dataclass
 class Settings:
-    data_dir: Path = field(default_factory=lambda: Path(os.getenv("CB_DATA_DIR", ROOT / ".data")))
+    data_dir: Path = field(
+        default_factory=lambda: Path(os.getenv("CB_DATA_DIR", str(default_data_dir())))
+    )
     studio_token: str = field(default_factory=lambda: os.getenv("CB_STUDIO_TOKEN", ""))
     cookie_secure: bool = field(
         default_factory=lambda: os.getenv("CB_COOKIE_SECURE", "false").lower() == "true"
     )
-    ffmpeg: str = field(default_factory=lambda: os.getenv("CB_FFMPEG", "ffmpeg"))
-    ffprobe: str = field(default_factory=lambda: os.getenv("CB_FFPROBE", "ffprobe"))
+    ffmpeg: str = field(default_factory=lambda: os.getenv("CB_FFMPEG", media_executable("ffmpeg")))
+    ffprobe: str = field(
+        default_factory=lambda: os.getenv("CB_FFPROBE", media_executable("ffprobe"))
+    )
     ai_base_url: str = field(default_factory=lambda: os.getenv("CB_AI_BASE_URL", ""))
     ai_key: str = field(default_factory=lambda: os.getenv("CB_AI_API_KEY", ""))
     ai_model: str = field(default_factory=lambda: os.getenv("CB_AI_MODEL", ""))

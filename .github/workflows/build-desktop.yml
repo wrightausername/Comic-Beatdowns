@@ -1,0 +1,72 @@
+name: Package Windows desktop EXE
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/build_desktop.py'
+      - '.github/workflows/build-desktop.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/build_desktop.py'
+      - '.github/workflows/build-desktop.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-desktop:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build React production assets
+        run: |
+          npm --prefix frontend ci --no-audit --no-fund
+          npm --prefix frontend run build
+      - name: Install Python application and packaging tools
+        run: |
+          python -m pip install --disable-pip-version-check -r backend/requirements.lock
+          python -m pip install --disable-pip-version-check --no-deps -e backend
+          python -m pip install "pyinstaller>=6.10,<7" "pywebview>=5.4,<7"
+      - name: Install full FFmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Build desktop executable
+        run: python scripts/build_desktop.py
+      - name: Run desktop executable headless smoke test
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path '.\desktop-dist\Comic Beatdowns Studio\Comic Beatdowns Studio.exe'
+          $process = Start-Process -FilePath $exe -ArgumentList '--check' -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA 'ComicBeatdownsStudio\desktop-error.log'
+            if (Test-Path $log) { Get-Content $log }
+            throw "Desktop EXE failed startup smoke test"
+          }
+      - name: Create portable archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Compress-Archive -Path 'desktop-dist\Comic Beatdowns Studio\*' -DestinationPath 'artifacts\Comic-Beatdowns-Studio-Windows.zip' -CompressionLevel Optimal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Comic-Beatdowns-Studio-Windows
+          path: artifacts/Comic-Beatdowns-Studio-Windows.zip
+          retention-days: 14
+          if-no-files-found: error
