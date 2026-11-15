@@ -28,11 +28,19 @@ it("guides users in the correct order and ignores outdated previews", () => {
   const ready = { ...withPanels, narration_url: "/media/voice.wav" };
   expect(guidedState(ready, [scene], [], false)).toBe("generate");
   expect(guidedState(ready, [scene], [], true)).toBe("save");
-  expect(guidedState(ready, [scene], [{ ...renderJob, status: "running" }], false)).toBe("working");
+  expect(
+    guidedState(ready, [scene], [{ ...renderJob, status: "running" }], false),
+  ).toBe("working");
   expect(guidedState(ready, [scene], [renderJob], false)).toBe("review");
-  expect(guidedState(ready, [scene], [{ ...renderJob, project_revision: 3 }], false)).toBe("generate");
-  expect(guidedState({ ...ready, script_approved: true }, [scene], [], false)).toBe("export");
-  expect(guidedState(ready, [scene], [{ ...renderJob, quality: "final" }], false)).toBe("done");
+  expect(
+    guidedState(ready, [scene], [{ ...renderJob, project_revision: 3 }], false),
+  ).toBe("generate");
+  expect(
+    guidedState({ ...ready, script_approved: true }, [scene], [], false),
+  ).toBe("export");
+  expect(
+    guidedState(ready, [scene], [{ ...renderJob, quality: "final" }], false),
+  ).toBe("done");
 });
 
 it("offers one clear next action with a way to return to the full editor", () => {
@@ -61,11 +69,17 @@ it("offers one clear next action with a way to return to the full editor", () =>
   view.rerender(
     <GuidedWorkspace
       {...base}
-      project={{ ...project, narration_url: "/media/voice.wav", scene_count: 1 }}
+      project={{
+        ...project,
+        narration_url: "/media/voice.wav",
+        scene_count: 1,
+      }}
       scenes={[scene]}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Make my video preview" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Make my video preview" }),
+  );
   expect(onAutopilot).toHaveBeenCalledTimes(1);
   expect(screen.getByText(/not visual AI/i)).not.toBeInTheDocument();
 });

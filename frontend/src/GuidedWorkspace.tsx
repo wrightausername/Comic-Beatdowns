@@ -1,7 +1,17 @@
-import { ArrowRight, CheckCircle2, Circle, Download, Film, FolderOpen, PencilRuler, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+  Download,
+  Film,
+  FolderOpen,
+  PencilRuler,
+  Sparkles,
+} from "lucide-react";
 import type { Project, RenderJob, Scene } from "./types";
 
-export type GuidedState = "files" | "save" | "working" | "generate" | "review" | "export" | "done";
+export type GuidedState =
+  "files" | "save" | "working" | "generate" | "review" | "export" | "done";
 
 export function guidedState(
   project: Project,
@@ -21,12 +31,18 @@ export function guidedState(
       job.project_id === project.id &&
       job.project_revision === project.revision,
   );
-  if (current.some((job) => job.status === "queued" || job.status === "running"))
+  if (
+    current.some((job) => job.status === "queued" || job.status === "running")
+  )
     return "working";
-  if (current.some((job) => job.status === "completed" && job.quality === "final"))
+  if (
+    current.some((job) => job.status === "completed" && job.quality === "final")
+  )
     return "done";
   if (project.script_approved) return "export";
-  if (current.some((job) => job.status === "completed" && job.quality === "draft"))
+  if (
+    current.some((job) => job.status === "completed" && job.quality === "draft")
+  )
     return "review";
   return "generate";
 }
@@ -78,7 +94,10 @@ export default function GuidedWorkspace({
       job.status === "completed" &&
       job.quality === "draft",
   );
-  const plan: Record<GuidedState, { title: string; help: string; button: string }> = {
+  const plan: Record<
+    GuidedState,
+    { title: string; help: string; button: string }
+  > = {
     files: {
       title: !panelsReady
         ? "Start by adding your comic panels"
@@ -120,39 +139,73 @@ export default function GuidedWorkspace({
     },
   };
   const next = plan[status];
-  const task = status === "files"
-    ? onFiles
-    : status === "save"
-      ? onSave
-      : status === "working" || status === "generate" || status === "review"
-        ? onAutopilot
-        : status === "export"
-          ? onRender
-          : undefined;
+  const task =
+    status === "files"
+      ? onFiles
+      : status === "save"
+        ? onSave
+        : status === "working" || status === "generate" || status === "review"
+          ? onAutopilot
+          : status === "export"
+            ? onRender
+            : undefined;
   const mainLabel = status === "done" ? "Finished" : "YOUR NEXT STEP";
 
   return (
     <section className="guided-studio surface" aria-label="Easy video creation">
       <div className="guided-studio-top">
         <div>
-          <span className="eyebrow"><Sparkles size={14} /> EASY MODE</span>
+          <span className="eyebrow">
+            <Sparkles size={14} /> EASY MODE
+          </span>
           <h2>One step at a time.</h2>
-          <p className="muted">Do the next thing shown here. Verdict handles the edit and you keep the final say.</p>
+          <p className="muted">
+            Do the next thing shown here. Verdict handles the edit and you keep
+            the final say.
+          </p>
         </div>
-        <button type="button" className="button secondary small-button" onClick={onAdvanced}>
+        <button
+          type="button"
+          className="button secondary small-button"
+          onClick={onAdvanced}
+        >
           <PencilRuler size={16} /> Open full editor
         </button>
       </div>
       <div className="guided-progress" aria-label="Video production progress">
         <div className={panelsReady && audioReady ? "complete" : "active"}>
-          {panelsReady && audioReady ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+          {panelsReady && audioReady ? (
+            <CheckCircle2 size={18} />
+          ) : (
+            <Circle size={18} />
+          )}
           <span>1. Add panels + voice</span>
         </div>
-        <div className={preview || project.script_approved || final ? "complete" : status === "working" || status === "generate" ? "active" : ""}>
-          {preview || project.script_approved || final ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+        <div
+          className={
+            preview || project.script_approved || final
+              ? "complete"
+              : status === "working" || status === "generate"
+                ? "active"
+                : ""
+          }
+        >
+          {preview || project.script_approved || final ? (
+            <CheckCircle2 size={18} />
+          ) : (
+            <Circle size={18} />
+          )}
           <span>2. Make a preview</span>
         </div>
-        <div className={final ? "complete" : status === "review" || status === "export" ? "active" : ""}>
+        <div
+          className={
+            final
+              ? "complete"
+              : status === "review" || status === "export"
+                ? "active"
+                : ""
+          }
+        >
           {final ? <CheckCircle2 size={18} /> : <Circle size={18} />}
           <span>3. Review + export</span>
         </div>
@@ -188,14 +241,22 @@ export default function GuidedWorkspace({
       </div>
       {status === "export" && !canRender && (
         <p className="notice" role="status">
-          Finish saving and confirm that the approved timeline has panels and narration before exporting.
-          <button className="text-button" type="button" onClick={onReview}>Open review</button>
+          Finish saving and confirm that the approved timeline has panels and
+          narration before exporting.
+          <button className="text-button" type="button" onClick={onReview}>
+            Open review
+          </button>
         </p>
       )}
       {status === "done" && !final?.download_url && (
-        <p className="notice" role="status">The export record has no downloadable file. Check the Exports page.</p>
+        <p className="notice" role="status">
+          The export record has no downloadable file. Check the Exports page.
+        </p>
       )}
-      <p className="guided-footnote">No auto-posting. AI writing, artwork understanding, and voice generation require separate configuration or future integrations.</p>
+      <p className="guided-footnote">
+        No auto-posting. AI writing, artwork understanding, and voice generation
+        require separate configuration or future integrations.
+      </p>
     </section>
   );
 }

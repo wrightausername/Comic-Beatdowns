@@ -644,8 +644,9 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   expect(errors).toEqual([]);
 });
 
-
-test("Easy Mode walks a first-time creator through missing inputs without pretending to generate voice", async ({ page }) => {
+test("Easy Mode walks a first-time creator through missing inputs without pretending to generate voice", async ({
+  page,
+}) => {
   await page.getByRole("button", { name: "Make a video", exact: true }).click();
   await page
     .getByLabel("The angle", { exact: true })
@@ -653,14 +654,20 @@ test("Easy Mode walks a first-time creator through missing inputs without preten
   await page.getByRole("button", { name: "Create project" }).click();
   const guide = page.getByRole("region", { name: "Easy video creation" });
   await expect(guide).toBeVisible();
-  await expect(guide.getByText("Start by adding your comic panels")).toBeVisible();
+  await expect(
+    guide.getByText("Start by adding your comic panels"),
+  ).toBeVisible();
   await expect(guide.getByText(/needs a recorded voice track/i)).toHaveCount(0);
   await guide.getByRole("button", { name: "Add missing files" }).click();
   await expect(page.getByText("Drop project files here")).toBeVisible();
   const autopilot = page.getByRole("region", { name: "Verdict Autopilot" });
-  await expect(autopilot.getByRole("button", { name: "Generate my video preview" })).toBeDisabled();
+  await expect(
+    autopilot.getByRole("button", { name: "Generate my video preview" }),
+  ).toBeDisabled();
   await guide.getByRole("button", { name: "Open full editor" }).click();
-  await expect(page.getByRole("button", { name: "Timeline", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Timeline", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Return to Easy Mode" }).click();
   await expect(guide).toBeVisible();
 });

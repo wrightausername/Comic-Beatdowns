@@ -225,81 +225,93 @@ export default function VerdictAutopilot({
         <Bot size={30} />
         <div>
           <span className="eyebrow">VERDICT TAKES THE CHAIR</span>
-          <h2>{simple ? "Let Verdict make your first cut." : "Upload. Hand it over. Watch."}</h2>
+          <h2>
+            {simple
+              ? "Let Verdict make your first cut."
+              : "Upload. Hand it over. Watch."}
+          </h2>
           <p>
             Add your panels and one voice recording. I’ll build the vertical
             edit.
           </p>
         </div>
-        {!simple && <label className="autopilot-toggle">
-          <input
-            type="checkbox"
-            checked={options.enabled}
-            disabled={!!running}
-            onChange={(e) => void changeOptions({ enabled: e.target.checked })}
-          />
-          Verdict Autopilot
-        </label>}
+        {!simple && (
+          <label className="autopilot-toggle">
+            <input
+              type="checkbox"
+              checked={options.enabled}
+              disabled={!!running}
+              onChange={(e) =>
+                void changeOptions({ enabled: e.target.checked })
+              }
+            />
+            Verdict Autopilot
+          </label>
+        )}
       </div>
       {(options.enabled || simple) && (
         <>
-          {!simple && <div className="form-grid autopilot-options">
-            <label>
-              How Verdict decides
-              <select
-                disabled={!!running}
-                value={options.mode}
-                onChange={(e) =>
-                  void changeOptions({
-                    mode: e.target.value as AutopilotOptions["mode"],
-                  })
-                }
-              >
-                <option value="basic">Basic · upload order + tags</option>
-                <option value="vision">Vision AI · understands panels</option>
-              </select>
-            </label>
-            <label>
-              Pacing
-              <select
-                disabled={!!running}
-                value={options.pace}
-                onChange={(e) =>
-                  void changeOptions({
-                    pace: e.target.value as AutopilotOptions["pace"],
-                  })
-                }
-              >
-                <option value="fast">Fast · punchy Shorts camera</option>
-                <option value="slow">Slow · longer readable shots</option>
-              </select>
-            </label>
-            <label>
-              Delivery
-              <select
-                disabled={!!running}
-                value={options.delivery}
-                onChange={(e) =>
-                  void changeOptions({
-                    delivery: e.target.value as AutopilotOptions["delivery"],
-                  })
-                }
-              >
-                <option value="draft">
-                  Preview first · I approve the final
-                </option>
-                <option value="final">
-                  Finish for me · automatic 1080p MP4
-                </option>
-              </select>
-            </label>
-          </div>}
-          {!simple && <p className="muted">
-            {options.mode === "basic"
-              ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
-              : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
-            Your full selected recording is kept. No automatic publishing.
-          </p>}
+          {!simple && (
+            <div className="form-grid autopilot-options">
+              <label>
+                How Verdict decides
+                <select
+                  disabled={!!running}
+                  value={options.mode}
+                  onChange={(e) =>
+                    void changeOptions({
+                      mode: e.target.value as AutopilotOptions["mode"],
+                    })
+                  }
+                >
+                  <option value="basic">Basic · upload order + tags</option>
+                  <option value="vision">Vision AI · understands panels</option>
+                </select>
+              </label>
+              <label>
+                Pacing
+                <select
+                  disabled={!!running}
+                  value={options.pace}
+                  onChange={(e) =>
+                    void changeOptions({
+                      pace: e.target.value as AutopilotOptions["pace"],
+                    })
+                  }
+                >
+                  <option value="fast">Fast · punchy Shorts camera</option>
+                  <option value="slow">Slow · longer readable shots</option>
+                </select>
+              </label>
+              <label>
+                Delivery
+                <select
+                  disabled={!!running}
+                  value={options.delivery}
+                  onChange={(e) =>
+                    void changeOptions({
+                      delivery: e.target.value as AutopilotOptions["delivery"],
+                    })
+                  }
+                >
+                  <option value="draft">
+                    Preview first · I approve the final
+                  </option>
+                  <option value="final">
+                    Finish for me · automatic 1080p MP4
+                  </option>
+                </select>
+              </label>
+            </div>
+          )}
+          {!simple && (
+            <p className="muted">
+              {options.mode === "basic"
+                ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
+                : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
+              Your full selected recording is kept. No automatic publishing.
+            </p>
+          )}
           {!simple && options.delivery === "final" && (
             <p className="notice">
               You’re authorizing Verdict to approve this edit and render the
@@ -317,10 +329,17 @@ export default function VerdictAutopilot({
               onClick={() => void run()}
             >
               <Sparkles size={17} />
-              {running ? "Verdict is working…" : simple ? "Generate my video preview" : "Let Verdict handle it"}
+              {running
+                ? "Verdict is working…"
+                : simple
+                  ? "Generate my video preview"
+                  : "Let Verdict handle it"}
             </button>
             {simple && options.mode === "basic" && readyForVerdict(project) && (
-              <span className="muted">Offline first cut · uses panel order and tags, not visual AI. You review before export.</span>
+              <span className="muted">
+                Offline first cut · uses panel order and tags, not visual AI.
+                You review before export.
+              </span>
             )}
             {!readyForVerdict(project) && (
               <span className="muted">
@@ -328,7 +347,10 @@ export default function VerdictAutopilot({
               </span>
             )}
             {simple && options.mode === "vision" && !connection?.configured && (
-              <button className="button secondary" onClick={() => void changeOptions({ mode: "basic" })}>
+              <button
+                className="button secondary"
+                onClick={() => void changeOptions({ mode: "basic" })}
+              >
                 Use offline editing instead
               </button>
             )}
@@ -434,103 +456,108 @@ export default function VerdictAutopilot({
           Verdict status unavailable: {pollError}. Retrying…
         </p>
       )}
-      {!simple && <details className="autopilot-connection">
-        <summary>Optional: connect Verdict’s vision AI</summary>
-        <p className="muted">
-          Use an OpenAI-compatible vision model, including a local server such
-          as Ollama. Your key is stored privately in this studio’s data folder
-          and is never returned to the browser. Choose Vision AI above to send
-          files.
-        </p>
-        <div className="form-grid">
-          <label>
-            API base URL
-            <input
-              type="url"
-              value={connectionForm.base_url}
-              onChange={(e) =>
-                setConnectionForm({
-                  ...connectionForm,
-                  base_url: e.target.value,
-                })
-              }
-              placeholder="http://localhost:11434/v1"
-            />
-          </label>
-          <label>
-            Vision model
-            <input
-              value={connectionForm.model}
-              onChange={(e) =>
-                setConnectionForm({ ...connectionForm, model: e.target.value })
-              }
-              placeholder="Your provider’s image-capable model"
-            />
-          </label>
-          <label>
-            API key {connection?.has_key && "(saved; leave blank to keep)"}
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={connectionForm.api_key}
-              onChange={(e) =>
-                setConnectionForm({
-                  ...connectionForm,
-                  api_key: e.target.value,
-                })
-              }
-              placeholder="Optional for local servers"
-            />
-          </label>
-          <label>
-            Speech model (optional)
-            <input
-              value={connectionForm.transcription_model}
-              onChange={(e) =>
-                setConnectionForm({
-                  ...connectionForm,
-                  transcription_model: e.target.value,
-                })
-              }
-              placeholder="Blank = offline English captions"
-            />
-          </label>
-        </div>
-        <p className="muted">
-          Speech models must support verbose_json segment timestamps. Import SRT
-          captions for exact wording.
-        </p>
-        <div className="toolbar">
-          <button
-            className="button secondary"
-            disabled={providerBusy || !!running}
-            onClick={() => void saveProvider()}
-          >
-            Save AI connection
-          </button>
-          {connection?.configured && (
-            <button
-              className="text-button"
-              disabled={providerBusy || !!running}
-              onClick={() => {
-                setProviderBusy(true);
-                void api<VisionConnection>("/verdict/connection", {
-                  method: "DELETE",
-                })
-                  .then((value) => {
-                    setConnection(value);
-                    setProviderMessage("Connection removed.");
+      {!simple && (
+        <details className="autopilot-connection">
+          <summary>Optional: connect Verdict’s vision AI</summary>
+          <p className="muted">
+            Use an OpenAI-compatible vision model, including a local server such
+            as Ollama. Your key is stored privately in this studio’s data folder
+            and is never returned to the browser. Choose Vision AI above to send
+            files.
+          </p>
+          <div className="form-grid">
+            <label>
+              API base URL
+              <input
+                type="url"
+                value={connectionForm.base_url}
+                onChange={(e) =>
+                  setConnectionForm({
+                    ...connectionForm,
+                    base_url: e.target.value,
                   })
-                  .catch((error) => onError(errorMessage(error)))
-                  .finally(() => setProviderBusy(false));
-              }}
+                }
+                placeholder="http://localhost:11434/v1"
+              />
+            </label>
+            <label>
+              Vision model
+              <input
+                value={connectionForm.model}
+                onChange={(e) =>
+                  setConnectionForm({
+                    ...connectionForm,
+                    model: e.target.value,
+                  })
+                }
+                placeholder="Your provider’s image-capable model"
+              />
+            </label>
+            <label>
+              API key {connection?.has_key && "(saved; leave blank to keep)"}
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={connectionForm.api_key}
+                onChange={(e) =>
+                  setConnectionForm({
+                    ...connectionForm,
+                    api_key: e.target.value,
+                  })
+                }
+                placeholder="Optional for local servers"
+              />
+            </label>
+            <label>
+              Speech model (optional)
+              <input
+                value={connectionForm.transcription_model}
+                onChange={(e) =>
+                  setConnectionForm({
+                    ...connectionForm,
+                    transcription_model: e.target.value,
+                  })
+                }
+                placeholder="Blank = offline English captions"
+              />
+            </label>
+          </div>
+          <p className="muted">
+            Speech models must support verbose_json segment timestamps. Import
+            SRT captions for exact wording.
+          </p>
+          <div className="toolbar">
+            <button
+              className="button secondary"
+              disabled={providerBusy || !!running}
+              onClick={() => void saveProvider()}
             >
-              Remove connection & key
+              Save AI connection
             </button>
-          )}
-        </div>
-        {providerMessage && <p role="status">{providerMessage}</p>}
-      </details>}
+            {connection?.configured && (
+              <button
+                className="text-button"
+                disabled={providerBusy || !!running}
+                onClick={() => {
+                  setProviderBusy(true);
+                  void api<VisionConnection>("/verdict/connection", {
+                    method: "DELETE",
+                  })
+                    .then((value) => {
+                      setConnection(value);
+                      setProviderMessage("Connection removed.");
+                    })
+                    .catch((error) => onError(errorMessage(error)))
+                    .finally(() => setProviderBusy(false));
+                }}
+              >
+                Remove connection & key
+              </button>
+            )}
+          </div>
+          {providerMessage && <p role="status">{providerMessage}</p>}
+        </details>
+      )}
     </section>
   );
 }

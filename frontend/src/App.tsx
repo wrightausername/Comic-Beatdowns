@@ -482,12 +482,22 @@ export default function App() {
                 ) : null}
               </div>
               {page === "production" && (
-                <section className="easy-launch surface" aria-label="Start here">
+                <section
+                  className="easy-launch surface"
+                  aria-label="Start here"
+                >
                   <div>
                     <span className="eyebrow">START HERE</span>
                     <h2>Turn a comic beatdown into a video.</h2>
-                    <p>Describe the angle, add your panels and a voice recording, then let Verdict build a preview. Review it before you export.</p>
-                    <small>No editing experience required. This version still needs a recorded voice track.</small>
+                    <p>
+                      Describe the angle, add your panels and a voice recording,
+                      then let Verdict build a preview. Review it before you
+                      export.
+                    </p>
+                    <small>
+                      No editing experience required. This version still needs a
+                      recorded voice track.
+                    </small>
                   </div>
                   <div className="easy-launch-actions">
                     <button
@@ -501,7 +511,10 @@ export default function App() {
                       Make a video
                     </button>
                     {projects.length > 0 && (
-                      <button className="button secondary" onClick={resumeLastProject}>
+                      <button
+                        className="button secondary"
+                        onClick={resumeLastProject}
+                      >
                         <ArrowRight size={16} />
                         Continue my last video
                       </button>

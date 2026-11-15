@@ -91,7 +91,10 @@ export default function Editor({
   function changeMode(easy: boolean) {
     setEasyMode(easy);
     try {
-      localStorage.setItem("comic-beatdowns:editor-mode", easy ? "easy" : "advanced");
+      localStorage.setItem(
+        "comic-beatdowns:editor-mode",
+        easy ? "easy" : "advanced",
+      );
     } catch {
       /* The mode still works without storage. */
     }
@@ -443,33 +446,35 @@ export default function Editor({
             </span>
           </div>
         </div>
-        {!easyMode && <div className="workflow-actions">
-          <button
-            className="button secondary"
-            disabled={!canDraft || busy}
-            onClick={() => void render("draft")}
-          >
-            <Film size={16} />
-            Draft preview
-          </button>
-          <button
-            className="button"
-            disabled={!canRender || busy}
-            title={
-              !canRender
-                ? "Save changes, upload narration, and approve the script first"
-                : "Render a 1080 × 1920 MP4"
-            }
-            onClick={() => void render("final")}
-          >
-            {activeJob ? (
-              <LoaderCircle className="spin" size={17} />
-            ) : (
-              <Film size={17} />
-            )}
-            {activeJob ? `Rendering ${activeJob.progress}%` : "Render MP4"}
-          </button>
-        </div>}
+        {!easyMode && (
+          <div className="workflow-actions">
+            <button
+              className="button secondary"
+              disabled={!canDraft || busy}
+              onClick={() => void render("draft")}
+            >
+              <Film size={16} />
+              Draft preview
+            </button>
+            <button
+              className="button"
+              disabled={!canRender || busy}
+              title={
+                !canRender
+                  ? "Save changes, upload narration, and approve the script first"
+                  : "Render a 1080 × 1920 MP4"
+              }
+              onClick={() => void render("final")}
+            >
+              {activeJob ? (
+                <LoaderCircle className="spin" size={17} />
+              ) : (
+                <Film size={17} />
+              )}
+              {activeJob ? `Rendering ${activeJob.progress}%` : "Render MP4"}
+            </button>
+          </div>
+        )}
       </div>
       <div className="workspace-toolbar">
         <button
@@ -553,10 +558,20 @@ export default function Editor({
           canRender={canRender}
           onFiles={() => {
             setStage("files");
-            requestAnimationFrame(() => document.getElementById("studio-workflow")?.scrollIntoView({ behavior: "smooth" }));
+            requestAnimationFrame(() =>
+              document
+                .getElementById("studio-workflow")
+                ?.scrollIntoView({ behavior: "smooth" }),
+            );
           }}
-          onAutopilot={() => document.getElementById("studio-autopilot")?.scrollIntoView({ behavior: "smooth" })}
-          onSave={() => void perform(async () => setNotice("All changes saved."))}
+          onAutopilot={() =>
+            document
+              .getElementById("studio-autopilot")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+          onSave={() =>
+            void perform(async () => setNotice("All changes saved."))
+          }
           onReview={() => setStage("review")}
           onRender={() => void render("final")}
           onAdvanced={() => changeMode(false)}
@@ -564,95 +579,108 @@ export default function Editor({
       ) : (
         <div className="advanced-switch">
           <span>Full editor: every tool and timeline control is visible.</span>
-          <button className="button secondary small-button" onClick={() => changeMode(true)}>Return to Easy Mode</button>
+          <button
+            className="button secondary small-button"
+            onClick={() => changeMode(true)}
+          >
+            Return to Easy Mode
+          </button>
         </div>
       )}
       <div id="studio-autopilot">
-      <VerdictAutopilot
-        simple={easyMode}
-        project={project}
-        dirty={dirty}
-        busy={busy}
-        accept={accept}
-        perform={perform}
-        onChanged={onChanged}
-        onReview={() => setStage("review")}
-        onError={onError}
-      />
+        <VerdictAutopilot
+          simple={easyMode}
+          project={project}
+          dirty={dirty}
+          busy={busy}
+          accept={accept}
+          perform={perform}
+          onChanged={onChanged}
+          onReview={() => setStage("review")}
+          onError={onError}
+        />
       </div>
-      {!easyMode && <WorkflowSteps
-        stage={stage}
-        setStage={setStage}
-        completed={
-          new Set<Stage>([
-            ...(scenes.length > 0 && project.narration_url
-              ? ["files" as const]
-              : []),
-            ...(draft.workflow?.storyboard?.length ? ["match" as const] : []),
-            ...(canDraft ? ["edit" as const] : []),
-            ...(project.script_approved && !dirty ? ["review" as const] : []),
-            ...(exported ? ["export" as const] : []),
-          ])
-        }
-      />}
+      {!easyMode && (
+        <WorkflowSteps
+          stage={stage}
+          setStage={setStage}
+          completed={
+            new Set<Stage>([
+              ...(scenes.length > 0 && project.narration_url
+                ? ["files" as const]
+                : []),
+              ...(draft.workflow?.storyboard?.length ? ["match" as const] : []),
+              ...(canDraft ? ["edit" as const] : []),
+              ...(project.script_approved && !dirty ? ["review" as const] : []),
+              ...(exported ? ["export" as const] : []),
+            ])
+          }
+        />
+      )}
       <div className="editor-layout">
         <div className="editor-workspace">
-          <div id="studio-workflow"><ProductionWorkflow
-            simple={easyMode}
-            noteMoment={noteMoment}
-            stage={stage}
-            setStage={setStage}
-            draft={draft}
-            project={view}
-            panels={panels}
-            jobs={jobs}
-            effects={effects}
-            update={update}
-            accept={accept}
-            perform={perform}
-            onChanged={onChanged}
-            onPreview={setPreviewOverride}
-            onSeek={(seconds) => {
-              setPreviewOverride(null);
-              setPreviewRequest({ seconds, nonce: Date.now() });
-            }}
-            onRender={(quality, start, end) => void render(quality, start, end)}
-            onPick={() => {
-              setReplaceIndex(null);
-              setPicker(true);
-            }}
-            onScript={() => {
-              changeMode(false);
-              setStage("edit");
-              setTab("script");
-            }}
-            onSettings={() => {
-              changeMode(false);
-              setStage("edit");
-              setTab("settings");
-            }}
-          /></div>
-          {!easyMode && <div className="tabs">
-            {(
-              [
-                ["timeline", Film, "Timeline"],
-                ["script", Sparkles, "Verdict script"],
-                ["settings", Settings2, "Settings"],
-              ] as const
-            ).map(([value, Icon, label]) => (
-              <button
-                key={value}
-                className={tab === value ? "active" : ""}
-                onClick={() => {
-                  setStage("edit");
-                  setTab(value);
-                }}
-              >
-                <Icon size={15} />
-                {label}
-              </button>
-            ))}
-          </div>}
+          <div id="studio-workflow">
+            <ProductionWorkflow
+              simple={easyMode}
+              noteMoment={noteMoment}
+              stage={stage}
+              setStage={setStage}
+              draft={draft}
+              project={view}
+              panels={panels}
+              jobs={jobs}
+              effects={effects}
+              update={update}
+              accept={accept}
+              perform={perform}
+              onChanged={onChanged}
+              onPreview={setPreviewOverride}
+              onSeek={(seconds) => {
+                setPreviewOverride(null);
+                setPreviewRequest({ seconds, nonce: Date.now() });
+              }}
+              onRender={(quality, start, end) =>
+                void render(quality, start, end)
+              }
+              onPick={() => {
+                setReplaceIndex(null);
+                setPicker(true);
+              }}
+              onScript={() => {
+                changeMode(false);
+                setStage("edit");
+                setTab("script");
+              }}
+              onSettings={() => {
+                changeMode(false);
+                setStage("edit");
+                setTab("settings");
+              }}
+            />
+          </div>
+          {!easyMode && (
+            <div className="tabs">
+              {(
+                [
+                  ["timeline", Film, "Timeline"],
+                  ["script", Sparkles, "Verdict script"],
+                  ["settings", Settings2, "Settings"],
+                ] as const
+              ).map(([value, Icon, label]) => (
+                <button
+                  key={value}
+                  className={tab === value ? "active" : ""}
+                  onClick={() => {
+                    setStage("edit");
+                    setTab(value);
+                  }}
+                >
+                  <Icon size={15} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {!easyMode && stage === "edit" && tab === "timeline" && (
             <>
               <details
@@ -1588,17 +1616,22 @@ export default function Editor({
               Review script
             </button>
           </div>
-          {!easyMode && <section className="surface preflight">
-            <span className="eyebrow">EXPORT CHECKLIST</span>
-            <Checklist
-              checks={[
-                ["Save your timeline", scenes.length > 0 && !dirty],
-                ["Upload narration", Boolean(project.narration_url)],
-                ["Approve Verdict’s script", project.script_approved && !dirty],
-                ["Save all project changes", !dirty],
-              ]}
-            />
-          </section>}
+          {!easyMode && (
+            <section className="surface preflight">
+              <span className="eyebrow">EXPORT CHECKLIST</span>
+              <Checklist
+                checks={[
+                  ["Save your timeline", scenes.length > 0 && !dirty],
+                  ["Upload narration", Boolean(project.narration_url)],
+                  [
+                    "Approve Verdict’s script",
+                    project.script_approved && !dirty,
+                  ],
+                  ["Save all project changes", !dirty],
+                ]}
+              />
+            </section>
+          )}
         </aside>
       </div>
       {picker && (
