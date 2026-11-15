@@ -177,3 +177,64 @@ def test_workspace_observation_records_only_changed_field_names(client, image_by
         assert "Private unpublished punchline" not in str(event.changes)
     # Neither a manual edit nor a correction automatically becomes a prompt rule.
     assert client.get("/api/creative-dna/guide").json()["instructions"] == []
+
+
+def test_creative_dna_pagination_does_not_hide_old_rules_or_feedback(client):
+    project = add_project(client)
+    with client.app.state.sessions() as db:
+        for index in range(55):
+            db.add(
+                CreativeRule(
+                    category="humor",
+                    scope="global",
+                    instruction=f"Distinct owner preference {index}",
+                    status="approved",
+                )
+            )
+            db.add(
+                CreativeFeedback(
+                    project_id=project["id"],
+                    project_revision=project["revision"],
+                    category="humor",
+                    decision="keep",
+                    note=f"Feedback {index}",
+                )
+            )
+        db.commit()
+    first = client.get("/api/creative-dna").json()
+    second = client.get(
+        "/api/creative-dna", params={"rule_offset": 50, "feedback_offset": 50}
+    ).json()
+    assert first["pagination"]["totals"]["rules"] == 55
+    assert first["pagination"]["totals"]["feedback"] == 55
+    assert len(first["rules"]) == len(first["recent_feedback"]) == 50
+    assert len(second["rules"]) == len(second["recent_feedback"]) == 5
+    assert len({rule["id"] for rule in first["rules"] + second["rules"]}) == 55
+    assert (
+        len({item["id"] for item in first["recent_feedback"] + second["recent_feedback"]})
+        == 55
+    )
+    # Latest approved rules take priority within the bounded generation context.
+    assert len(client.get("/api/creative-dna/guide").json()["instructions"]) == 30
+    old = second["rules"][0]
+    disabled = client.patch(
+        f"/api/creative-dna/rules/{old['id']}",
+        json={"status": "rejected", "expected_updated_at": old["updated_at"]},
+    )
+    assert disabled.status_code == 200
+    removal = client.delete(f"/api/creative-dna/feedback/{second['recent_feedback'][0]['id']}")
+    assert removal.status_code == 200
+
+
+def test_rule_decision_uses_conditional_version_update(client):
+    rule = create_rule(client)
+    stale_version = rule["updated_at"]
+    approved = decide(client, rule, "approved")
+    assert approved["updated_at"] != stale_version
+    stale = client.patch(
+        f"/api/creative-dna/rules/{rule['id']}",
+        json={"status": "rejected", "expected_updated_at": stale_version},
+    )
+    assert stale.status_code == 409
+    current = client.get("/api/creative-dna").json()["rules"][0]
+    assert current["status"] == "approved"
