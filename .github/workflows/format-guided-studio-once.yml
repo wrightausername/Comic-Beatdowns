@@ -1,4 +1,4 @@
-name: Format Easy Mode branch (one-time)
+name: Format Easy Mode branch (one-time) # rerun after one-click wiring
 
 on:
   push:
