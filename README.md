@@ -5,6 +5,14 @@
 
 A private, browser-based production desk for **Comic Beatdowns**, hosted by **Verdict**. Import authorized comic sources, catalog and crop panels, write a sharp commentary script, arrange a vertical timeline, upload narration, and render a downloadable **1080 × 1920 MP4** with FFmpeg. No paid API credentials are required.
 
+## Windows desktop update
+
+The combined update branch includes Creative DNA, Easy Mode and Windows desktop
+packaging. Download the portable Windows ZIP only from a successful **Package
+Windows desktop EXE** Actions run for the exact update commit; see
+[desktop instructions](docs/windows-desktop.md). Keep the adjacent `_internal`
+folder beside the executable. Your existing checkout is not updated automatically.
+
 ## Quick start
 
 ### Windows: download and double-click

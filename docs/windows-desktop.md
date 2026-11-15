@@ -25,7 +25,7 @@ download system runtimes.
 The workflow builds on `windows-2022` and checks whether the frozen .exe can
 start its local API, load the frontend and locate working media tools. A passing
 CI check is **not** a substitute for checking the graphical window, drag-drop
-imports, export downloads, TTS, or real 90-second video production on a desktop.
+imports, export downloads, or real 90-second video production on a desktop.
 
 ## Behavior and privacy
 
@@ -80,7 +80,7 @@ merge with these milestones:
 3. **Verdict script + delivery:** produce a commentary script with an
    adjustable craziness/edge level, natural non-repetitive jokes, controlled
    nicknames, reference checking and a hook/loop designed for Shorts.
-   Voice generation requires a connected provider or a licensed local model.
+   Generate narration externally in ElevenLabs and import the MP3/WAV; internal voice generation is outside the current scope.
 4. **Auto-Director:** narration-first timing, precise speaker/beat alignment,
    shot selection, intelligent crops, subtle camera moves, dynamic captions,
    audio ducking, reaction effects, transitions and preview renders.

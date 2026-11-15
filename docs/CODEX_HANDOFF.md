@@ -62,3 +62,22 @@ PR #12 final tested commit (as of this handoff): `07e7d5ecf10d9ea7cc104e06a333ef
 - After each material coding milestone, update the relevant PR and this document with **what shipped, what remains, latest tested commit, and truthful CI result**. Do not assert updates happen continuously if no agent or scheduled monitor is running.
 - If asked for a status and no repo is mounted, use the exact GitHub repo link rather than saying no Comic Beatdowns project exists. Ask to attach the GitHub repo only when Codex itself cannot access it.
 
+
+## Combined update branch (November 15, 2026)
+
+`update/studio-desktop-easy-mode` combines the existing Creative DNA (#11),
+Easy Mode (#12), and `feature/windows-desktop-exe` branches without changing main.
+The canonical handoff and existing owner decisions are retained. Older crop and
+one-click intake PRs (#4/#6) remain separate; their overlapping intake paths were
+not merged into this update.
+
+The update includes the native Windows shell, one-use local login, persistent
+`%LOCALAPPDATA%\ComicBeatdownsStudio` storage, bundled media tools, and a Windows
+portable-archive packaging workflow. ElevenLabs remains external: Easy Mode now
+explicitly asks for MP3/WAV narration and replacing editor narration warns about
+retiming existing cuts and captions. No autonomous style learning or audience
+analytics has been added. Existing data migration remains a manual, backed-up
+copy with Studio closed; see `docs/windows-desktop.md`.
+
+Validation of this combined branch is recorded in its PR. Do not infer a passing
+Windows build or downloadable artifact from the existence of the packaging code.

@@ -105,10 +105,10 @@ export default function GuidedWorkspace({
     files: {
       title: !panelsReady
         ? "Start by adding your comic panels"
-        : "Next, add your voice recording",
+        : "Add ElevenLabs narration (MP3/WAV)",
       help: !panelsReady
         ? "Drop your comic images, PDF, or CBZ into the file area below. You can add a voice recording at the same time."
-        : "Upload one narration recording. Automatic Verdict voice generation is planned, but isn't available in this build yet.",
+        : "Generate Verdict’s voice in ElevenLabs, then upload the MP3 or WAV here. Your recording sets the timing for the edit.",
       button: "Add missing files",
     },
     save: {

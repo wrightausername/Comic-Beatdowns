@@ -376,7 +376,15 @@ export default function Editor({
       onError(errorMessage(error));
     }
   }
-  const uploadAsset = (kind: "narration" | "music" | "logo", file: File) =>
+  const uploadAsset = (kind: "narration" | "music" | "logo", file: File) => {
+    if (
+      kind === "narration" &&
+      project.narration_url &&
+      !window.confirm(
+        "Replace the narration? Existing cuts and captions may need retiming. Review the new recording before approving or exporting.",
+      )
+    )
+      return;
     void perform(async () => {
       accept(
         await api<Project>(`/projects/${projectId}/${kind}`, audioUpload(file)),
@@ -388,6 +396,7 @@ export default function Editor({
           : `${kind === "music" ? "Music" : "Logo"} saved.`,
       );
     });
+  };
   const removeAsset = (kind: "music" | "logo") =>
     void perform(async () => {
       accept(
@@ -1096,8 +1105,10 @@ export default function Editor({
                   <label className="button secondary small-button">
                     <Upload size={15} />
                     {project.narration_url ? "Replace audio" : "Upload audio"}
-                    {fileInput("Upload narration", "audio/*", (file) =>
-                      uploadAsset("narration", file),
+                    {fileInput(
+                      "Add ElevenLabs narration (MP3/WAV)",
+                      ".mp3,.wav,audio/mpeg,audio/wav",
+                      (file) => uploadAsset("narration", file),
                     )}
                   </label>
                 </div>
