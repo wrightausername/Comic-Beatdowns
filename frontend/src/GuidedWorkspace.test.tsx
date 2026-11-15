@@ -47,14 +47,17 @@ it("offers one clear next action with a way to return to the full editor", () =>
   const onFiles = vi.fn();
   const onAdvanced = vi.fn();
   const onAutopilot = vi.fn();
+  const onGenerate = vi.fn();
   const base = {
     project,
     scenes: [] as Scene[],
     jobs: [] as RenderJob[],
     dirty: false,
+    busy: false,
     canRender: false,
     onFiles,
     onAutopilot,
+    onGenerate,
     onSave: vi.fn(),
     onReview: vi.fn(),
     onRender: vi.fn(),
@@ -80,6 +83,7 @@ it("offers one clear next action with a way to return to the full editor", () =>
   fireEvent.click(
     screen.getByRole("button", { name: "Make my video preview" }),
   );
-  expect(onAutopilot).toHaveBeenCalledTimes(1);
+  expect(onGenerate).toHaveBeenCalledTimes(1);
+  expect(onAutopilot).not.toHaveBeenCalled();
   expect(screen.getByText(/not visual AI/i)).not.toBeInTheDocument();
 });
