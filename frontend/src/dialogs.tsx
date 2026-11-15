@@ -148,7 +148,7 @@ export function NewProject({
       const orderedFiles = orderForProduction(files);
       let created = await api<Project>(
         "/projects",
-        json({ title, idea, template_id: template || null }),
+        json({ title: title.trim() || idea.trim().split("\n")[0].slice(0, 120) || "New beatdown", idea, template_id: template || null }),
       );
       if (autopilot)
         created = await api<Project>(
@@ -201,20 +201,22 @@ export function NewProject({
       onClose={onClose}
     >
       <form onSubmit={submit}>
+        <p className="muted">Start with an idea and whatever files you already have. You can finish adding everything inside the project.</p>
         <label className="autopilot-review">
           <input
             type="checkbox"
             checked={autopilot}
             onChange={(e) => setAutopilot(e.target.checked)}
           />
-          Let Verdict handle the edit after upload
+          Let Verdict create a preview when my files are ready
         </label>
         <p className="muted">
-          Autopilot builds and renders a preview from your panels and voice. No
-          API key needed. Connect vision AI inside the project for artwork
-          understanding.
+          For this build, automatic editing needs comic panels and one narration recording.
+          You can start without them and add files later. Publishing always requires your approval.
         </p>
         {autopilot && (
+          <details className="workflow-advanced">
+            <summary>Optional: change how Verdict edits</summary>
           <div className="form-grid">
             <label>
               Verdict mode
@@ -280,6 +282,7 @@ export function NewProject({
               </p>
             )}
           </div>
+          </details>
         )}
         <div
           className="project-dropzone"
@@ -340,14 +343,13 @@ export function NewProject({
           </div>
         ))}
         <label>
-          Project title
+          Project title (optional)
           <input
             autoFocus
-            required
             value={title}
             maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="A fight worth talking about"
+            placeholder="Leave blank to name it from your idea"
           />
         </label>
         <label>
@@ -381,9 +383,9 @@ export function NewProject({
           <button type="button" className="button secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="button" disabled={busy || !title.trim()}>
+          <button className="button" disabled={busy}>
             <Plus size={16} />
-            {busy ? "Creating…" : "Create project"}
+            {busy ? "Creating…" : "Start my video"}
           </button>
         </div>
       </form>
