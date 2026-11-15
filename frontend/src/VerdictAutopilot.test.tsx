@@ -165,21 +165,30 @@ test("batch import keeps SRT after narration and rejects ambiguous voice tracks"
   );
 });
 
-
 test("Easy Mode's single Generate click enables safe preview delivery and starts one job", async () => {
   const initial = {
     ...project,
-    autopilot: { ...project.autopilot!, enabled: false, delivery: "final" as const },
+    autopilot: {
+      ...project.autopilot!,
+      enabled: false,
+      delivery: "final" as const,
+    },
   };
   const updated = {
     ...initial,
     revision: 5,
-    autopilot: { ...initial.autopilot, enabled: true, delivery: "draft" as const },
+    autopilot: {
+      ...initial.autopilot,
+      enabled: true,
+      delivery: "draft" as const,
+    },
   };
   mocked.mockImplementation(async (path, init) => {
     if (path === "/verdict/connection") return { configured: false };
     if (path === "/projects/test/director") {
-      return init?.method === "POST" ? { id: "new-job", status: "queued", report: {} } : [];
+      return init?.method === "POST"
+        ? { id: "new-job", status: "queued", report: {} }
+        : [];
     }
     if (path === "/projects/test/autopilot") return updated;
     if (path === "/projects/test") return initial;
@@ -224,6 +233,11 @@ test("Easy Mode's single Generate click enables safe preview delivery and starts
     ),
   );
   view.rerender(<VerdictAutopilot {...props} autoRunRequest={1} />);
-  expect(mocked.mock.calls.filter(([path, init]) => path === "/projects/test/director" && init?.method === "POST")).toHaveLength(1);
+  expect(
+    mocked.mock.calls.filter(
+      ([path, init]) =>
+        path === "/projects/test/director" && init?.method === "POST",
+    ),
+  ).toHaveLength(1);
   expect(accept).toHaveBeenCalledWith(updated);
 });
