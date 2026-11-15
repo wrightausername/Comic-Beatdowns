@@ -1110,54 +1110,49 @@ export default function App() {
       )}
       {dialog === "help" && (
         <Modal
-          title="From evidence to final verdict"
-          eyebrow="STUDIO GUIDE"
+          title="Your first video, three steps"
+          eyebrow="EASY STUDIO GUIDE"
           onClose={() => setDialog(null)}
         >
           <ol className="guide-list">
             <li>
-              <strong>Add files.</strong>
+              <strong>1. Start your video.</strong>
               <p>
-                Create a project and drop in your panels, narration, music, and
-                captions. Check the file roles, then import. Crop and tag source
-                pages in the Panel library when needed.
+                Click Make a video, describe what makes the fight ridiculous,
+                and add your comic panels and a narration recording. You can
+                add missing files later.
               </p>
             </li>
             <li>
-              <strong>Match narration.</strong>
+              <strong>2. Let Verdict make a preview.</strong>
               <p>
-                Write the script or import timed captions. Suggest panel
-                matches, check the line cards, and choose which picture belongs
-                with each line.
+                Click Generate my video preview. The Studio handles shot
+                order, motion, captions, and editing with the tools currently
+                available. Basic editing uses file order and tags, not
+                automatic artwork understanding.
               </p>
             </li>
             <li>
-              <strong>Build your draft.</strong>
+              <strong>3. Watch it, approve it, download it.</strong>
               <p>
-                Choose Fast cuts or Smooth holds and click Build My Draft.
-                Preview the suggestions and accept the ones you want. Use Hit,
-                Reveal, Reaction, Read Panel, and Aim camera to refine shots.
-                Lock any finished shot.
-              </p>
-            </li>
-            <li>
-              <strong>Review.</strong>
-              <p>
-                Render a review copy, check the sound mix and captions, and use
-                Check Loop to hear the ending lead back into the opening. Leave
-                notes, compare named versions, and approve the final script.
-              </p>
-            </li>
-            <li>
-              <strong>Export.</strong>
-              <p>
-                Export the final vertical MP4, or render just a selected section
-                to check it quickly. Queue several approved projects from the
-                Production desk. Changes save automatically; Undo restores
-                earlier edits.
+                Check the jokes, panels, captions, and sound. Fix anything
+                you dislike, then approve the preview and export a full-size
+                vertical MP4.
               </p>
             </li>
           </ol>
+          <details className="workflow-advanced">
+            <summary>What if I want full creative control?</summary>
+            <p>
+              Inside any project, click Open full editor to change individual
+              shots, timing, audio, camera moves, captions, and script lines.
+              Undo is available and the Studio autosaves your changes.
+            </p>
+          </details>
+          <p className="help">
+            This version still needs a narration recording. AI voice
+            generation is not built yet. Nothing is published automatically.
+          </p>
         </Modal>
       )}
     </div>
