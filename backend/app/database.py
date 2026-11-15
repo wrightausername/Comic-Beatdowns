@@ -178,6 +178,18 @@ class CreativeRule(Base):
     updated_at: Mapped[str] = mapped_column(String, default=now)
 
 
+class CreativeEditEvent(Base):
+    """Compact observation of a saved edit, not a preference or learning rule."""
+
+    __tablename__ = "creative_edit_events"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    from_revision: Mapped[int] = mapped_column(Integer)
+    to_revision: Mapped[int] = mapped_column(Integer)
+    changes: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[str] = mapped_column(String, default=now)
+
+
 class CreativeFeedback(Base):
     """Private creator feedback tied to the exact episode revision at capture time."""
 
