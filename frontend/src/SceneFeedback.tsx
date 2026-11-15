@@ -23,7 +23,12 @@ interface Props {
   onSave: () => Promise<Project | null>;
 }
 
-export default function SceneFeedback({ projectId, sceneId, index, onSave }: Props) {
+export default function SceneFeedback({
+  projectId,
+  sceneId,
+  index,
+  onSave,
+}: Props) {
   const [topic, setTopic] = useState<Topic>("panel");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,10 +74,12 @@ export default function SceneFeedback({ projectId, sceneId, index, onSave }: Pro
 
   return (
     <details className="scene-feedback">
-      <summary><BookOpenCheck size={15} /> Teach Verdict from this scene</summary>
+      <summary>
+        <BookOpenCheck size={15} /> Teach Verdict from this scene
+      </summary>
       <p className="muted">
-        Keep praise and corrections tied to scene {index + 1}. Nothing becomes a permanent
-        style rule until you approve it in Creative DNA.
+        Keep praise and corrections tied to scene {index + 1}. Nothing becomes a
+        permanent style rule until you approve it in Creative DNA.
       </p>
       <div className="scene-feedback-controls">
         <label>
@@ -107,18 +114,38 @@ export default function SceneFeedback({ projectId, sceneId, index, onSave }: Pro
         </label>
       </div>
       <div className="toolbar">
-        <button className="button secondary small-button" disabled={busy || !sceneId} onClick={() => void record("keep")}>
+        <button
+          className="button secondary small-button"
+          disabled={busy || !sceneId}
+          onClick={() => void record("keep")}
+        >
           <ThumbsUp size={14} /> Keep
         </button>
-        <button className="button secondary small-button" disabled={busy || !sceneId || !note.trim()} onClick={() => void record("change")}>
+        <button
+          className="button secondary small-button"
+          disabled={busy || !sceneId || !note.trim()}
+          onClick={() => void record("change")}
+        >
           <ThumbsDown size={14} /> Fix next time
         </button>
-        <button className="button secondary small-button" disabled={busy || !sceneId} onClick={() => void record("one_off")}>
+        <button
+          className="button secondary small-button"
+          disabled={busy || !sceneId}
+          onClick={() => void record("one_off")}
+        >
           One-off exception
         </button>
       </div>
-      {message && <p className="muted" role="status">{message}</p>}
-      {error && <p className="notice" role="alert">{error}</p>}
+      {message && (
+        <p className="muted" role="status">
+          {message}
+        </p>
+      )}
+      {error && (
+        <p className="notice" role="alert">
+          {error}
+        </p>
+      )}
     </details>
   );
 }

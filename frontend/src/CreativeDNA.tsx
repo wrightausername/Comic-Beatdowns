@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { BookOpenCheck, BrainCircuit, Check, Plus, Undo2, X } from "lucide-react";
+import {
+  BookOpenCheck,
+  BrainCircuit,
+  Check,
+  Plus,
+  Undo2,
+  X,
+} from "lucide-react";
 import { api, json } from "./api";
 import { errorMessage } from "./utils";
 
@@ -112,9 +119,14 @@ export default function CreativeDNA() {
     setPending(true);
     setError("");
     try {
-      await api("/creative-dna/rules", json({ instruction: instruction.trim(), scope, category }));
+      await api(
+        "/creative-dna/rules",
+        json({ instruction: instruction.trim(), scope, category }),
+      );
       setInstruction("");
-      setMessage("Rule saved as a proposal. Approve it to affect new AI scripts.");
+      setMessage(
+        "Rule saved as a proposal. Approve it to affect new AI scripts.",
+      );
       if (ruleOffset > 0) setRuleOffset(0);
       else await refresh();
     } catch (err) {
@@ -133,7 +145,11 @@ export default function CreativeDNA() {
         `/creative-dna/rules/${rule.id}`,
         json({ status, expected_updated_at: rule.updated_at }, "PATCH"),
       );
-      setMessage(status === "approved" ? "Verdict will use this rule in new scripts." : "Rule updated.");
+      setMessage(
+        status === "approved"
+          ? "Verdict will use this rule in new scripts."
+          : "Rule updated.",
+      );
       await refresh();
     } catch (err) {
       setError(errorMessage(err));
@@ -150,13 +166,21 @@ export default function CreativeDNA() {
           <span className="eyebrow">VERDICT LEARNS YOUR TASTE</span>
           <h2>Creative DNA</h2>
           <p className="muted">
-            Control the style Verdict uses when drafting new episodes. Nothing becomes
-            permanent until you approve it.
+            Control the style Verdict uses when drafting new episodes. Nothing
+            becomes permanent until you approve it.
           </p>
         </div>
       </header>
-      {error && <p role="alert" className="notice">{error}</p>}
-      {message && <p role="status" className="muted">{message}</p>}
+      {error && (
+        <p role="alert" className="notice">
+          {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" className="muted">
+          {message}
+        </p>
+      )}
       <form className="creative-dna-form" onSubmit={(e) => void createRule(e)}>
         <label>
           Teach Verdict a preference
@@ -172,7 +196,10 @@ export default function CreativeDNA() {
         <div className="creative-dna-controls">
           <label>
             Format
-            <select value={scope} onChange={(e) => setScope(e.target.value as RuleScope)}>
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as RuleScope)}
+            >
               <option value="global">All videos</option>
               <option value="short">Shorts only</option>
               <option value="long">Long-form only</option>
@@ -180,13 +207,22 @@ export default function CreativeDNA() {
           </label>
           <label>
             Topic
-            <select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as Category)}
+            >
               {categories.map((value) => (
-                <option key={value} value={value}>{value}</option>
+                <option key={value} value={value}>
+                  {value}
+                </option>
               ))}
             </select>
           </label>
-          <button className="button primary" type="submit" disabled={pending || instruction.trim().length < 3}>
+          <button
+            className="button primary"
+            type="submit"
+            disabled={pending || instruction.trim().length < 3}
+          >
             <Plus size={16} /> Save proposal
           </button>
         </div>
@@ -195,27 +231,43 @@ export default function CreativeDNA() {
         <h3>Saved rules</h3>
         {!overview && !error && <p className="muted">Loading your rules…</p>}
         {overview && overview.rules.length === 0 && (
-          <p className="muted">No lessons saved yet. Approved rules will guide future scripts.</p>
+          <p className="muted">
+            No lessons saved yet. Approved rules will guide future scripts.
+          </p>
         )}
         {overview?.rules.map((rule) => (
           <article className="creative-dna-rule" key={rule.id}>
             <div>
-              <span className="eyebrow">{rule.category} · {rule.scope} · {rule.status}</span>
+              <span className="eyebrow">
+                {rule.category} · {rule.scope} · {rule.status}
+              </span>
               <p>{rule.instruction}</p>
             </div>
             <div className="toolbar">
               {rule.status !== "approved" && (
-                <button className="button primary" disabled={pending} onClick={() => void decide(rule, "approved")}>
+                <button
+                  className="button primary"
+                  disabled={pending}
+                  onClick={() => void decide(rule, "approved")}
+                >
                   <Check size={15} /> Approve
                 </button>
               )}
               {rule.status === "approved" && (
-                <button className="button secondary" disabled={pending} onClick={() => void decide(rule, "rejected")}>
+                <button
+                  className="button secondary"
+                  disabled={pending}
+                  onClick={() => void decide(rule, "rejected")}
+                >
                   <X size={15} /> Disable
                 </button>
               )}
               {rule.status === "rejected" && (
-                <button className="button secondary" disabled={pending} onClick={() => void decide(rule, "proposed")}>
+                <button
+                  className="button secondary"
+                  disabled={pending}
+                  onClick={() => void decide(rule, "proposed")}
+                >
                   <Undo2 size={15} /> Restore proposal
                 </button>
               )}
@@ -231,14 +283,22 @@ export default function CreativeDNA() {
         label="Saved rules"
       />
       <div className="creative-dna-rule-list">
-        <h3><BookOpenCheck size={18} /> Recent episode feedback</h3>
+        <h3>
+          <BookOpenCheck size={18} /> Recent episode feedback
+        </h3>
         {overview?.recent_feedback.length === 0 && (
-          <p className="muted">No feedback captured yet. Scene-level feedback collection is the next milestone.</p>
+          <p className="muted">
+            No feedback captured yet. Scene-level feedback collection is the
+            next milestone.
+          </p>
         )}
         {overview?.recent_feedback.map((feedback) => (
           <div className="creative-dna-rule" key={feedback.id}>
             <div>
-              <span className="eyebrow">{feedback.category} · {feedback.decision} · revision {feedback.project_revision}</span>
+              <span className="eyebrow">
+                {feedback.category} · {feedback.decision} · revision{" "}
+                {feedback.project_revision}
+              </span>
               <p>{feedback.note || "No note"}</p>
             </div>
             <button
@@ -248,7 +308,9 @@ export default function CreativeDNA() {
               onClick={async () => {
                 setPending(true);
                 try {
-                  await api(`/creative-dna/feedback/${feedback.id}`, { method: "DELETE" });
+                  await api(`/creative-dna/feedback/${feedback.id}`, {
+                    method: "DELETE",
+                  });
                   await refresh();
                 } catch (err) {
                   setError(errorMessage(err));
@@ -272,8 +334,8 @@ export default function CreativeDNA() {
       <div className="creative-dna-rule-list">
         <h3>Observed timeline edits</h3>
         <p className="muted">
-          These are saved changes, not automatic learning instructions. A change could
-          be a creative improvement or a one-time production adjustment.
+          These are saved changes, not automatic learning instructions. A change
+          could be a creative improvement or a one-time production adjustment.
         </p>
         {overview?.observed_edits.length === 0 && (
           <p className="muted">No workspace edits observed yet.</p>
@@ -282,7 +344,8 @@ export default function CreativeDNA() {
           <div className="creative-dna-rule" key={edit.id}>
             <div>
               <span className="eyebrow">
-                Episode {edit.project_id.slice(0, 8)} · revision {edit.from_revision} → {edit.to_revision}
+                Episode {edit.project_id.slice(0, 8)} · revision{" "}
+                {edit.from_revision} → {edit.to_revision}
               </span>
               <p>
                 {edit.changes
@@ -305,8 +368,8 @@ export default function CreativeDNA() {
         label="Observed edits"
       />
       <p className="muted">
-        Audience comments and analytics sync require separate permission-based platform
-        connections. No accounts are being scraped or monitored yet.
+        Audience comments and analytics sync require separate permission-based
+        platform connections. No accounts are being scraped or monitored yet.
       </p>
     </section>
   );
@@ -336,7 +399,8 @@ function Pager({
         Previous
       </button>
       <span className="muted">
-        {Math.min(offset + 1, total)}–{Math.min(offset + limit, total)} of {total}
+        {Math.min(offset + 1, total)}–{Math.min(offset + limit, total)} of{" "}
+        {total}
       </span>
       <button
         className="button secondary small-button"

@@ -50,7 +50,9 @@ it("records a positive example on the saved scene revision without promoting a g
       }),
     }),
   );
-  expect(screen.getByText(/positive example, not a global rule/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(/positive example, not a global rule/i),
+  ).toBeInTheDocument();
 });
 
 it("requires an explanation before recording a change recommendation", async () => {

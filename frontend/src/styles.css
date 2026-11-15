@@ -3909,7 +3909,6 @@ progress::-webkit-progress-value {
   }
 }
 
-
 /* Creative DNA: a private, creator-controlled memory panel. */
 .creative-dna {
   display: grid;
@@ -3922,8 +3921,12 @@ progress::-webkit-progress-value {
   align-items: flex-start;
   gap: 16px;
 }
-.creative-dna-heading h2 { margin: 4px 0; }
-.creative-dna-heading p { max-width: 650px; }
+.creative-dna-heading h2 {
+  margin: 4px 0;
+}
+.creative-dna-heading p {
+  max-width: 650px;
+}
 .creative-dna-form {
   display: grid;
   gap: 14px;
@@ -3952,8 +3955,15 @@ progress::-webkit-progress-value {
   align-items: flex-end;
   gap: 12px;
 }
-.creative-dna-rule-list { display: grid; gap: 10px; }
-.creative-dna-rule-list h3 { display: flex; align-items: center; gap: 8px; }
+.creative-dna-rule-list {
+  display: grid;
+  gap: 10px;
+}
+.creative-dna-rule-list h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .creative-dna-rule {
   border: 1px solid var(--border, #343c4b);
   border-radius: 10px;
@@ -3963,10 +3973,18 @@ progress::-webkit-progress-value {
   justify-content: space-between;
   gap: 14px;
 }
-.creative-dna-rule p { margin: 8px 0 0; overflow-wrap: anywhere; }
-.creative-dna-rule .toolbar { flex-shrink: 0; }
+.creative-dna-rule p {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.creative-dna-rule .toolbar {
+  flex-shrink: 0;
+}
 @media (max-width: 720px) {
-  .creative-dna-rule { align-items: flex-start; flex-direction: column; }
+  .creative-dna-rule {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 /* Inline creator feedback is explicit and revision-linked, never blind training. */
@@ -3983,14 +4001,20 @@ progress::-webkit-progress-value {
   gap: 7px;
   font-weight: 650;
 }
-.scene-feedback p { margin: 9px 0; }
+.scene-feedback p {
+  margin: 9px 0;
+}
 .scene-feedback-controls {
   display: grid;
   grid-template-columns: minmax(140px, 0.45fr) minmax(200px, 1.55fr);
   gap: 12px;
   margin: 10px 0;
 }
-.scene-feedback-controls label { display: grid; gap: 5px; min-width: 0; }
+.scene-feedback-controls label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
 .scene-feedback-controls input,
 .scene-feedback-controls select {
   background: #101821;
@@ -4002,5 +4026,7 @@ progress::-webkit-progress-value {
   width: 100%;
 }
 @media (max-width: 720px) {
-  .scene-feedback-controls { grid-template-columns: 1fr; }
+  .scene-feedback-controls {
+    grid-template-columns: 1fr;
+  }
 }
