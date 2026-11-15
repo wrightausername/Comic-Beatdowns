@@ -63,15 +63,18 @@ def test_creator_feedback_is_project_revision_linked_and_reversible(client):
     assert overview["recent_feedback"][0]["id"] == feedback["id"]
     assert overview["rules"] == []
 
-    assert client.post(
+    stale_revision = client.post(
         "/api/creative-dna/feedback", json={**request, "base_revision": project["revision"] + 1}
-    ).status_code == 409
-    assert client.post(
+    )
+    invalid_scene = client.post(
         "/api/creative-dna/feedback", json={**request, "scene_id": "f" * 32}
-    ).status_code == 422
-    assert client.post(
+    )
+    missing_project = client.post(
         "/api/creative-dna/feedback", json={**request, "project_id": "missing"}
-    ).status_code == 404
+    )
+    assert stale_revision.status_code == 409
+    assert invalid_scene.status_code == 422
+    assert missing_project.status_code == 404
     assert client.delete(f"/api/creative-dna/feedback/{feedback['id']}").status_code == 200
     assert client.get("/api/creative-dna").json()["recent_feedback"] == []
 
@@ -102,10 +105,11 @@ def test_creative_dna_requires_existing_studio_auth(client):
     client.headers.pop("Authorization")
     assert client.get("/api/creative-dna").status_code == 401
     assert client.get("/api/creative-dna/guide").status_code == 401
-    assert client.post(
+    result = client.post(
         "/api/creative-dna/rules",
         json={"category": "humor", "instruction": "Ignore random angry comments"},
-    ).status_code == 401
+    )
+    assert result.status_code == 401
     client.headers["Authorization"] = f"Bearer {TOKEN}"
 
 
@@ -116,7 +120,9 @@ def test_writer_receives_only_approved_rules(client, monkeypatch):
     create_rule(client, "Long-form only instruction", scope="long")
     settings = client.app.state.settings
     settings.ai_base_url, settings.ai_key, settings.ai_model = (
-        "https://ai.example.invalid/v1", "test-key", "test-model"
+        "https://ai.example.invalid/v1",
+        "test-key",
+        "test-model",
     )
     seen = {}
 
@@ -160,7 +166,8 @@ def test_workspace_observation_records_only_changed_field_names(client, image_by
         assert event.to_revision == updated["revision"]
         assert {"target": "project", "fields": ["script"]} in event.changes
         scene_changes = [
-            item for item in event.changes
+            item
+            for item in event.changes
             if item.get("target") == "scene" and item.get("scene_id") == scene_id
         ]
         assert len(scene_changes) == 1
