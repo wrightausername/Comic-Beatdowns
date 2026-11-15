@@ -80,6 +80,7 @@ interface Short {
   reason: string;
 }
 interface Props {
+  simple?: boolean;
   noteMoment?: { time: number; nonce: number } | null;
   stage: Stage;
   setStage: (stage: Stage) => void;
@@ -126,6 +127,7 @@ export function WorkflowSteps({
 }
 export default function ProductionWorkflow(props: Props) {
   const {
+    simple = false,
     noteMoment,
     stage,
     setStage,
@@ -1588,7 +1590,7 @@ export default function ProductionWorkflow(props: Props) {
           </p>
         </section>
       )}
-      {stage !== "edit" && bottom}
+      {!simple && stage !== "edit" && bottom}
     </div>
   );
 }
