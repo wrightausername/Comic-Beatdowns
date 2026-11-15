@@ -733,6 +733,10 @@ test("AI timeline edits persist after reload", async ({ page }) => {
     "All changes saved",
   );
   await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Editable AI timeline" })
+    .click();
   await expect(timeline.getByLabel("Timeline shot camera")).toHaveValue(
     "impact_shake",
   );
@@ -747,7 +751,36 @@ test("AI timeline edits persist after reload", async ({ page }) => {
     "All changes saved",
   );
   await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Editable AI timeline" })
+    .click();
   await expect(
     timeline.getByRole("button", { name: /Timeline shot/ }),
   ).toHaveCount(count + 1);
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Editable AI timeline",
+  ).id;
+  const saved = await (await page.request.get(`/api/projects/${id}`)).json();
+  expect(saved.scenes[0].motion).toBe("impact_shake");
+  expect(saved.scenes).toHaveLength(count + 1);
+  const response = await page.request.post(`/api/projects/${id}/renders`, {
+    data: { quality: "draft" },
+  });
+  expect(response.status()).toBe(202);
+  const job = await response.json();
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/renders/${job.id}`)).json())
+          .status,
+      { timeout: 120_000 },
+    )
+    .toBe("completed");
+  const rendered = await (
+    await page.request.get(`/api/renders/${job.id}`)
+  ).json();
+  expect(rendered.project_revision).toBe(saved.revision);
+  expect((await page.request.get(rendered.download_url)).status()).toBe(200);
 });
