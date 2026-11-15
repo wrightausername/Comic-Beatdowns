@@ -11,7 +11,7 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .database import CreativeFeedback, CreativeRule, Project, Scene, now
+from .database import CreativeEditEvent, CreativeFeedback, CreativeRule, Project, Scene, now
 from .schemas import StrictModel
 
 router = APIRouter(prefix="/api/creative-dna", tags=["Creative DNA"])
@@ -61,6 +61,17 @@ def rule_dict(rule: CreativeRule) -> dict:
     }
 
 
+def edit_dict(edit: CreativeEditEvent) -> dict:
+    return {
+        "id": edit.id,
+        "project_id": edit.project_id,
+        "from_revision": edit.from_revision,
+        "to_revision": edit.to_revision,
+        "changes": edit.changes,
+        "created_at": edit.created_at,
+    }
+
+
 def feedback_dict(feedback: CreativeFeedback) -> dict:
     return {
         "id": feedback.id,
@@ -98,9 +109,13 @@ def overview(db: Session = Depends(session)):
     feedback = list(
         db.scalars(select(CreativeFeedback).order_by(CreativeFeedback.created_at.desc()).limit(50))
     )
+    edits = list(
+        db.scalars(select(CreativeEditEvent).order_by(CreativeEditEvent.created_at.desc()).limit(25))
+    )
     return {
         "rules": [rule_dict(r) for r in rules],
         "recent_feedback": [feedback_dict(f) for f in feedback],
+        "observed_edits": [edit_dict(e) for e in edits],
     }
 
 
