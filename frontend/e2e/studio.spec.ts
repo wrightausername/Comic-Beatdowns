@@ -255,8 +255,13 @@ test("mobile navigation remains usable without horizontal overflow", async ({
     .click();
   await page.locator(".project-card").first().click();
   const fullEditor = page.getByRole("button", { name: "Open full editor" });
-  if (await fullEditor.count()) await fullEditor.click();
-  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  const timelineTab = page.getByRole("button", {
+    name: "Timeline",
+    exact: true,
+  });
+  await expect(fullEditor.or(timelineTab)).toBeVisible();
+  if (await fullEditor.isVisible()) await fullEditor.click();
+  await timelineTab.click();
   await page.locator(".camera-details summary").first().click();
   await expect(
     page.getByLabel("Scene 1 easing", { exact: true }),
