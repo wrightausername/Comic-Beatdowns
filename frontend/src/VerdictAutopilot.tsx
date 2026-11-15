@@ -205,7 +205,9 @@ export default function VerdictAutopilot({
     lastAutomaticStart.current = autoRunRequest;
     if (!running && readyForVerdict(project)) {
       if (options.mode === "vision" && !connection?.configured) {
-        onError("Vision AI is not connected. Choose offline editing or open the full editor to connect a model.");
+        onError(
+          "Vision AI is not connected. Choose offline editing or open the full editor to connect a model.",
+        );
         return;
       }
       void run();

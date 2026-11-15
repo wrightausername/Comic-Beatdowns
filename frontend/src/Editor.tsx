@@ -84,7 +84,10 @@ export default function Editor({
   const [autoRunRequest, setAutoRunRequest] = useState(0);
   const [easyMode, setEasyMode] = useState(() => {
     try {
-      return (localStorage.getItem(`comic-beatdowns:editor-mode:${projectId}`) ?? localStorage.getItem("comic-beatdowns:editor-mode")) !== "advanced";
+      return (
+        (localStorage.getItem(`comic-beatdowns:editor-mode:${projectId}`) ??
+          localStorage.getItem("comic-beatdowns:editor-mode")) !== "advanced"
+      );
     } catch {
       return true;
     }

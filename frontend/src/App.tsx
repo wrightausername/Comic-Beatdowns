@@ -1119,24 +1119,24 @@ export default function App() {
               <strong>1. Start your video.</strong>
               <p>
                 Click Make a video, describe what makes the fight ridiculous,
-                and add your comic panels and a narration recording. You can
-                add missing files later.
+                and add your comic panels and a narration recording. You can add
+                missing files later.
               </p>
             </li>
             <li>
               <strong>2. Let Verdict make a preview.</strong>
               <p>
-                Click Generate my video preview. The Studio handles shot
-                order, motion, captions, and editing with the tools currently
-                available. Basic editing uses file order and tags, not
-                automatic artwork understanding.
+                Click Generate my video preview. The Studio handles shot order,
+                motion, captions, and editing with the tools currently
+                available. Basic editing uses file order and tags, not automatic
+                artwork understanding.
               </p>
             </li>
             <li>
               <strong>3. Watch it, approve it, download it.</strong>
               <p>
-                Check the jokes, panels, captions, and sound. Fix anything
-                you dislike, then approve the preview and export a full-size
+                Check the jokes, panels, captions, and sound. Fix anything you
+                dislike, then approve the preview and export a full-size
                 vertical MP4.
               </p>
             </li>
@@ -1150,8 +1150,8 @@ export default function App() {
             </p>
           </details>
           <p className="help">
-            This version still needs a narration recording. AI voice
-            generation is not built yet. Nothing is published automatically.
+            This version still needs a narration recording. AI voice generation
+            is not built yet. Nothing is published automatically.
           </p>
         </Modal>
       )}
