@@ -21,9 +21,9 @@ import uvicorn
 from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
 
-from .auth import COOKIE, SESSION_AGE, session_cookie
-from .config import ROOT, Settings
-from .main import create_app
+from app.auth import COOKIE, SESSION_AGE, session_cookie
+from app.config import ROOT, Settings
+from app.main import create_app
 
 LOG = logging.getLogger(__name__)
 
