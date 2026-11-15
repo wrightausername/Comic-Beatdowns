@@ -15,8 +15,8 @@ from starlette.concurrency import run_in_threadpool
 
 from .audio import analyze_audio, parse_srt, srt_text, transcribe
 from .auth import COOKIE, SESSION_AGE, authenticated, session_cookie
-from .creative_dna import approved_instructions
 from .autoedit import audio_range, auto_edit
+from .creative_dna import approved_instructions
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
