@@ -147,10 +147,11 @@ def record_feedback(data: FeedbackCreate, db: Session = Depends(session)):
     return feedback_dict(feedback)
 
 
-@router.delete("/feedback/{feedback_id}", status_code=204)
+@router.delete("/feedback/{feedback_id}")
 def delete_feedback(feedback_id: str, db: Session = Depends(session)):
     feedback = db.get(CreativeFeedback, feedback_id)
     if feedback is None:
         raise HTTPException(404, "Feedback not found")
     db.delete(feedback)
     db.commit()
+    return {"removed": True}
