@@ -24,6 +24,7 @@ import { MotionOptions } from "./EffectOptions";
 import CameraControls from "./CameraControls";
 import Preview from "./Preview";
 import VerdictAutopilot from "./VerdictAutopilot";
+import GuidedWorkspace from "./GuidedWorkspace";
 import ProductionWorkflow, {
   WorkflowSteps,
   type Stage,
@@ -80,6 +81,21 @@ export default function Editor({
   onImport,
 }: Props) {
   const [busy, setBusy] = useState(false);
+  const [easyMode, setEasyMode] = useState(() => {
+    try {
+      return localStorage.getItem("comic-beatdowns:editor-mode") !== "advanced";
+    } catch {
+      return true;
+    }
+  });
+  function changeMode(easy: boolean) {
+    setEasyMode(easy);
+    try {
+      localStorage.setItem("comic-beatdowns:editor-mode", easy ? "easy" : "advanced");
+    } catch {
+      /* The mode still works without storage. */
+    }
+  }
   const studio = useStudioDraft(projectId, busy, onChanged, onError);
   const { project, draft, update, accept, flush, dirty, status } = studio;
   const [tab, setTab] = useState<"timeline" | "script" | "settings">(
@@ -427,7 +443,7 @@ export default function Editor({
             </span>
           </div>
         </div>
-        <div className="workflow-actions">
+        {!easyMode && <div className="workflow-actions">
           <button
             className="button secondary"
             disabled={!canDraft || busy}
@@ -453,7 +469,7 @@ export default function Editor({
             )}
             {activeJob ? `Rendering ${activeJob.progress}%` : "Render MP4"}
           </button>
-        </div>
+        </div>}
       </div>
       <div className="workspace-toolbar">
         <button
@@ -528,7 +544,32 @@ export default function Editor({
           {notice}
         </div>
       )}
+      {easyMode ? (
+        <GuidedWorkspace
+          project={project}
+          scenes={scenes}
+          jobs={jobs}
+          dirty={dirty}
+          canRender={canRender}
+          onFiles={() => {
+            setStage("files");
+            requestAnimationFrame(() => document.getElementById("studio-workflow")?.scrollIntoView({ behavior: "smooth" }));
+          }}
+          onAutopilot={() => document.getElementById("studio-autopilot")?.scrollIntoView({ behavior: "smooth" })}
+          onSave={() => void perform(async () => setNotice("All changes saved."))}
+          onReview={() => setStage("review")}
+          onRender={() => void render("final")}
+          onAdvanced={() => changeMode(false)}
+        />
+      ) : (
+        <div className="advanced-switch">
+          <span>Full editor: every tool and timeline control is visible.</span>
+          <button className="button secondary small-button" onClick={() => changeMode(true)}>Return to Easy Mode</button>
+        </div>
+      )}
+      <div id="studio-autopilot">
       <VerdictAutopilot
+        simple={easyMode}
         project={project}
         dirty={dirty}
         busy={busy}
@@ -538,7 +579,8 @@ export default function Editor({
         onReview={() => setStage("review")}
         onError={onError}
       />
-      <WorkflowSteps
+      </div>
+      {!easyMode && <WorkflowSteps
         stage={stage}
         setStage={setStage}
         completed={
@@ -552,10 +594,11 @@ export default function Editor({
             ...(exported ? ["export" as const] : []),
           ])
         }
-      />
+      />}
       <div className="editor-layout">
         <div className="editor-workspace">
-          <ProductionWorkflow
+          <div id="studio-workflow"><ProductionWorkflow
+            simple={easyMode}
             noteMoment={noteMoment}
             stage={stage}
             setStage={setStage}
@@ -579,15 +622,17 @@ export default function Editor({
               setPicker(true);
             }}
             onScript={() => {
+              changeMode(false);
               setStage("edit");
               setTab("script");
             }}
             onSettings={() => {
+              changeMode(false);
               setStage("edit");
               setTab("settings");
             }}
-          />
-          <div className="tabs">
+          /></div>
+          {!easyMode && <div className="tabs">
             {(
               [
                 ["timeline", Film, "Timeline"],
@@ -607,8 +652,8 @@ export default function Editor({
                 {label}
               </button>
             ))}
-          </div>
-          {stage === "edit" && tab === "timeline" && (
+          </div>}
+          {!easyMode && stage === "edit" && tab === "timeline" && (
             <>
               <details
                 className="surface workflow-advanced"
@@ -1142,7 +1187,7 @@ export default function Editor({
               />
             </>
           )}
-          {stage === "edit" && tab === "script" && (
+          {!easyMode && stage === "edit" && tab === "script" && (
             <section className="surface script-section" id="script-editor">
               <div className="section-heading">
                 <div>
@@ -1296,7 +1341,7 @@ export default function Editor({
               </div>
             </section>
           )}
-          {stage === "edit" && tab === "settings" && (
+          {!easyMode && stage === "edit" && tab === "settings" && (
             <section className="surface settings-section">
               <h3>Project settings & brand kit</h3>
               <label>
@@ -1423,7 +1468,7 @@ export default function Editor({
               </button>
             </section>
           )}
-          {stage === "edit" && (
+          {!easyMode && stage === "edit" && (
             <div className="workflow-next">
               <button
                 className="button secondary"
@@ -1436,7 +1481,7 @@ export default function Editor({
               </button>
             </div>
           )}
-          {jobs.length > 0 && (
+          {!easyMode && jobs.length > 0 && (
             <section className="surface render-history">
               <div className="section-heading">
                 <h3>Export history</h3>
@@ -1535,6 +1580,7 @@ export default function Editor({
             <button
               className="text-button"
               onClick={() => {
+                changeMode(false);
                 setStage("edit");
                 setTab("script");
               }}
@@ -1542,7 +1588,7 @@ export default function Editor({
               Review script
             </button>
           </div>
-          <section className="surface preflight">
+          {!easyMode && <section className="surface preflight">
             <span className="eyebrow">EXPORT CHECKLIST</span>
             <Checklist
               checks={[
@@ -1552,7 +1598,7 @@ export default function Editor({
                 ["Save all project changes", !dirty],
               ]}
             />
-          </section>
+          </section>}
         </aside>
       </div>
       {picker && (
