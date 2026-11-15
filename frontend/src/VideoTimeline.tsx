@@ -158,6 +158,9 @@ export default function VideoTimeline({
   const selection = multi.size
     ? multi
     : new Set(selected ? [selected.id!] : []);
+  const allSelectedLocked = scenes
+    .filter((s) => selection.has(s.id!))
+    .every((s) => s.locked);
   function removeSelected() {
     if (disabled) return;
     const result = deleteTimelineShots(scenes, selection);
@@ -511,8 +514,8 @@ export default function VideoTimeline({
               onClick={toggleLocks}
               disabled={disabled}
             >
-              {selected.locked ? <Unlock size={15} /> : <Lock size={15} />}{" "}
-              {selected.locked ? "Unlock" : "Lock"}
+              {allSelectedLocked ? <Unlock size={15} /> : <Lock size={15} />}{" "}
+              {allSelectedLocked ? "Unlock" : "Lock"}
             </button>
             <button
               className="button secondary small-button"

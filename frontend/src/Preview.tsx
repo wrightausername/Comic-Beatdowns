@@ -260,13 +260,18 @@ export default function Preview({
     elapsed,
     duration,
   ]);
-  useEffect(
-    () => () => {
-      music.current?.pause();
-      sound.current?.pause();
-    },
-    [],
-  );
+  useEffect(() => {
+    const element = music.current;
+    return () => element?.pause();
+  }, [project.music_url]);
+  useEffect(() => {
+    const element = sound.current;
+    return () => element?.pause();
+  }, [current?.sfx_url]);
+  useEffect(() => {
+    const element = audio.current;
+    return () => element?.pause();
+  }, [project.narration_url]);
   async function toggle() {
     if (playing) {
       setPlaying(false);

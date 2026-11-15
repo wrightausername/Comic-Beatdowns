@@ -322,11 +322,11 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
     "pan_up",
   );
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).first().click();
   await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
     "punch_in",
   );
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await page.getByRole("button", { name: "Redo", exact: true }).first().click();
   await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
     "pan_up",
   );

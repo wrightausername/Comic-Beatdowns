@@ -142,6 +142,12 @@ export default function Editor({
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelinePlayRequest, setTimelinePlayRequest] = useState(0);
   const [previewOverride, setPreviewOverride] = useState<Project | null>(null);
+  useEffect(() => {
+    if (previewOverride) {
+      setTimelinePlayRequest(0);
+      setTimelinePlaying(false);
+    }
+  }, [previewOverride]);
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
   const [effects, setEffects] = useState<SoundEffect[]>([]);
   useEffect(() => {
