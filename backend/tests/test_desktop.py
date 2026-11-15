@@ -41,6 +41,7 @@ def test_frozen_settings_use_bundled_assets(monkeypatch, tmp_path):
 
 def test_desktop_starts_without_console_streams(monkeypatch, settings):
     import sys
+
     from app import desktop
 
     create_app = desktop.create_desktop_app
