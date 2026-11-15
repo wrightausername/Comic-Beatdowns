@@ -29,13 +29,17 @@ def media_executable(name: str) -> str:
 
 @dataclass
 class Settings:
-    data_dir: Path = field(default_factory=lambda: Path(os.getenv("CB_DATA_DIR", str(default_data_dir()))))
+    data_dir: Path = field(
+        default_factory=lambda: Path(os.getenv("CB_DATA_DIR", str(default_data_dir())))
+    )
     studio_token: str = field(default_factory=lambda: os.getenv("CB_STUDIO_TOKEN", ""))
     cookie_secure: bool = field(
         default_factory=lambda: os.getenv("CB_COOKIE_SECURE", "false").lower() == "true"
     )
     ffmpeg: str = field(default_factory=lambda: os.getenv("CB_FFMPEG", media_executable("ffmpeg")))
-    ffprobe: str = field(default_factory=lambda: os.getenv("CB_FFPROBE", media_executable("ffprobe")))
+    ffprobe: str = field(
+        default_factory=lambda: os.getenv("CB_FFPROBE", media_executable("ffprobe"))
+    )
     ai_base_url: str = field(default_factory=lambda: os.getenv("CB_AI_BASE_URL", ""))
     ai_key: str = field(default_factory=lambda: os.getenv("CB_AI_API_KEY", ""))
     ai_model: str = field(default_factory=lambda: os.getenv("CB_AI_MODEL", ""))
