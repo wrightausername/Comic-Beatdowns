@@ -203,7 +203,13 @@ export default function VerdictAutopilot({
   useEffect(() => {
     if (!simple || autoRunRequest <= lastAutomaticStart.current) return;
     lastAutomaticStart.current = autoRunRequest;
-    if (!running && readyForVerdict(project)) void run();
+    if (!running && readyForVerdict(project)) {
+      if (options.mode === "vision" && !connection?.configured) {
+        onError("Vision AI is not connected. Choose offline editing or open the full editor to connect a model.");
+        return;
+      }
+      void run();
+    }
     // This effect runs once per explicit click of the guided Generate button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRunRequest, simple]);
