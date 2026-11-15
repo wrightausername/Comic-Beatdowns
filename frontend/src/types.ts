@@ -187,9 +187,25 @@ export interface DirectorJob {
   render: RenderJob | null;
 }
 export interface VisionConnection {
+  authorization_id?: string | null;
   configured: boolean;
   base_url: string;
   model: string;
   transcription_model: string;
   has_key: boolean;
+}
+
+export interface IntakeCheck {
+  code: string;
+  state: "ready" | "blocking" | "notice";
+  message: string;
+  confirm: boolean;
+}
+export interface IntakeReadiness {
+  project_id: string;
+  base_revision: number;
+  ready: boolean;
+  panel_count: number;
+  narration_duration: number | null;
+  checks: IntakeCheck[];
 }

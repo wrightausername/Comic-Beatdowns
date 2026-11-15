@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent, PointerEvent } from "react";
 import { Check, FileImage, Plus, Scissors, Upload, X } from "lucide-react";
 import { api, json } from "./api";
@@ -10,8 +10,14 @@ import {
   orderForProduction,
 } from "./VerdictAutopilot";
 import { guessKind } from "./ProductionWorkflow";
+import VisionConnectionForm from "./VisionConnectionForm";
+import { intakeRoles, probeNarration, stagedChecks } from "./episodeIntake";
+import type { IntakeFile } from "./episodeIntake";
 import type {
   AutopilotOptions,
+  DirectorJob,
+  IntakeReadiness,
+  VisionConnection,
   Easing,
   Motion,
   Panel,
@@ -124,268 +130,599 @@ export function NewProject({
   onError: ErrorHandler;
 }) {
   const [autopilot, setAutopilot] = useState(initialAutopilot);
-  const [directorOptions, setDirectorOptions] =
-    useState<AutopilotOptions>(defaultAutopilot);
+  const [mode, setMode] = useState<"" | "basic" | "vision">("");
+  const [pace, setPace] = useState<AutopilotOptions["pace"]>("fast");
   const [title, setTitle] = useState("");
   const [idea, setIdea] = useState("");
   const [template, setTemplate] = useState(
     initialTemplateId ?? templates[0]?.id ?? "",
   );
-  const [files, setFiles] = useState<{ file: File; kind: string }[]>([]);
+  const [files, setFiles] = useState<IntakeFile[]>([]);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [error, setError] = useState("");
+  const [connection, setConnection] = useState<VisionConnection | null>(null);
+  const [connectionError, setConnectionError] = useState("");
+  const [visionConsent, setVisionConsent] = useState(false);
+  const [rights, setRights] = useState(false);
+  const [scriptConfirmed, setScriptConfirmed] = useState(false);
+  const [readiness, setReadiness] = useState<IntakeReadiness | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState(false);
+  const [created, setCreated] = useState<Project | null>(null);
+  const createdRef = useRef<Project | null>(null);
+  const accepted = useRef(new Set<string>());
+  const submitting = useRef(false);
+  const clientChecks = stagedChecks(files);
+  const hasScript = files.some((item) => item.kind === "script");
+  const eligible =
+    clientChecks.every((check) => check.state !== "blocking") &&
+    rights &&
+    !!mode &&
+    (!hasScript || scriptConfirmed) &&
+    (mode !== "vision" || (!!connection?.authorization_id && visionConsent));
+  useEffect(() => {
+    if (!autopilot) return;
+    let alive = true;
+    void api<VisionConnection>("/verdict/connection")
+      .then((value) => {
+        if (alive) {
+          setConnection(value);
+          setVisionConsent(false);
+          setConnectionError("");
+        }
+      })
+      .catch((reason) => {
+        if (alive) setConnectionError(errorMessage(reason));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [autopilot]);
+  function retain(project: Project) {
+    createdRef.current = project;
+    setCreated(project);
+  }
+  function invalidate() {
+    setReadiness(null);
+    setReviewWarnings(false);
+    setError("");
+  }
   function addProjectFiles(chosen: File[]) {
-    setFiles((old) => [
-      ...old,
-      ...chosen.map((file) => ({ file, kind: guessKind(file.name) })),
-    ]);
+    if (busy) return;
+    if (files.length + chosen.length > 20) {
+      setError("Select at most 20 files per episode intake.");
+      return;
+    }
+    invalidate();
+    const additions: IntakeFile[] = chosen.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      kind: guessKind(file.name),
+      status: "pending",
+    }));
+    setFiles((old) => [...old, ...additions]);
     if (!title && chosen.length)
       setTitle(chosen[0].name.replace(/\.[^.]+$/, "").slice(0, 200));
+    for (const item of additions.filter((item) => item.kind === "narration"))
+      void probeNarration(item.file).then((duration) =>
+        setFiles((old) =>
+          old.map((value) =>
+            value.id === item.id ? { ...value, duration } : value,
+          ),
+        ),
+      );
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (submitting.current || (autopilot && !eligible)) return;
+    submitting.current = true;
     setBusy(true);
+    setError("");
     try {
-      const orderedFiles = orderForProduction(files);
-      let created = await api<Project>(
-        "/projects",
-        json({ title, idea, template_id: template || null }),
-      );
-      if (autopilot)
-        created = await api<Project>(
-          `/projects/${created.id}/autopilot`,
-          json(
-            {
-              ...directorOptions,
-              enabled: true,
-              base_revision: created.revision,
-            },
-            "PUT",
+      const ordered = orderForProduction(files);
+      if (!createdRef.current) {
+        setProgress("Saving your project…");
+        retain(
+          await api<Project>(
+            "/projects",
+            json({ title, idea, template_id: template || null }),
           ),
         );
-      let failed = false;
-      for (const item of orderedFiles) {
+      }
+      let project = createdRef.current!;
+      // Retry an ambiguous handoff by following its real job, not starting another.
+      if (autopilot) {
+        const jobs = await api<DirectorJob[]>(
+          `/projects/${project.id}/director`,
+        );
+        if (
+          jobs.some((job) =>
+            ["queued", "working", "rendering", "completed"].includes(
+              job.status,
+            ),
+          )
+        ) {
+          if (ordered.some((item) => !accepted.current.has(item.id)))
+            throw new Error(
+              "Verdict already started. Open the saved project to add further files without creating another run.",
+            );
+          onCreated(await api<Project>(`/projects/${project.id}`));
+          return;
+        }
+      }
+      const current = await api<Project>(`/projects/${project.id}`);
+      if (current.revision !== project.revision)
+        throw new Error(
+          "This saved project changed in another window. Open it in the editor before retrying.",
+        );
+      for (const item of ordered) {
+        if (accepted.current.has(item.id)) continue;
+        setProgress(`Importing ${item.file.name}…`);
         try {
           const body = new FormData();
           body.append("file", item.file);
           body.append("kind", item.kind);
           const result = await api<{ project: Project }>(
-            `/projects/${created.id}/import-file`,
+            `/projects/${project.id}/import-file`,
             { method: "POST", body },
           );
-          created = result.project;
-        } catch (error) {
-          failed = true;
-          onError(
-            `${item.file.name}: ${errorMessage(error)}. Add it again in step 1.`,
+          project = result.project;
+          retain(project);
+          accepted.current.add(item.id);
+          setFiles((old) =>
+            old.map((value) =>
+              value.id === item.id
+                ? { ...value, status: "imported", error: undefined }
+                : value,
+            ),
+          );
+        } catch (reason) {
+          setFiles((old) =>
+            old.map((value) =>
+              value.id === item.id
+                ? { ...value, status: "error", error: errorMessage(reason) }
+                : value,
+            ),
+          );
+          throw new Error(
+            `${item.file.name}: ${errorMessage(reason)}. Accepted files are kept. Correct or remove this file, then retry, or open the saved project.`,
           );
         }
       }
-      if (!failed) {
-        try {
-          await handToVerdict(created);
-        } catch (error) {
-          onError(errorMessage(error));
+      if (!autopilot) {
+        onCreated(project);
+        return;
+      }
+      setProgress("Checking the imported sources…");
+      if (mode === "vision") {
+        const current = await api<VisionConnection>("/verdict/connection");
+        if (
+          !current.configured ||
+          current.authorization_id !== connection?.authorization_id
+        ) {
+          setConnection(current);
+          setVisionConsent(false);
+          throw new Error(
+            "The Vision connection changed. Confirm the current provider before retrying.",
+          );
         }
       }
-      onCreated(created);
-    } catch (error) {
-      onError(errorMessage(error));
+      const checked = await api<IntakeReadiness>(
+        `/projects/${project.id}/intake-readiness?base_revision=${project.revision}&mode=${mode}`,
+      );
+      setReadiness(checked);
+      if (!checked.ready)
+        throw new Error(
+          "Resolve the source checks below, or open the saved project to recover its inputs.",
+        );
+      if (checked.checks.some((check) => check.confirm) && !reviewWarnings)
+        throw new Error(
+          "Review the script/caption warnings below and confirm they will be checked in the preview.",
+        );
+      setProgress("Handing the saved episode to Verdict…");
+      const options = {
+        ...defaultAutopilot,
+        enabled: true,
+        mode: mode as "basic" | "vision",
+        pace,
+        delivery: "draft" as const,
+      };
+      project = await api<Project>(
+        `/projects/${project.id}/autopilot`,
+        json({ ...options, base_revision: checked.base_revision }, "PUT"),
+      );
+      retain(project);
+      const job = await handToVerdict(
+        project,
+        mode === "vision" ? connection!.authorization_id! : undefined,
+      );
+      if (!job)
+        throw new Error(
+          "Add project panels and narration before starting Verdict.",
+        );
+      onCreated(project);
+    } catch (reason) {
+      const message = errorMessage(reason);
+      setError(message);
+      onError(message);
     } finally {
       setBusy(false);
+      setProgress("");
+      submitting.current = false;
     }
   }
-  return (
-    <Modal
-      title="Start a new beatdown"
-      eyebrow="THE NEXT VERDICT"
-      onClose={onClose}
-    >
-      <form onSubmit={submit}>
-        <label className="autopilot-review">
-          <input
-            type="checkbox"
-            checked={autopilot}
-            onChange={(e) => setAutopilot(e.target.checked)}
-          />
-          Let Verdict handle the edit after upload
-        </label>
-        <p className="muted">
-          Autopilot builds and renders a preview from your panels and voice. No
-          API key needed. Connect vision AI inside the project for artwork
-          understanding.
-        </p>
-        {autopilot && (
-          <div className="form-grid">
-            <label>
-              Verdict mode
-              <select
-                value={directorOptions.mode}
-                onChange={(e) =>
-                  setDirectorOptions({
-                    ...directorOptions,
-                    mode: e.target.value as AutopilotOptions["mode"],
-                  })
-                }
-              >
-                <option value="basic">Basic · local, no API key</option>
-                <option value="vision">
-                  Vision AI · saved connection required
-                </option>
-              </select>
-            </label>
-            <label>
-              Editing pace
-              <select
-                value={directorOptions.pace}
-                onChange={(e) =>
-                  setDirectorOptions({
-                    ...directorOptions,
-                    pace: e.target.value as AutopilotOptions["pace"],
-                  })
-                }
-              >
-                <option value="fast">Fast · punchy Shorts camera</option>
-                <option value="slow">Slow · longer readable shots</option>
-              </select>
-            </label>
-            <label>
-              Verdict delivery
-              <select
-                value={directorOptions.delivery}
-                onChange={(e) =>
-                  setDirectorOptions({
-                    ...directorOptions,
-                    delivery: e.target.value as AutopilotOptions["delivery"],
-                  })
-                }
-              >
-                <option value="draft">Preview first · I approve</option>
-                <option value="final">
-                  Finish for me · automatic 1080p MP4
-                </option>
-              </select>
-            </label>
-            {directorOptions.delivery === "final" && (
-              <p className="notice">
-                You authorize Verdict to approve and render the final edit
-                automatically.
-              </p>
-            )}
-            {directorOptions.mode === "vision" && (
-              <p className="muted">
-                Uses your saved AI connection and sends resized panels and
-                narration text to that provider. Speech audio is sent only if a
-                Speech model is saved. Provider charges may apply. Connect the
-                model inside an existing project first.
-              </p>
-            )}
-          </div>
-        )}
-        <div
-          className="project-dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            addProjectFiles(Array.from(e.dataTransfer.files));
-          }}
+  const advanced = (
+    <>
+      <label>
+        The angle
+        <textarea
+          rows={3}
+          maxLength={8000}
+          value={idea}
+          disabled={!!created}
+          onChange={(e) => setIdea(e.target.value)}
+          placeholder="Fight context or production notes for the recorded commentary"
+        />
+      </label>
+      <label>
+        Video template
+        <select
+          value={template}
+          disabled={!!created}
+          onChange={(e) => setTemplate(e.target.value)}
         >
-          <strong>Drop files to start your episode</strong>
-          <label className="button secondary">
-            Choose project files
-            <input
-              type="file"
-              aria-label="New project files"
-              hidden
-              multiple
-              accept="image/*,.pdf,.cbz,audio/*,.srt"
-              onChange={(e) => {
-                addProjectFiles(Array.from(e.target.files ?? []));
-                e.target.value = "";
-              }}
-            />
-          </label>
-        </div>
-        {files.map((item, index) => (
-          <div className="import-file-row" key={index}>
-            <span>{item.file.name}</span>
-            <select
-              aria-label={`New project role for ${item.file.name}`}
-              value={item.kind}
-              onChange={(e) =>
-                setFiles((old) =>
-                  old.map((v, i) =>
-                    i === index ? { ...v, kind: e.target.value } : v,
-                  ),
-                )
-              }
-            >
-              {["panels", "narration", "music", "sfx", "captions"].map(
-                (kind) => (
-                  <option key={kind} value={kind}>
-                    {kind}
-                  </option>
-                ),
-              )}
-            </select>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={`Remove new file ${item.file.name}`}
-              onClick={() =>
-                setFiles((old) => old.filter((_, i) => i !== index))
-              }
-            >
-              <X size={14} />
-            </button>
-          </div>
-        ))}
+          {templates.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {autopilot && (
         <label>
-          Project title
-          <input
-            autoFocus
-            required
-            value={title}
-            maxLength={200}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="A fight worth talking about"
-          />
-        </label>
-        <label>
-          The angle
-          <textarea
-            rows={4}
-            maxLength={8000}
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            placeholder="What makes this fight ridiculous? Start with a hook."
-          />
-        </label>
-        <label>
-          Video template
+          Editing pace
           <select
-            value={template}
-            onChange={(e) => setTemplate(e.target.value)}
+            value={pace}
+            onChange={(e) =>
+              setPace(e.target.value as AutopilotOptions["pace"])
+            }
           >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
+            <option value="fast">Fast · punchy camera moves</option>
+            <option value="slow">Slow · longer readable shots</option>
           </select>
         </label>
-        <p className="help">
-          Vertical 1080 × 1920. Aim for 65–90 seconds of panel-specific
-          commentary.
-        </p>
-        <div className="modal-actions">
-          <button type="button" className="button secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="button" disabled={busy || !title.trim()}>
-            <Plus size={16} />
-            {busy ? "Creating…" : "Create project"}
-          </button>
-        </div>
+      )}
+    </>
+  );
+  return (
+    <Modal
+      title={autopilot ? "Create an episode" : "Start a new beatdown"}
+      closeDisabled={busy}
+      eyebrow={autopilot ? "ONE-CLICK EPISODE" : "THE NEXT VERDICT"}
+      onClose={() => {
+        if (!submitting.current) onClose();
+      }}
+    >
+      <form
+        onSubmit={submit}
+        className={autopilot ? "episode-intake" : undefined}
+      >
+        <fieldset className="studio-fieldset" disabled={busy}>
+          <label className="autopilot-review">
+            <input
+              type="checkbox"
+              checked={autopilot}
+              onChange={(e) => setAutopilot(e.target.checked)}
+            />
+            Let Verdict handle the edit after upload
+          </label>
+          {autopilot && (
+            <div className="episode-recipe">
+              <strong>Verdict · Auto-Director</strong>
+              <p>
+                Host: Verdict · {pace === "fast" ? "Fast" : "Slow"} pacing ·
+                Preview first
+              </p>
+              <small>
+                360 × 640 review copy. Final 1080 × 1920 export requires
+                approval. Publishing is a separate action.
+              </small>
+            </div>
+          )}
+          <div
+            className="project-dropzone"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              addProjectFiles(Array.from(e.dataTransfer.files));
+            }}
+          >
+            <strong>Artwork + Verdict recording</strong>
+            <label className="button secondary">
+              Choose project files
+              <input
+                type="file"
+                aria-label="New project files"
+                hidden
+                multiple
+                accept="image/*,.pdf,.cbz,audio/*,.srt,.txt,.md"
+                onChange={(e) => {
+                  addProjectFiles(Array.from(e.target.files ?? []));
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <p className="muted">
+              Images/PDF/CBZ, exactly one narration recording, optional reviewed
+              TXT/MD script and SRT. Confirm file roles; other audio can be
+              music or effects.
+            </p>
+          </div>
+          {files.map((item) => (
+            <div className="import-file-row" key={item.id}>
+              <div>
+                <span>{item.file.name}</span>
+                <small
+                  className={item.status === "error" ? "inline-error" : "muted"}
+                >
+                  {item.status === "imported"
+                    ? "Saved · reused on retry"
+                    : (item.error ?? "Not uploaded yet")}
+                </small>
+              </div>
+              <select
+                aria-label={`New project role for ${item.file.name}`}
+                value={item.kind}
+                disabled={item.status === "imported"}
+                onChange={(e) => {
+                  const kind = e.target.value;
+                  invalidate();
+                  setScriptConfirmed(false);
+                  setFiles((old) =>
+                    old.map((value) =>
+                      value.id === item.id
+                        ? { ...value, kind, status: "pending" }
+                        : value,
+                    ),
+                  );
+                  if (kind === "narration")
+                    void probeNarration(item.file).then((duration) =>
+                      setFiles((old) =>
+                        old.map((value) =>
+                          value.id === item.id ? { ...value, duration } : value,
+                        ),
+                      ),
+                    );
+                }}
+              >
+                {intakeRoles.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kind === "unknown" ? "Choose role…" : kind}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={`Remove new file ${item.file.name}`}
+                disabled={item.status === "imported"}
+                onClick={() => {
+                  invalidate();
+                  setFiles((old) =>
+                    old.filter((value) => value.id !== item.id),
+                  );
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <label>
+            Project title
+            <input
+              autoFocus
+              required
+              maxLength={200}
+              value={title}
+              disabled={!!created}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="A fight worth talking about"
+            />
+          </label>
+          {autopilot && (
+            <>
+              <label className="autopilot-review">
+                <input
+                  type="checkbox"
+                  checked={rights}
+                  onChange={(e) => setRights(e.target.checked)}
+                />
+                I am authorized to use this artwork and recording.
+              </label>
+              {hasScript && (
+                <label className="autopilot-review">
+                  <input
+                    type="checkbox"
+                    checked={scriptConfirmed}
+                    onChange={(e) => setScriptConfirmed(e.target.checked)}
+                  />
+                  I reviewed the script for this recording. Final approval comes
+                  after playback.
+                </label>
+              )}
+              <fieldset className="episode-mode">
+                <legend>Choose how Auto-Director decides</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="episode-mode"
+                    checked={mode === "basic"}
+                    onChange={() => {
+                      setMode("basic");
+                      invalidate();
+                    }}
+                  />
+                  Basic local · order, tags and timing
+                </label>
+                <p className="muted">
+                  No provider calls. Basic does not understand comic artwork.
+                </p>
+                <label>
+                  <input
+                    type="radio"
+                    name="episode-mode"
+                    checked={mode === "vision"}
+                    onChange={() => {
+                      setMode("vision");
+                      invalidate();
+                    }}
+                  />
+                  Vision AI · use a configured image-capable model
+                </label>
+                {mode === "vision" && (
+                  <>
+                    <VisionConnectionForm
+                      connection={connection}
+                      expanded={!connection?.configured}
+                      disabled={busy}
+                      onSaved={(value) => {
+                        setConnection(value);
+                        setVisionConsent(false);
+                        setConnectionError("");
+                        invalidate();
+                      }}
+                    />
+                    {connection?.configured && (
+                      <label className="autopilot-review">
+                        <input
+                          type="checkbox"
+                          checked={visionConsent}
+                          onChange={(e) => setVisionConsent(e.target.checked)}
+                        />
+                        I authorize sending resized panels and narration text to{" "}
+                        {connection.base_url} ({connection.model})
+                        {connection.transcription_model
+                          ? ` and narration audio to its Speech model (${connection.transcription_model})`
+                          : ""}
+                        . Provider charges may apply.
+                      </label>
+                    )}
+                    {!connection?.configured && (
+                      <p className="notice">
+                        Connect Vision above or select Basic local. Saving a
+                        connection alone never sends artwork.
+                      </p>
+                    )}
+                  </>
+                )}
+                {connectionError && (
+                  <p className="notice">
+                    Connection status unavailable: {connectionError}. Basic
+                    local remains available.
+                  </p>
+                )}
+              </fieldset>
+              <section
+                className="intake-readiness"
+                aria-label="Episode input readiness"
+              >
+                <strong>
+                  {readiness ? "Saved-source checks" : "Before starting"}
+                </strong>
+                <ul>
+                  {(readiness?.checks ?? clientChecks)
+                    .filter(
+                      (check) =>
+                        check.state !== "ready" ||
+                        [
+                          "artwork",
+                          "voice",
+                          "length",
+                          "panels",
+                          "narration",
+                        ].includes(check.code),
+                    )
+                    .map((check) => (
+                      <li key={check.code} data-state={check.state}>
+                        {check.state === "blocking"
+                          ? "Needs input: "
+                          : check.state === "notice"
+                            ? "Note: "
+                            : "✓ "}
+                        {check.message}
+                      </li>
+                    ))}
+                </ul>
+                {readiness?.checks.some((check) => check.confirm) && (
+                  <label className="autopilot-review">
+                    <input
+                      type="checkbox"
+                      checked={reviewWarnings}
+                      onChange={(e) => setReviewWarnings(e.target.checked)}
+                    />
+                    I will check these script/caption differences in the
+                    preview.
+                  </label>
+                )}
+                <p className="muted">
+                  65–90 seconds is a creative target, never an automatic trim.
+                  The server validates media before Verdict starts. Script-only
+                  production needs a recording; voice synthesis is not
+                  implemented.
+                </p>
+              </section>
+              <details className="episode-advanced">
+                <summary>
+                  Advanced settings · template, pacing and notes
+                </summary>
+                {advanced}
+              </details>
+            </>
+          )}
+          {!autopilot && advanced}
+          {error && (
+            <div className="notice" role="alert">
+              {error}
+            </div>
+          )}
+          {progress && <p role="status">{progress}</p>}
+          {created && (
+            <p className="muted">
+              Saved project: {created.title}. Accepted uploads will be reused in
+              this dialog. After a browser refresh, open the saved project from
+              the dashboard.
+            </p>
+          )}
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            {created && (
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => onCreated(createdRef.current!)}
+              >
+                Open saved project in editor
+              </button>
+            )}
+            <button
+              className="button"
+              disabled={busy || !title.trim() || (autopilot && !eligible)}
+            >
+              <Plus size={16} />
+              {busy
+                ? "Working…"
+                : autopilot
+                  ? "Create preview"
+                  : "Create project"}
+            </button>
+          </div>
+        </fieldset>
       </form>
     </Modal>
   );

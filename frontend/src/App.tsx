@@ -439,7 +439,7 @@ export default function App() {
                       }}
                     >
                       <Sparkles size={17} />
-                      Verdict Autopilot
+                      Create episode
                     </button>
                     <button
                       className="button secondary"

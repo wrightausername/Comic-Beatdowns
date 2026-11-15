@@ -16,6 +16,7 @@ from .database import Template, connect
 from .director import DirectorService
 from .director import router as director_router
 from .inbox import InboxWatcher
+from .intake import router as intake_router
 from .limits import BodyLimitMiddleware
 from .production import router as production_router
 from .publishing import router as publishing_router
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(BodyLimitMiddleware, max_bytes=config.max_upload_bytes + 1024 * 1024)
     app.include_router(router)
     app.include_router(production_router)
+    app.include_router(intake_router)
     app.include_router(director_router)
     app.include_router(publishing_router)
     dist = ROOT / "frontend" / "dist"
