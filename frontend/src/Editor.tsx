@@ -30,6 +30,7 @@ import ProductionWorkflow, {
   stages,
 } from "./ProductionWorkflow";
 import SceneQuickTools from "./SceneQuickTools";
+import SceneFeedback from "./SceneFeedback";
 import { fitScenes, splitScene } from "./editing";
 import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
@@ -898,6 +899,12 @@ export default function Editor({
                                     settings.fps,
                               );
                             }}
+                          />
+                          <SceneFeedback
+                            projectId={projectId}
+                            sceneId={scene.id}
+                            index={index}
+                            onSave={flush}
                           />
                           <CameraControls
                             scene={scene}
