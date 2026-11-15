@@ -1,5 +1,8 @@
 # Comic Beatdowns Studio
 
+> **Working with Codex?** Start with [AGENTS.md](AGENTS.md) and the [canonical Codex handoff](docs/CODEX_HANDOFF.md) for active pull requests, implementation status, approved creator decisions, and required follow-up work. The newest Easy Mode and Creative DNA changes may be in **draft PRs**, not the downloadable `main` branch.
+
+
 A private, browser-based production desk for **Comic Beatdowns**, hosted by **Verdict**. Import authorized comic sources, catalog and crop panels, write a sharp commentary script, arrange a vertical timeline, upload narration, and render a downloadable **1080 × 1920 MP4** with FFmpeg. No paid API credentials are required.
 
 ## Quick start
