@@ -1,0 +1,45 @@
+name: Format Creative DNA branch (one-time)
+
+on:
+  push:
+    branches:
+      - feature/creative-dna-foundation
+    paths:
+      - .github/workflows/format-creative-dna-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.repository == 'wrightausername/Comic-Beatdowns'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned formatters
+        run: |
+          python -m pip install 'ruff==0.17.1'
+          npm --prefix frontend ci --no-audit --no-fund
+      - name: Format only files changed for Creative DNA
+        run: |
+          python -m ruff format backend/app/creative_dna.py backend/app/creative_edits.py backend/app/database.py backend/app/api.py backend/app/integrations.py backend/tests/test_creative_dna.py
+          cd frontend
+          npx prettier --write src/CreativeDNA.tsx src/SceneFeedback.tsx src/SceneFeedback.test.tsx src/styles.css
+      - name: Commit formatting to this feature branch only
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/creative_dna.py backend/app/creative_edits.py backend/app/database.py backend/app/api.py backend/app/integrations.py backend/tests/test_creative_dna.py frontend/src/CreativeDNA.tsx frontend/src/SceneFeedback.tsx frontend/src/SceneFeedback.test.tsx frontend/src/styles.css
+          if ! git diff --cached --quiet; then
+            git commit -m 'Apply project formatters to Creative DNA implementation'
+            git push origin HEAD:refs/heads/feature/creative-dna-foundation
+          fi
