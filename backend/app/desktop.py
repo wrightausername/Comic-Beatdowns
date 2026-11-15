@@ -155,10 +155,18 @@ def run_desktop(*, check: bool = False, ui_check: bool = False):
                     time.sleep(0.2)
                 else:
                     raise RuntimeError("Native window did not render the signed-in Studio")
-                authenticated = window.evaluate_js(
-                    "fetch('/api/auth/session').then(r => r.json()).then(r => r.authenticated)"
+                auth_result = []
+                auth_ready = threading.Event()
+
+                def authenticated(value):
+                    auth_result.append(value)
+                    auth_ready.set()
+
+                window.evaluate_js(
+                    "fetch('/api/auth/session').then(r => r.json()).then(r => r.authenticated)",
+                    callback=authenticated,
                 )
-                if authenticated is not True:
+                if not auth_ready.wait(timeout=15) or auth_result != [True]:
                     raise RuntimeError("Native window did not receive its private session")
             except Exception as error:
                 failures.append(error)
