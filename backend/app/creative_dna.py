@@ -8,7 +8,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import Field
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
 from .database import CreativeEditEvent, CreativeFeedback, CreativeRule, Project, Scene, now
@@ -186,6 +186,9 @@ def decide_rule(rule_id: str, data: RuleDecision, db: Session = Depends(session)
 
 @router.post("/feedback", status_code=201)
 def record_feedback(data: FeedbackCreate, db: Session = Depends(session)):
+    # Reserve the writer transaction before reading the project revision.
+    # A simultaneous workspace save cannot move the scene while feedback is recorded.
+    db.execute(text("BEGIN IMMEDIATE"))
     project = db.get(Project, data.project_id)
     if project is None:
         raise HTTPException(404, "Project not found")
