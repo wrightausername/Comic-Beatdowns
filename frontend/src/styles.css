@@ -3968,3 +3968,39 @@ progress::-webkit-progress-value {
 @media (max-width: 720px) {
   .creative-dna-rule { align-items: flex-start; flex-direction: column; }
 }
+
+/* Inline creator feedback is explicit and revision-linked, never blind training. */
+.scene-feedback {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--border, #343c4b);
+  border-radius: 9px;
+}
+.scene-feedback summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 650;
+}
+.scene-feedback p { margin: 9px 0; }
+.scene-feedback-controls {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.45fr) minmax(200px, 1.55fr);
+  gap: 12px;
+  margin: 10px 0;
+}
+.scene-feedback-controls label { display: grid; gap: 5px; min-width: 0; }
+.scene-feedback-controls input,
+.scene-feedback-controls select {
+  background: #101821;
+  border: 1px solid var(--border, #343c4b);
+  border-radius: 6px;
+  color: #f4f6f9;
+  padding: 9px;
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 720px) {
+  .scene-feedback-controls { grid-template-columns: 1fr; }
+}
