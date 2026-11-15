@@ -3908,3 +3908,78 @@ progress::-webkit-progress-value {
     grid-template-columns: 1fr;
   }
 }
+
+/* Script-aware crop review: source art with a focal marker, not a fake crop preview. */
+.autopilot-crop-review {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px solid #365865;
+  border-radius: 10px;
+  background: #0b202a;
+}
+.autopilot-crop-review > summary {
+  color: #8de8f1;
+  cursor: pointer;
+  font-weight: 700;
+}
+.autopilot-crop-review > p {
+  line-height: 1.5;
+}
+.autopilot-crop-list {
+  display: grid;
+  max-height: 540px;
+  overflow-y: auto;
+  gap: 10px;
+  margin: 14px 0;
+}
+.autopilot-crop-item {
+  display: flex;
+  align-items: start;
+  gap: 14px;
+  padding: 10px;
+  border: 1px solid #2c4653;
+  border-radius: 8px;
+}
+.autopilot-crop-image {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  flex-shrink: 0;
+}
+.autopilot-crop-image img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 140px;
+  max-height: 160px;
+}
+.autopilot-crop-target {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #00b8d6;
+  box-shadow: 0 0 0 2px #073140;
+  pointer-events: none;
+}
+.autopilot-crop-text {
+  min-width: 0;
+}
+.autopilot-crop-text p {
+  margin: 7px 0;
+  overflow-wrap: anywhere;
+}
+.autopilot-crop-text small {
+  color: #acc7d1;
+}
+@media (max-width: 550px) {
+  .autopilot-crop-image img {
+    max-width: 98px;
+    max-height: 140px;
+  }
+  .autopilot-crop-item {
+    gap: 8px;
+  }
+}

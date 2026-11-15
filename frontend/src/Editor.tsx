@@ -529,6 +529,7 @@ export default function Editor({
       )}
       <VerdictAutopilot
         project={project}
+        panels={panels}
         dirty={dirty}
         busy={busy}
         accept={accept}
