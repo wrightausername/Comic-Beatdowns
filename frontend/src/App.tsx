@@ -1073,7 +1073,7 @@ export default function App() {
             // "New project" is the power-user path; Verdict Autopilot is guided.
             try {
               localStorage.setItem(
-                "comic-beatdowns:editor-mode",
+                `comic-beatdowns:editor-mode:${project.id}`,
                 autopilotStart ? "easy" : "advanced",
               );
             } catch {
