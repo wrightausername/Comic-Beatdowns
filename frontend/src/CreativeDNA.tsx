@@ -54,6 +54,13 @@ interface Overview {
   rules: Rule[];
   recent_feedback: Feedback[];
   observed_edits: ObservedEdit[];
+  pagination: {
+    limit: number;
+    rule_offset: number;
+    feedback_offset: number;
+    edit_offset: number;
+    totals: { rules: number; feedback: number; edits: number };
+  };
 }
 
 const categories: Category[] = [
@@ -73,17 +80,21 @@ export default function CreativeDNA() {
   const [instruction, setInstruction] = useState("");
   const [scope, setScope] = useState<RuleScope>("global");
   const [category, setCategory] = useState<Category>("humor");
+  const [ruleOffset, setRuleOffset] = useState(0);
+  const [feedbackOffset, setFeedbackOffset] = useState(0);
+  const [editOffset, setEditOffset] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const url = `/creative-dna?rule_offset=${ruleOffset}&feedback_offset=${feedbackOffset}&edit_offset=${editOffset}`;
   async function refresh() {
-    setOverview(await api<Overview>("/creative-dna"));
+    setOverview(await api<Overview>(url));
   }
 
   useEffect(() => {
     let alive = true;
-    api<Overview>("/creative-dna")
+    api<Overview>(url)
       .then((result) => {
         if (alive) setOverview(result);
       })
@@ -93,7 +104,7 @@ export default function CreativeDNA() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [url]);
 
   async function createRule(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -104,7 +115,8 @@ export default function CreativeDNA() {
       await api("/creative-dna/rules", json({ instruction: instruction.trim(), scope, category }));
       setInstruction("");
       setMessage("Rule saved as a proposal. Approve it to affect new AI scripts.");
-      await refresh();
+      if (ruleOffset > 0) setRuleOffset(0);
+      else await refresh();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -211,6 +223,13 @@ export default function CreativeDNA() {
           </article>
         ))}
       </div>
+      <Pager
+        offset={ruleOffset}
+        total={overview?.pagination.totals.rules ?? 0}
+        limit={overview?.pagination.limit ?? 50}
+        onChange={setRuleOffset}
+        label="Saved rules"
+      />
       <div className="creative-dna-rule-list">
         <h3><BookOpenCheck size={18} /> Recent episode feedback</h3>
         {overview?.recent_feedback.length === 0 && (
@@ -243,6 +262,13 @@ export default function CreativeDNA() {
           </div>
         ))}
       </div>
+      <Pager
+        offset={feedbackOffset}
+        total={overview?.pagination.totals.feedback ?? 0}
+        limit={overview?.pagination.limit ?? 50}
+        onChange={setFeedbackOffset}
+        label="Feedback"
+      />
       <div className="creative-dna-rule-list">
         <h3>Observed timeline edits</h3>
         <p className="muted">
@@ -271,10 +297,54 @@ export default function CreativeDNA() {
           </div>
         ))}
       </div>
+      <Pager
+        offset={editOffset}
+        total={overview?.pagination.totals.edits ?? 0}
+        limit={overview?.pagination.limit ?? 50}
+        onChange={setEditOffset}
+        label="Observed edits"
+      />
       <p className="muted">
         Audience comments and analytics sync require separate permission-based platform
         connections. No accounts are being scraped or monitored yet.
       </p>
     </section>
+  );
+}
+
+function Pager({
+  offset,
+  total,
+  limit,
+  onChange,
+  label,
+}: {
+  offset: number;
+  total: number;
+  limit: number;
+  onChange: (offset: number) => void;
+  label: string;
+}) {
+  if (total <= limit) return null;
+  return (
+    <nav className="toolbar" aria-label={`${label} pages`}>
+      <button
+        className="button secondary small-button"
+        disabled={offset === 0}
+        onClick={() => onChange(Math.max(0, offset - limit))}
+      >
+        Previous
+      </button>
+      <span className="muted">
+        {Math.min(offset + 1, total)}–{Math.min(offset + limit, total)} of {total}
+      </span>
+      <button
+        className="button secondary small-button"
+        disabled={offset + limit >= total}
+        onClick={() => onChange(offset + limit)}
+      >
+        Next
+      </button>
+    </nav>
   );
 }
