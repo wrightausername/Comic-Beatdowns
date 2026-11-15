@@ -37,9 +37,23 @@ interface Feedback {
   note: string;
 }
 
+interface ObservedEdit {
+  id: string;
+  project_id: string;
+  from_revision: number;
+  to_revision: number;
+  changes: Array<{
+    target: string;
+    scene_id?: string;
+    fields?: string[];
+    scene_count?: number;
+  }>;
+}
+
 interface Overview {
   rules: Rule[];
   recent_feedback: Feedback[];
+  observed_edits: ObservedEdit[];
 }
 
 const categories: Category[] = [
@@ -226,6 +240,34 @@ export default function CreativeDNA() {
             >
               <X size={15} /> Remove
             </button>
+          </div>
+        ))}
+      </div>
+      <div className="creative-dna-rule-list">
+        <h3>Observed timeline edits</h3>
+        <p className="muted">
+          These are saved changes, not automatic learning instructions. A change could
+          be a creative improvement or a one-time production adjustment.
+        </p>
+        {overview?.observed_edits.length === 0 && (
+          <p className="muted">No workspace edits observed yet.</p>
+        )}
+        {overview?.observed_edits.slice(0, 10).map((edit) => (
+          <div className="creative-dna-rule" key={edit.id}>
+            <div>
+              <span className="eyebrow">
+                Episode {edit.project_id.slice(0, 8)} · revision {edit.from_revision} → {edit.to_revision}
+              </span>
+              <p>
+                {edit.changes
+                  .map((change) =>
+                    change.target === "overflow"
+                      ? `${change.scene_count ?? 0} additional scenes`
+                      : `${change.target === "scene" ? "Scene" : "Project"}: ${(change.fields ?? []).join(", ")}`,
+                  )
+                  .join(" · ")}
+              </p>
+            </div>
           </div>
         ))}
       </div>
