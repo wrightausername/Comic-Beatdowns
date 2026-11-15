@@ -1,0 +1,37 @@
+name: Format Easy Mode branch (one-time)
+
+on:
+  push:
+    branches:
+      - feature/guided-studio-ux
+    paths:
+      - .github/workflows/format-guided-studio-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.repository == 'wrightausername/Comic-Beatdowns'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked frontend formatter
+        run: npm --prefix frontend ci --no-audit --no-fund
+      - name: Format only Easy Mode files
+        working-directory: frontend
+        run: npx prettier --write src/App.tsx src/Editor.tsx src/GuidedWorkspace.tsx src/GuidedWorkspace.test.tsx src/VerdictAutopilot.tsx src/ProductionWorkflow.tsx src/dialogs.tsx src/styles.css e2e/studio.spec.ts
+      - name: Commit formatted code
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/App.tsx frontend/src/Editor.tsx frontend/src/GuidedWorkspace.tsx frontend/src/GuidedWorkspace.test.tsx frontend/src/VerdictAutopilot.tsx frontend/src/ProductionWorkflow.tsx frontend/src/dialogs.tsx frontend/src/styles.css frontend/e2e/studio.spec.ts
+          if ! git diff --cached --quiet; then
+            git commit -m 'Apply project Prettier formatting to Easy Mode'
+            git push origin HEAD:refs/heads/feature/guided-studio-ux
+          fi
