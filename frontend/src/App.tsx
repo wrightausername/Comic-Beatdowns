@@ -4,6 +4,7 @@ import {
   ArrowDownToLine,
   ArrowRight,
   BookOpen,
+  BrainCircuit,
   Check,
   ChevronRight,
   CircleHelp,
@@ -40,6 +41,7 @@ import {
 import { ImportPanels, NewProject, PanelDetail } from "./dialogs";
 import Editor from "./Editor";
 import PublishingDesk from "./PublishingDesk";
+import CreativeDNA from "./CreativeDNA";
 import BatchQueue from "./BatchQueue";
 import type {
   Integrations,
@@ -56,6 +58,7 @@ type Page =
   | "library"
   | "exports"
   | "publishing"
+  | "creative-dna"
   | "templates"
   | "connections";
 const initialIntegrations: Integrations = {
@@ -210,6 +213,16 @@ export default function App() {
     }
     setQuery("");
   }
+  function resumeLastProject() {
+    let id: string | null = null;
+    try {
+      id = localStorage.getItem("comic-beatdowns:last-project");
+    } catch {
+      /* Use the newest project if browser storage is unavailable. */
+    }
+    const project = projects.find((item) => item.id === id) ?? projects[0];
+    if (project) navigate("production", project.id);
+  }
   const navItems = [
     {
       id: "production" as const,
@@ -233,6 +246,12 @@ export default function App() {
       id: "publishing" as const,
       icon: Send,
       title: "Publishing",
+      count: 0,
+    },
+    {
+      id: "creative-dna" as const,
+      icon: BrainCircuit,
+      title: "Creative DNA",
       count: 0,
     },
   ];
@@ -462,6 +481,47 @@ export default function App() {
                   </button>
                 ) : null}
               </div>
+              {page === "production" && (
+                <section
+                  className="easy-launch surface"
+                  aria-label="Start here"
+                >
+                  <div>
+                    <span className="eyebrow">START HERE</span>
+                    <h2>Turn a comic beatdown into a video.</h2>
+                    <p>
+                      Describe the angle, add your panels and a voice recording,
+                      then let Verdict build a preview. Review it before you
+                      export.
+                    </p>
+                    <small>
+                      No editing experience required. This version still needs a
+                      recorded voice track.
+                    </small>
+                  </div>
+                  <div className="easy-launch-actions">
+                    <button
+                      className="button primary"
+                      onClick={() => {
+                        setAutopilotStart(true);
+                        setDialog("new");
+                      }}
+                    >
+                      <Sparkles size={17} />
+                      Make a video
+                    </button>
+                    {projects.length > 0 && (
+                      <button
+                        className="button secondary"
+                        onClick={resumeLastProject}
+                      >
+                        <ArrowRight size={16} />
+                        Continue my last video
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
               {loading ? (
                 <div className="loading">
                   <LoaderCircle className="spin" />
@@ -514,31 +574,6 @@ export default function App() {
                           </div>
                           <small>READY TO DROP</small>
                         </div>
-                      </div>
-                      <div
-                        className="workflow-actions"
-                        style={{ marginBottom: 16 }}
-                      >
-                        <button
-                          className="button secondary"
-                          onClick={() => {
-                            try {
-                              const id = localStorage.getItem(
-                                "comic-beatdowns:last-project",
-                              );
-                              if (projects.some((p) => p.id === id))
-                                navigate("production", id);
-                              else if (projects[0])
-                                navigate("production", projects[0].id);
-                            } catch {
-                              if (projects[0])
-                                navigate("production", projects[0].id);
-                            }
-                          }}
-                          disabled={!projects.length}
-                        >
-                          Resume last project
-                        </button>
                       </div>
                       <BatchQueue
                         projects={projects}
@@ -820,6 +855,7 @@ export default function App() {
                     </>
                   )}
                   {page === "publishing" && <PublishingDesk jobs={jobs} />}
+                  {page === "creative-dna" && <CreativeDNA />}
                   {page === "exports" &&
                     (jobs.length ? (
                       <div className="exports-grid">
@@ -1034,6 +1070,15 @@ export default function App() {
           }}
           onError={showError}
           onCreated={(project) => {
+            // "New project" is the power-user path; Verdict Autopilot is guided.
+            try {
+              localStorage.setItem(
+                `comic-beatdowns:editor-mode:${project.id}`,
+                autopilotStart ? "easy" : "advanced",
+              );
+            } catch {
+              /* Editor keeps a usable in-memory fallback. */
+            }
             setDialog(null);
             setPreferredTemplate(undefined);
             setAutopilotStart(false);
@@ -1065,54 +1110,49 @@ export default function App() {
       )}
       {dialog === "help" && (
         <Modal
-          title="From evidence to final verdict"
-          eyebrow="STUDIO GUIDE"
+          title="Your first video, three steps"
+          eyebrow="EASY STUDIO GUIDE"
           onClose={() => setDialog(null)}
         >
           <ol className="guide-list">
             <li>
-              <strong>Add files.</strong>
+              <strong>1. Start your video.</strong>
               <p>
-                Create a project and drop in your panels, narration, music, and
-                captions. Check the file roles, then import. Crop and tag source
-                pages in the Panel library when needed.
+                Click Make a video, describe what makes the fight ridiculous,
+                and add your comic panels and a narration recording. You can add
+                missing files later.
               </p>
             </li>
             <li>
-              <strong>Match narration.</strong>
+              <strong>2. Let Verdict make a preview.</strong>
               <p>
-                Write the script or import timed captions. Suggest panel
-                matches, check the line cards, and choose which picture belongs
-                with each line.
+                Click Generate my video preview. The Studio handles shot order,
+                motion, captions, and editing with the tools currently
+                available. Basic editing uses file order and tags, not automatic
+                artwork understanding.
               </p>
             </li>
             <li>
-              <strong>Build your draft.</strong>
+              <strong>3. Watch it, approve it, download it.</strong>
               <p>
-                Choose Fast cuts or Smooth holds and click Build My Draft.
-                Preview the suggestions and accept the ones you want. Use Hit,
-                Reveal, Reaction, Read Panel, and Aim camera to refine shots.
-                Lock any finished shot.
-              </p>
-            </li>
-            <li>
-              <strong>Review.</strong>
-              <p>
-                Render a review copy, check the sound mix and captions, and use
-                Check Loop to hear the ending lead back into the opening. Leave
-                notes, compare named versions, and approve the final script.
-              </p>
-            </li>
-            <li>
-              <strong>Export.</strong>
-              <p>
-                Export the final vertical MP4, or render just a selected section
-                to check it quickly. Queue several approved projects from the
-                Production desk. Changes save automatically; Undo restores
-                earlier edits.
+                Check the jokes, panels, captions, and sound. Fix anything you
+                dislike, then approve the preview and export a full-size
+                vertical MP4.
               </p>
             </li>
           </ol>
+          <details className="workflow-advanced">
+            <summary>What if I want full creative control?</summary>
+            <p>
+              Inside any project, click Open full editor to change individual
+              shots, timing, audio, camera moves, captions, and script lines.
+              Undo is available and the Studio autosaves your changes.
+            </p>
+          </details>
+          <p className="help">
+            This version still needs a narration recording. AI voice generation
+            is not built yet. Nothing is published automatically.
+          </p>
         </Modal>
       )}
     </div>

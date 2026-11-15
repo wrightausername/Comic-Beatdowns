@@ -164,3 +164,80 @@ test("batch import keeps SRT after narration and rejects ambiguous voice tracks"
     "Choose one narration recording",
   );
 });
+
+test("Easy Mode's single Generate click enables safe preview delivery and starts one job", async () => {
+  const initial = {
+    ...project,
+    autopilot: {
+      ...project.autopilot!,
+      enabled: false,
+      delivery: "final" as const,
+    },
+  };
+  const updated = {
+    ...initial,
+    revision: 5,
+    autopilot: {
+      ...initial.autopilot,
+      enabled: true,
+      delivery: "draft" as const,
+    },
+  };
+  mocked.mockImplementation(async (path, init) => {
+    if (path === "/verdict/connection") return { configured: false };
+    if (path === "/projects/test/director") {
+      return init?.method === "POST"
+        ? { id: "new-job", status: "queued", report: {} }
+        : [];
+    }
+    if (path === "/projects/test/autopilot") return updated;
+    if (path === "/projects/test") return initial;
+    throw new Error(`Unexpected API call: ${path}`);
+  });
+  const accept = vi.fn();
+  const props = {
+    project: initial as Project,
+    simple: true,
+    dirty: false,
+    busy: false,
+    accept,
+    perform: async (action: () => Promise<void>) => action(),
+    onChanged: vi.fn(),
+    onReview: vi.fn(),
+    onError: vi.fn(),
+  };
+  const view = render(<VerdictAutopilot {...props} autoRunRequest={0} />);
+  view.rerender(<VerdictAutopilot {...props} autoRunRequest={1} />);
+  await waitFor(() =>
+    expect(mocked).toHaveBeenCalledWith(
+      "/projects/test/autopilot",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          enabled: true,
+          mode: "basic",
+          pace: "fast",
+          delivery: "draft",
+          base_revision: 4,
+        }),
+      }),
+    ),
+  );
+  await waitFor(() =>
+    expect(mocked).toHaveBeenCalledWith(
+      "/projects/test/director",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ base_revision: 5 }),
+      }),
+    ),
+  );
+  view.rerender(<VerdictAutopilot {...props} autoRunRequest={1} />);
+  expect(
+    mocked.mock.calls.filter(
+      ([path, init]) =>
+        path === "/projects/test/director" && init?.method === "POST",
+    ),
+  ).toHaveLength(1);
+  expect(accept).toHaveBeenCalledWith(updated);
+});
