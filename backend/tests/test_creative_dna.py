@@ -1,9 +1,9 @@
 """Creative DNA is private, revision-aware, and approval-controlled."""
 
 from conftest import TOKEN, add_project
+from test_workflow import payload, populated
 
 from app.database import CreativeEditEvent, CreativeFeedback, CreativeRule, connect
-from test_workflow import payload, populated
 
 
 def create_rule(client, instruction="Hold on impact panels", scope="short"):
