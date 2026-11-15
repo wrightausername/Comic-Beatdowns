@@ -15,7 +15,8 @@ def summarize_workspace_change(before: dict, after: dict) -> list[dict]:
     """Return bounded changed field *names* only, with no personal text or media paths."""
     changes = []
     changed_project = [
-        key for key in OBSERVED_PROJECT_FIELDS
+        key
+        for key in OBSERVED_PROJECT_FIELDS
         if before["project"].get(key) != after["project"].get(key)
     ]
     if changed_project:
@@ -32,7 +33,8 @@ def summarize_workspace_change(before: dict, after: dict) -> list[dict]:
             fields = ["removed"]
         else:
             fields = [
-                field for field in OBSERVED_SCENE_FIELDS
+                field
+                for field in OBSERVED_SCENE_FIELDS
                 if old[scene_id].get(field) != new[scene_id].get(field)
             ]
         if not fields:
