@@ -278,7 +278,7 @@ export default function CreativeDNA() {
         {overview?.observed_edits.length === 0 && (
           <p className="muted">No workspace edits observed yet.</p>
         )}
-        {overview?.observed_edits.slice(0, 10).map((edit) => (
+        {overview?.observed_edits.map((edit) => (
           <div className="creative-dna-rule" key={edit.id}>
             <div>
               <span className="eyebrow">
