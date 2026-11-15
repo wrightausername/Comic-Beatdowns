@@ -10,6 +10,7 @@ export default function Preview({
   request,
   onFocus,
   onMoment,
+  onTimeChange,
   rememberPosition = true,
 }: {
   scenes: Scene[];
@@ -17,6 +18,7 @@ export default function Preview({
   request?: { index?: number; seconds?: number; nonce: number } | null;
   onFocus?: (id: string, patch: Partial<Scene>) => void;
   onMoment?: (seconds: number) => void;
+  onTimeChange?: (seconds: number) => void;
   rememberPosition?: boolean;
 }) {
   const [safeAreas, setSafeAreas] = useState(false),
@@ -24,6 +26,9 @@ export default function Preview({
     [aim, setAim] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
+  useEffect(() => {
+    onTimeChange?.(cursor);
+  }, [cursor, onTimeChange]);
   const [audioError, setAudioError] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
   const duration = timelineSeconds(scenes, project.settings.fps);

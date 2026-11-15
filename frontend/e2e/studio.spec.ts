@@ -643,6 +643,18 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   );
   await expect(approve).toBeDisabled();
   await expect(card.getByText(/No timed speech found/)).toBeVisible();
+  const timeline = page.getByRole("region", { name: "Video edit timeline" });
+  await expect(timeline).toBeVisible();
+  await expect(
+    timeline.getByRole("button", { name: /Timeline shot 1:/ }),
+  ).toBeVisible();
+  await expect(
+    timeline.getByLabel("Narration track", { exact: true }),
+  ).toContainText("imported recording");
+  await timeline.screenshot({
+    path: testInfo.outputPath("ai-video-timeline.png"),
+  });
+
   await page.screenshot({
     path: testInfo.outputPath("verdict-autopilot.png"),
     timeout: 60_000,
@@ -691,4 +703,51 @@ test("Easy Mode walks a first-time creator through missing inputs without preten
   ).toBeVisible();
   await page.getByRole("button", { name: "Return to Easy Mode" }).click();
   await expect(guide).toBeVisible();
+});
+
+test("AI timeline edits persist after reload", async ({ page }) => {
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "timeline-art.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "timeline-voice.wav", mimeType: "audio/wav", buffer: silentWav(4) },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Editable AI timeline");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  const card = page.getByRole("region", {
+    name: "Verdict Autopilot",
+    exact: true,
+  });
+  await expect(
+    card.getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const timeline = page.getByRole("region", { name: "Video edit timeline" });
+  await timeline.getByRole("button", { name: /Timeline shot 1:/ }).click();
+  await timeline
+    .getByLabel("Timeline shot camera")
+    .selectOption("impact_shake");
+  await expect(page.getByLabel("Autosave status")).toHaveText(
+    "All changes saved",
+  );
+  await page.reload();
+  await expect(timeline.getByLabel("Timeline shot camera")).toHaveValue(
+    "impact_shake",
+  );
+  const count = await timeline
+    .getByRole("button", { name: /Timeline shot/ })
+    .count();
+  await timeline.getByLabel("Video timeline playhead").fill("0.5");
+  await timeline
+    .getByRole("button", { name: "Split shot at playhead" })
+    .click();
+  await expect(page.getByLabel("Autosave status")).toHaveText(
+    "All changes saved",
+  );
+  await page.reload();
+  await expect(
+    timeline.getByRole("button", { name: /Timeline shot/ }),
+  ).toHaveCount(count + 1);
 });

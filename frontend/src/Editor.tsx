@@ -36,7 +36,7 @@ import { fitScenes, splitScene } from "./editing";
 import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
-import WaveformTimeline from "./WaveformTimeline";
+import VideoTimeline from "./VideoTimeline";
 import EmotionTimeline from "./EmotionTimeline";
 import { parsePerformanceScript } from "./emotion";
 import type {
@@ -138,6 +138,7 @@ export default function Editor({
     time: number;
     nonce: number;
   } | null>(null);
+  const [timelineCursor, setTimelineCursor] = useState(0);
   const [previewOverride, setPreviewOverride] = useState<Project | null>(null);
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
   const [effects, setEffects] = useState<SoundEffect[]>([]);
@@ -642,6 +643,21 @@ export default function Editor({
       )}
       <div className="editor-layout">
         <div className="editor-workspace">
+          <VideoTimeline
+            key={projectId}
+            project={view}
+            scenes={scenes}
+            effects={effects}
+            cursor={timelineCursor}
+            disabled={busy || Boolean(activeJob)}
+            onChange={(next) => update({ scenes: next })}
+            onSeek={(seconds) => {
+              setTimelineCursor(seconds);
+              setPreviewOverride(null);
+              setPreviewRequest({ seconds, nonce: Date.now() });
+            }}
+          />
+
           <div id="studio-workflow">
             <ProductionWorkflow
               simple={easyMode}
@@ -770,18 +786,6 @@ export default function Editor({
                 ) : (
                   <>
                     {emotionTimeline}
-                    <WaveformTimeline
-                      projectId={projectId}
-                      audioUrl={project.narration_url}
-                      scenes={scenes}
-                      fps={settings.fps}
-                      start={settings.narration_start}
-                      cues={cues}
-                      onChange={(values) => update({ scenes: values })}
-                      onSeek={(seconds) =>
-                        setPreviewRequest({ seconds, nonce: Date.now() })
-                      }
-                    />
                     <BulkControls
                       scenes={scenes}
                       selected={
@@ -1609,6 +1613,7 @@ export default function Editor({
             key={previewOverride ? "proposed" : "current"}
             request={previewRequest}
             rememberPosition={!previewOverride}
+            onTimeChange={previewOverride ? undefined : setTimelineCursor}
             onMoment={(time) => {
               setStage("review");
               setNoteMoment({ time, nonce: Date.now() });

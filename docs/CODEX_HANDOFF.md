@@ -96,3 +96,21 @@ its hash, removes developer tools from PATH, and tests backend startup and a
 native authenticated WebView2 window. Windows 10 and 11 remain explicit targets,
 with clean desktop compatibility still requiring actual OS testing. See PR #13
 for exact build results; do not hand out an artifact whose download checks fail.
+
+### Editable video timeline update
+
+The combined update branch now shows a real multi-track timeline in both Easy
+Mode and the full editor, beside the existing preview. It reads the current
+scene list, so saved AI-generated cuts appear immediately; it does not display
+an unrelated mock timeline or infer AI provenance for manual shots. Tracks show
+panel thumbnails, camera moves/transitions, timed captions, selected narration,
+scene sound-effect offsets and music. Missing SFX duration is a marked event,
+not a fabricated audio length. Selecting/seeking follows the browser preview.
+
+Shot camera/transition edits, reorder, split and waveform cut timing update the
+same autosaved workspace and renderer inputs. Reorder/split/cut timing protect
+locked shots. Narration/caption timing is retained when rearranging artwork.
+The existing Undo, detailed editor and review/export gates remain in use.
+Timeline audio tracks are visible; arbitrary audio drag/trim/multitrack mixing
+is not added. Rendered previews remain necessary for hearing the complete mix.
+See PR #13 for exact test/build results and the updated Windows artifact.

@@ -56,6 +56,16 @@ make ui    # Vite on port 5173, proxying /api to FastAPI
 
 Stop other servers before running browser tests, which own ports 8000 and 5173. Cloud tasks are already isolated: use the existing checkout; no extra Git worktree is necessary. Cloud onboarding does not supply public localhost preview links.
 
+## Video timeline
+
+Easy Mode and the full editor show the current edit on a shared video timeline.
+Verdict's generated shots appear as timed thumbnails beside camera/transition,
+caption, narration, sound-effect and music tracks. Select a shot to change its
+camera/transition, move it or split at the playhead; drag waveform cuts to adjust
+adjacent shots. Edits autosave into the same project used by preview and export.
+Locked shots are protected. Narration and captions retain their timing when
+artwork moves. Render a preview to hear the complete soundtrack.
+
 ## Make your first beatdown
 
 1. **Add files:** choose **New project** and drop panels, narration, music, effects, and SRT captions together. Check each file’s role. After creating the project, the **Add files** step offers the same drop zone and your project panel tray. Existing material is available through **Choose from library**. Use the Panel library to record characters/fight tags and crop pages without replacing their originals.
