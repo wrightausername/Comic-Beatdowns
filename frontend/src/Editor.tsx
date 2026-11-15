@@ -81,6 +81,7 @@ export default function Editor({
   onImport,
 }: Props) {
   const [busy, setBusy] = useState(false);
+  const [autoRunRequest, setAutoRunRequest] = useState(0);
   const [easyMode, setEasyMode] = useState(() => {
     try {
       return localStorage.getItem("comic-beatdowns:editor-mode") !== "advanced";
@@ -555,6 +556,7 @@ export default function Editor({
           scenes={scenes}
           jobs={jobs}
           dirty={dirty}
+          busy={busy}
           canRender={canRender}
           onFiles={() => {
             setStage("files");
@@ -569,6 +571,14 @@ export default function Editor({
               .getElementById("studio-autopilot")
               ?.scrollIntoView({ behavior: "smooth" })
           }
+          onGenerate={() => {
+            setAutoRunRequest((current) => current + 1);
+            requestAnimationFrame(() =>
+              document
+                .getElementById("studio-autopilot")
+                ?.scrollIntoView({ behavior: "smooth" }),
+            );
+          }}
           onSave={() =>
             void perform(async () => setNotice("All changes saved."))
           }
@@ -590,6 +600,7 @@ export default function Editor({
       <div id="studio-autopilot">
         <VerdictAutopilot
           simple={easyMode}
+          autoRunRequest={autoRunRequest}
           project={project}
           dirty={dirty}
           busy={busy}
