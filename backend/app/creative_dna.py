@@ -17,7 +17,9 @@ from .schemas import StrictModel
 router = APIRouter(prefix="/api/creative-dna", tags=["Creative DNA"])
 
 Scope = Literal["global", "short", "long"]
-Category = Literal["humor", "voice", "story", "pacing", "panel", "crop", "captions", "audio", "other"]
+Category = Literal[
+    "humor", "voice", "story", "pacing", "panel", "crop", "captions", "audio", "other"
+]
 Status = Literal["proposed", "approved", "rejected"]
 
 
@@ -90,11 +92,16 @@ def approved_instructions(db: Session, scope: str) -> list[str]:
 
 @router.get("")
 def overview(db: Session = Depends(session)):
-    rules = list(db.scalars(select(CreativeRule).order_by(CreativeRule.created_at.desc()).limit(200)))
+    rules = list(
+        db.scalars(select(CreativeRule).order_by(CreativeRule.created_at.desc()).limit(200))
+    )
     feedback = list(
         db.scalars(select(CreativeFeedback).order_by(CreativeFeedback.created_at.desc()).limit(50))
     )
-    return {"rules": [rule_dict(r) for r in rules], "recent_feedback": [feedback_dict(f) for f in feedback]}
+    return {
+        "rules": [rule_dict(r) for r in rules],
+        "recent_feedback": [feedback_dict(f) for f in feedback],
+    }
 
 
 @router.get("/guide")
