@@ -73,6 +73,9 @@ def serve_desktop(ticket: str):
             host="127.0.0.1",
             port=port,
             workers=1,
+            # A windowed PyInstaller process has no stdout/stderr. Uvicorn
+            # console formatters assume stderr.isatty() exists.
+            log_config=None,
             access_log=False,
             log_level="warning",
         )

@@ -37,3 +37,22 @@ def test_frozen_settings_use_bundled_assets(monkeypatch, tmp_path):
     assert settings.data_dir == tmp_path / "user-data" / "ComicBeatdownsStudio"
     assert settings.ffmpeg == str(tools / "ffmpeg.exe")
     assert settings.ffprobe == str(tools / "ffprobe.exe")
+
+
+def test_desktop_starts_without_console_streams(monkeypatch, settings):
+    import sys
+    from app import desktop
+
+    create_app = desktop.create_desktop_app
+    monkeypatch.setattr(desktop, "create_desktop_app", lambda ticket: create_app(ticket, settings))
+    monkeypatch.setattr(sys, "stdout", None)
+    monkeypatch.setattr(sys, "stderr", None)
+    server, thread, listener, base_url, health = desktop.serve_desktop("private-test-ticket")
+    try:
+        assert base_url.startswith("http://127.0.0.1:")
+        assert health["status"] == "ok"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=8)
+        listener.close()
+    assert not thread.is_alive()

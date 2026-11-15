@@ -174,7 +174,7 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     path: testInfo.outputPath("camera-editor.png"),
     fullPage: true,
   });
-  await page.getByLabel("Upload narration").setInputFiles({
+  await page.getByLabel("Add ElevenLabs narration (MP3/WAV)").setInputFiles({
     name: "original-silence.wav",
     mimeType: "audio/wav",
     buffer: silentWav(),
@@ -182,6 +182,24 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
   await expect(
     page.getByText("Narration uploaded and normalized."),
   ).toBeVisible();
+  // Cancelling replacement must retain the original recording without an upload.
+  let replacementUploads = 0;
+  const countReplacement = (request: import("@playwright/test").Request) => {
+    if (request.method() === "POST" && request.url().endsWith("/narration"))
+      replacementUploads += 1;
+  };
+  page.on("request", countReplacement);
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("cuts and captions may need retiming");
+    await dialog.dismiss();
+  });
+  await page.getByLabel("Add ElevenLabs narration (MP3/WAV)").setInputFiles({
+    name: "cancelled-replacement.wav",
+    mimeType: "audio/wav",
+    buffer: silentWav(3),
+  });
+  expect(replacementUploads).toBe(0);
+  page.off("request", countReplacement);
   await page
     .getByRole("button", { name: "Verdict script", exact: true })
     .click();
@@ -269,7 +287,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
   await page.getByRole("button", { name: "Add 2 panels" }).click();
-  await page.getByLabel("Upload narration").setInputFiles({
+  await page.getByLabel("Add ElevenLabs narration (MP3/WAV)").setInputFiles({
     name: "six-seconds.wav",
     mimeType: "audio/wav",
     buffer: silentWav(6),
