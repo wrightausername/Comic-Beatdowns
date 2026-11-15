@@ -18,14 +18,26 @@ class VoiceProvider(Protocol):
 
 
 class WritingProvider(Protocol):
-    def draft(self, idea: str, panels: list[dict], current_script: str, style_rules: list[str] | None = None) -> str: ...
+    def draft(
+        self,
+        idea: str,
+        panels: list[dict],
+        current_script: str,
+        style_rules: list[str] | None = None,
+    ) -> str: ...
 
 
 class OpenAICompatibleWriter:
     def __init__(self, settings):
         self.settings = settings
 
-    def draft(self, idea: str, panels: list[dict], current_script: str, style_rules: list[str] | None = None) -> str:
+    def draft(
+        self,
+        idea: str,
+        panels: list[dict],
+        current_script: str,
+        style_rules: list[str] | None = None,
+    ) -> str:
         base_url = self.settings.ai_base_url.rstrip("/")
         if urlsplit(base_url).scheme != "https":
             raise ValueError("The writing provider requires an HTTPS base URL")
