@@ -1,0 +1,35 @@
+name: Format new Autopilot test (one-time)
+
+on:
+  push:
+    branches:
+      - feature/guided-studio-ux
+    paths:
+      - .github/workflows/format-autopilot-test-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.repository == 'wrightausername/Comic-Beatdowns'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm --prefix frontend ci --no-audit --no-fund
+      - working-directory: frontend
+        run: npx prettier --write src/VerdictAutopilot.test.tsx e2e/studio.spec.ts
+      - name: Commit formatted test
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add frontend/src/VerdictAutopilot.test.tsx frontend/e2e/studio.spec.ts
+          if ! git diff --cached --quiet; then
+            git commit -m 'Format new Easy Mode tests'
+            git push origin HEAD:refs/heads/feature/guided-studio-ux
+          fi
