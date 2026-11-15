@@ -15,6 +15,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .audio import analyze_audio, parse_srt, srt_text, transcribe
 from .auth import COOKIE, SESSION_AGE, authenticated, session_cookie
+from .creative_dna import approved_instructions
 from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
@@ -833,7 +834,7 @@ def draft_script(project_id: str, request: Request, db: Session = Depends(sessio
     panels = [panel_dict(db.get(Panel, s.panel_id)) for s in scenes_for(db, project_id)]
     try:
         draft = OpenAICompatibleWriter(request.app.state.settings).draft(
-            project.idea, panels, project.script
+            project.idea, panels, project.script, style_rules=approved_instructions(db, "short")
         )
     except (ValueError, httpx.HTTPError, KeyError, IndexError, TypeError) as e:
         raise HTTPException(
