@@ -43,6 +43,7 @@ export async function handToVerdict(project: Project) {
 }
 
 export default function VerdictAutopilot({
+  simple = false,
   project,
   dirty,
   busy,
@@ -52,6 +53,7 @@ export default function VerdictAutopilot({
   onReview,
   onError,
 }: {
+  simple?: boolean;
   project: Project;
   dirty: boolean;
   busy: boolean;
@@ -172,9 +174,27 @@ export default function VerdictAutopilot({
   }
   async function run() {
     await perform(async () => {
-      const saved = await api<Project>(`/projects/${project.id}`);
+      let saved = await api<Project>(`/projects/${project.id}`);
+      if (simple && (!options.enabled || options.delivery !== "draft")) {
+        // Easy Mode always makes a preview first. Never auto-approve a final cut.
+        saved = await api<Project>(
+          `/projects/${project.id}/autopilot`,
+          json(
+            {
+              enabled: true,
+              mode: options.mode,
+              pace: options.pace,
+              delivery: "draft",
+              base_revision: saved.revision,
+            },
+            "PUT",
+          ),
+        );
+        accept(saved);
+        onChanged();
+      }
       const job = await handToVerdict(saved);
-      if (job) setJobs([job, ...jobs]);
+      if (job) setJobs((previous) => [job, ...previous]);
     });
   }
   async function saveProvider() {
@@ -205,13 +225,13 @@ export default function VerdictAutopilot({
         <Bot size={30} />
         <div>
           <span className="eyebrow">VERDICT TAKES THE CHAIR</span>
-          <h2>Upload. Hand it over. Watch.</h2>
+          <h2>{simple ? "Let Verdict make your first cut." : "Upload. Hand it over. Watch."}</h2>
           <p>
             Add your panels and one voice recording. I’ll build the vertical
             edit.
           </p>
         </div>
-        <label className="autopilot-toggle">
+        {!simple && <label className="autopilot-toggle">
           <input
             type="checkbox"
             checked={options.enabled}
@@ -219,11 +239,11 @@ export default function VerdictAutopilot({
             onChange={(e) => void changeOptions({ enabled: e.target.checked })}
           />
           Verdict Autopilot
-        </label>
+        </label>}
       </div>
-      {options.enabled && (
+      {(options.enabled || simple) && (
         <>
-          <div className="form-grid autopilot-options">
+          {!simple && <div className="form-grid autopilot-options">
             <label>
               How Verdict decides
               <select
@@ -273,14 +293,14 @@ export default function VerdictAutopilot({
                 </option>
               </select>
             </label>
-          </div>
-          <p className="muted">
+          </div>}
+          {!simple && <p className="muted">
             {options.mode === "basic"
               ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
               : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
             Your full selected recording is kept. No automatic publishing.
-          </p>
-          {options.delivery === "final" && (
+          </p>}
+          {!simple && options.delivery === "final" && (
             <p className="notice">
               You’re authorizing Verdict to approve this edit and render the
               final MP4 without another review.
@@ -297,12 +317,20 @@ export default function VerdictAutopilot({
               onClick={() => void run()}
             >
               <Sparkles size={17} />
-              {running ? "Verdict is working…" : "Let Verdict handle it"}
+              {running ? "Verdict is working…" : simple ? "Generate my video preview" : "Let Verdict handle it"}
             </button>
+            {simple && options.mode === "basic" && readyForVerdict(project) && (
+              <span className="muted">Offline first cut · uses panel order and tags, not visual AI. You review before export.</span>
+            )}
             {!readyForVerdict(project) && (
               <span className="muted">
                 First add panels and narration in Add files below.
               </span>
+            )}
+            {simple && options.mode === "vision" && !connection?.configured && (
+              <button className="button secondary" onClick={() => void changeOptions({ mode: "basic" })}>
+                Use offline editing instead
+              </button>
             )}
             {latest && ["queued", "working"].includes(latest.status) && (
               <button
@@ -406,7 +434,7 @@ export default function VerdictAutopilot({
           Verdict status unavailable: {pollError}. Retrying…
         </p>
       )}
-      <details className="autopilot-connection">
+      {!simple && <details className="autopilot-connection">
         <summary>Optional: connect Verdict’s vision AI</summary>
         <p className="muted">
           Use an OpenAI-compatible vision model, including a local server such
@@ -502,7 +530,7 @@ export default function VerdictAutopilot({
           )}
         </div>
         {providerMessage && <p role="status">{providerMessage}</p>}
-      </details>
+      </details>}
     </section>
   );
 }
