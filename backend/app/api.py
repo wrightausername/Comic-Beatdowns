@@ -17,7 +17,8 @@ from .audio import analyze_audio, parse_srt, srt_text, transcribe
 from .auth import COOKIE, SESSION_AGE, authenticated, session_cookie
 from .autoedit import audio_range, auto_edit
 from .creative_dna import approved_instructions
-from .database import Panel, Project, RenderJob, Scene, Template, now, uid
+from .creative_edits import summarize_workspace_change
+from .database import CreativeEditEvent, Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
 from .renderer import normalize_audio, timeline_duration, tools_available
@@ -38,7 +39,7 @@ from .schemas import (
     WorkspaceInput,
 )
 from .storage import media_url
-from .workspace import locked_project, remember, replace_workspace_scenes, restore
+from .workspace import locked_project, remember, replace_workspace_scenes, restore, snapshot
 
 router = APIRouter(prefix="/api")
 
@@ -599,6 +600,7 @@ def save_workspace(project_id: str, data: WorkspaceInput, db: Session = Depends(
     project = locked_project(db, project_id, data.base_revision)
     if not data.title.strip():
         raise HTTPException(422, "Give this project a title")
+    before, from_revision = snapshot(db, project), project.revision
     remember(db, project)
     replace_workspace_scenes(db, project, data.scenes, data.settings.fps)
     project.title, project.idea, project.script = data.title.strip(), data.idea, data.script
@@ -610,6 +612,17 @@ def save_workspace(project_id: str, data: WorkspaceInput, db: Session = Depends(
 
     project.workflow = validate_workflow(data.workflow, db)
     touch(project, invalidate_approval=True)
+    db.flush()
+    changes = summarize_workspace_change(before, snapshot(db, project))
+    if changes:
+        db.add(
+            CreativeEditEvent(
+                project_id=project.id,
+                from_revision=from_revision,
+                to_revision=project.revision,
+                changes=changes,
+            )
+        )
     db.commit()
     return project_dict(project, db, True)
 
