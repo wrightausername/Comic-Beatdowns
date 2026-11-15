@@ -153,8 +153,8 @@ export default function GuidedWorkspace({
           : status === "working" || status === "review"
             ? onAutopilot
             : status === "export"
-            ? onRender
-            : undefined;
+              ? onRender
+              : undefined;
   const mainLabel = status === "done" ? "Finished" : "YOUR NEXT STEP";
 
   return (
