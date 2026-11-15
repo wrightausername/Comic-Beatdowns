@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { BookOpenCheck, BrainCircuit, Check, Plus, Undo2, X } from "lucide-react";
 import { api, json } from "./api";
 import { errorMessage } from "./utils";
@@ -80,7 +81,7 @@ export default function CreativeDNA() {
     };
   }, []);
 
-  async function createRule(e: React.FormEvent<HTMLFormElement>) {
+  async function createRule(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending || !instruction.trim()) return;
     setPending(true);
