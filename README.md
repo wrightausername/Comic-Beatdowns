@@ -59,6 +59,20 @@ Stop other servers before running browser tests, which own ports 8000 and 5173. 
 ## Video timeline
 
 Easy Mode and the full editor show the current edit on a shared video timeline.
+Drag shots to reorder them and drag either edge to trim. Keep total length rolls
+the neighboring cut; disabling it ripples later unlocked shots while narration
+and timed captions stay put. Snap aligns to nearby cuts, playhead and captions.
+The toolbar offers playback, Undo/Redo, split, duplicate, delete, lock and fit.
+Double-click a shot to zoom in. Shift-click selects a range for locking/deleting.
+
+Select a clip for camera, framing, caption and effect controls. Use Caption editor
+for timed text and Audio mixer for volume, ducking and narration in/out. Space
+plays/pauses, S splits, D duplicates, Delete removes, arrows step frames and +/-
+zoom while the timeline is focused. Existing Ctrl-Z Undo remains available.
+Browser playback includes music and SFX; rendered previews verify final ducking
+and gains above 100%. Free-floating audio clips and stacked video layers are
+outside this editor's current scope.
+
 Verdict's generated shots appear as timed thumbnails beside camera/transition,
 caption, narration, sound-effect and music tracks. Select a shot to change its
 camera/transition, move it or split at the playhead; drag waveform cuts to adjust

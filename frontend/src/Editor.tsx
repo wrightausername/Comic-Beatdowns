@@ -139,6 +139,8 @@ export default function Editor({
     nonce: number;
   } | null>(null);
   const [timelineCursor, setTimelineCursor] = useState(0);
+  const [timelinePlaying, setTimelinePlaying] = useState(false);
+  const [timelinePlayRequest, setTimelinePlayRequest] = useState(0);
   const [previewOverride, setPreviewOverride] = useState<Project | null>(null);
   const [replaceIndex, setReplaceIndex] = useState<number | null>(null);
   const [effects, setEffects] = useState<SoundEffect[]>([]);
@@ -651,6 +653,16 @@ export default function Editor({
             cursor={timelineCursor}
             disabled={busy || Boolean(activeJob)}
             onChange={(next) => update({ scenes: next })}
+            onProjectChange={update}
+            playing={timelinePlaying}
+            onTogglePlay={() => {
+              setPreviewOverride(null);
+              setTimelinePlayRequest((value) => value + 1);
+            }}
+            onUndo={() => void perform(() => studio.history("undo"), false)}
+            onRedo={() => void perform(() => studio.history("redo"), false)}
+            canUndo={dirty || project.can_undo}
+            canRedo={!dirty && project.can_redo}
             onSeek={(seconds) => {
               setTimelineCursor(seconds);
               setPreviewOverride(null);
@@ -1614,6 +1626,8 @@ export default function Editor({
             request={previewRequest}
             rememberPosition={!previewOverride}
             onTimeChange={previewOverride ? undefined : setTimelineCursor}
+            onPlayingChange={previewOverride ? undefined : setTimelinePlaying}
+            toggleRequest={previewOverride ? 0 : timelinePlayRequest}
             onMoment={(time) => {
               setStage("review");
               setNoteMoment({ time, nonce: Date.now() });

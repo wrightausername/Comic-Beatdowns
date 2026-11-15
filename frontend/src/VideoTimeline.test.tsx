@@ -23,6 +23,10 @@ const project = {
     narration_end: 5,
     captions: true,
     transition: "cut",
+    voice_volume: 1,
+    music_volume: 0.12,
+    sfx_volume: 0.35,
+    duck_audio: true,
   },
   narration_url: "/voice.wav",
   narration_duration: 5,
@@ -57,8 +61,12 @@ it("draws real timed tracks and seeks from captions and shots", () => {
   const { onSeek } = setup();
   fireEvent.click(screen.getByText("Real timed words"));
   expect(onSeek).toHaveBeenLastCalledWith(1);
-  expect(screen.getByText("Real timed words").style.left).toBe("25%");
-  expect(screen.getByText("Impact").style.left).toBe("62.5%");
+  expect(
+    screen.getByRole("button", { name: "Real timed words" }).style.left,
+  ).toBe("25%");
+  expect(screen.getByRole("button", { name: "Impact" }).style.left).toBe(
+    "62.5%",
+  );
   fireEvent.click(
     screen.getByRole("button", { name: "Timeline shot 2: Panel 1" }),
   );
@@ -88,4 +96,44 @@ it("protects locked shots and adjacent cut timing", () => {
     screen.getByRole("button", { name: "Timeline shot 2: Panel 1" }),
   );
   expect(screen.getByText("Move shot earlier")).toBeDisabled();
+});
+
+it("exposes direct trim handles with frame-accurate cut editing", () => {
+  const { onChange } = setup();
+  fireEvent.keyDown(screen.getByLabelText("Trim right edge of shot 1"), {
+    key: "ArrowRight",
+  });
+  expect(onChange.mock.lastCall![0].map((s: Scene) => s.duration)).toEqual([
+    49 / 24,
+    47 / 24,
+  ]);
+});
+it("edits caption text and audio settings through the saved workspace contract", () => {
+  const onProjectChange = vi.fn();
+  render(
+    <VideoTimeline
+      project={project}
+      scenes={scenes}
+      effects={[]}
+      cursor={0}
+      disabled={false}
+      onChange={vi.fn()}
+      onSeek={vi.fn()}
+      onProjectChange={onProjectChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole("tab", { name: "Caption editor" }));
+  fireEvent.change(screen.getByLabelText("Timeline caption words"), {
+    target: { value: "Edited timing words" },
+  });
+  expect(onProjectChange.mock.lastCall![0].cues[0]).toMatchObject({
+    start: 2,
+    end: 3,
+    text: "Edited timing words",
+  });
+  fireEvent.click(screen.getByRole("tab", { name: "Audio mixer" }));
+  fireEvent.change(screen.getByLabelText("Timeline narration volume"), {
+    target: { value: "0.4" },
+  });
+  expect(onProjectChange.mock.lastCall![0].settings.voice_volume).toBe(0.4);
 });

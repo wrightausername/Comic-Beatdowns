@@ -114,3 +114,31 @@ The existing Undo, detailed editor and review/export gates remain in use.
 Timeline audio tracks are visible; arbitrary audio drag/trim/multitrack mixing
 is not added. Rendered previews remain necessary for hearing the complete mix.
 See PR #13 for exact test/build results and the updated Windows artifact.
+
+### Direct timeline editing (CapCut-inspired interaction)
+
+The latest update expands the timeline with draggable shot reordering,
+frame-quantized left/right trim handles, snapping to cuts/playhead/captions,
+keep-total-length cut rolls or explicit ripple trimming, and zoom/fit controls.
+Shift/Ctrl selection supports batch locking/deletion. The toolbar exposes play,
+Undo/Redo, split, duplicate, delete and lock. Focused timeline shortcuts support
+Space, S, D/Ctrl-D, Delete, arrows/Shift-arrows and +/-; Ctrl-Z remains the
+existing durable workspace history. Locked intervals cannot be crossed or
+silently shifted. Narration and timed captions stay in place during ripple edits.
+
+Shot controls include duration, motion/strength, framing, transitions, captions,
+and favorite sound selection/offset. Timed captions have text/in/out controls.
+Audio controls expose narration/SFX/music gains, music ducking, and narration
+source in/out. Sound markers can be dragged within their own shot. The track
+shows an actual narration waveform, empty tracks can be hidden, playback follows
+the playhead and zoomed playback scrolls along the timeline. Double-clicking a
+shot zooms into it. Precise narration pause/cut controls remain in a disclosure.
+
+Browser preview now plays narration, looping music and scene sound effects and
+honors their gains up to HTML audio's 100% ceiling. Browser ducking is an
+approximation based on narration presence; exact speech-dependent ducking and
+voice gain above 100% remain renderer behavior. Render a review copy for the
+final mix. This is a sequential comic-shot editor, not arbitrary stacked video
+layers, free-floating audio clips, or a complete CapCut replacement. All these
+controls write existing workspace schemas and preserve review/export gates.
+See PR #13 for verified commit, CI and executable provenance.

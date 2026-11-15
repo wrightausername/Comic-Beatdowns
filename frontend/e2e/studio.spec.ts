@@ -340,6 +340,11 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   ).toBeVisible();
   await expect(page.locator(".scene-card")).toHaveCount(2);
   await saved();
+  await page
+    .getByText("Precise narration cuts · speech and pause snapping", {
+      exact: true,
+    })
+    .click();
   const cut = page.getByRole("slider", { name: "Cut after scene 1" });
   const before = Number(await cut.getAttribute("aria-valuenow"));
   await cut.focus();
@@ -783,4 +788,155 @@ test("AI timeline edits persist after reload", async ({ page }) => {
   ).json();
   expect(rendered.project_revision).toBe(saved.revision);
   expect((await page.request.get(rendered.download_url)).status()).toBe(200);
+});
+
+test("direct timeline dragging, trim handles, playback, caption editing and mixer persist", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    ...["first", "second", "third"].map((name) => ({
+      name: `${name}-timeline.png`,
+      mimeType: "image/png",
+      buffer: originalPng(),
+    })),
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(6) },
+    { name: "music-bed.wav", mimeType: "audio/wav", buffer: silentWav(2) },
+    {
+      name: "captions.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:02,000\nFirst original beat.\n\n2\n00:00:02,000 --> 00:00:04,000\nSecond original beat.\n\n3\n00:00:04,000 --> 00:00:06,000\nThird original beat.\n",
+      ),
+    },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Direct timeline editing");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Verdict Autopilot", exact: true })
+      .getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const timeline = page.getByRole("region", { name: "Video edit timeline" });
+  const saved = () =>
+    expect(page.getByLabel("Autosave status")).toHaveText("All changes saved");
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Direct timeline editing",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  await timeline.getByRole("button", { name: "Play timeline" }).click();
+  await expect(
+    timeline.getByRole("button", { name: "Pause timeline" }),
+  ).toBeVisible();
+  await expect
+    .poll(async () =>
+      Number(await timeline.getByLabel("Video timeline playhead").inputValue()),
+    )
+    .toBeGreaterThan(0);
+  await timeline.getByRole("button", { name: "Pause timeline" }).click();
+  await timeline.getByRole("button", { name: "Snap on", exact: true }).click();
+  const before = await read();
+  await timeline
+    .locator(".video-clip")
+    .nth(0)
+    .dragTo(timeline.locator(".video-clip").nth(2));
+  await saved();
+  const reordered = await read();
+  expect(reordered.scenes.slice(0, 3).map((s: { id: string }) => s.id)).toEqual(
+    [before.scenes[1].id, before.scenes[2].id, before.scenes[0].id],
+  );
+  const handle = timeline.getByRole("slider", {
+    name: "Trim right edge of shot 1",
+  });
+  const rect = await handle.boundingBox();
+  expect(rect).toBeTruthy();
+  await page.mouse.move(rect!.x + rect!.width / 2, rect!.y + rect!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    rect!.x + rect!.width / 2 + 25,
+    rect!.y + rect!.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await saved();
+  const trimmed = await read();
+  expect(trimmed.scenes[0].duration).toBeGreaterThan(
+    reordered.scenes[0].duration,
+  );
+  const seconds = (p: { scenes: { duration: number }[] }) =>
+    p.scenes.reduce((n, s) => n + s.duration, 0);
+  expect(seconds(trimmed)).toBeCloseTo(seconds(reordered), 4);
+  // The timeline's own controls and shortcut use durable workspace history.
+  const length = trimmed.scenes.length;
+  await timeline.press("d");
+  await saved();
+  await expect.poll(async () => (await read()).scenes.length).toBe(length + 1);
+  await timeline
+    .getByRole("toolbar", { name: "Timeline editing tools" })
+    .getByRole("button", { name: "Undo", exact: true })
+    .click();
+  await expect.poll(async () => (await read()).scenes.length).toBe(length);
+  await timeline
+    .getByRole("toolbar", { name: "Timeline editing tools" })
+    .getByRole("button", { name: "Redo", exact: true })
+    .click();
+  await expect.poll(async () => (await read()).scenes.length).toBe(length + 1);
+  await timeline
+    .getByRole("toolbar", { name: "Timeline editing tools" })
+    .getByRole("button", { name: "Undo", exact: true })
+    .click();
+  await expect.poll(async () => (await read()).scenes.length).toBe(length);
+
+  await timeline.getByRole("tab", { name: "Caption editor" }).click();
+  await timeline
+    .getByLabel("Timeline caption words")
+    .fill("Owner revised this beat.");
+  await saved();
+  await timeline.getByRole("tab", { name: "Audio mixer" }).click();
+  await timeline.getByLabel("Timeline narration volume").fill("0.4");
+  await timeline.getByLabel("Timeline music volume").fill("0.2");
+  await saved();
+  await expect
+    .poll(() =>
+      page
+        .locator('.editor-preview audio[preload="metadata"]')
+        .evaluate((el: HTMLAudioElement) => el.volume),
+    )
+    .toBeCloseTo(0.4, 2);
+  const final = await read();
+  expect(final.caption_cues[0].text).toBe("Owner revised this beat.");
+  expect(final.settings.music_volume).toBe(0.2);
+  await timeline.getByRole("tab", { name: "Shot controls" }).click();
+  await timeline.screenshot({
+    path: testInfo.outputPath("direct-timeline.png"),
+  });
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Direct timeline editing" })
+    .click();
+  await timeline.getByRole("tab", { name: "Caption editor" }).click();
+  await expect(timeline.getByLabel("Timeline caption words")).toHaveValue(
+    "Owner revised this beat.",
+  );
+  const response = await page.request.post(`/api/projects/${id}/renders`, {
+    data: { quality: "draft" },
+  });
+  expect(response.status()).toBe(202);
+  const job = await response.json();
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/renders/${job.id}`)).json())
+          .status,
+      { timeout: 120_000 },
+    )
+    .toBe("completed");
 });
