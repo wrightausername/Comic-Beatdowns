@@ -44,6 +44,7 @@ export async function handToVerdict(project: Project) {
 
 export default function VerdictAutopilot({
   simple = false,
+  autoRunRequest = 0,
   project,
   dirty,
   busy,
@@ -54,6 +55,7 @@ export default function VerdictAutopilot({
   onError,
 }: {
   simple?: boolean;
+  autoRunRequest?: number;
   project: Project;
   dirty: boolean;
   busy: boolean;
@@ -75,6 +77,7 @@ export default function VerdictAutopilot({
   const [providerMessage, setProviderMessage] = useState("");
   const [pollError, setPollError] = useState("");
   const [reviewed, setReviewed] = useState(false);
+  const lastAutomaticStart = useRef(0);
   const gate = useRef({ dirty, busy, revision: project.revision });
   gate.current = { dirty, busy, revision: project.revision };
   const callbacks = useRef({ accept, onChanged });
@@ -197,6 +200,14 @@ export default function VerdictAutopilot({
       if (job) setJobs((previous) => [job, ...previous]);
     });
   }
+  useEffect(() => {
+    if (!simple || autoRunRequest <= lastAutomaticStart.current) return;
+    lastAutomaticStart.current = autoRunRequest;
+    if (!running && readyForVerdict(project)) void run();
+    // This effect runs once per explicit click of the guided Generate button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunRequest, simple]);
+
   async function saveProvider() {
     setProviderBusy(true);
     setProviderMessage("");
