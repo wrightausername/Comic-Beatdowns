@@ -2,7 +2,8 @@
 
 from conftest import TOKEN, add_project
 
-from app.database import CreativeFeedback, CreativeRule, connect
+from app.database import CreativeEditEvent, CreativeFeedback, CreativeRule, connect
+from test_workflow import payload, populated
 
 
 def create_rule(client, instruction="Hold on impact panels", scope="short"):
@@ -128,3 +129,44 @@ def test_writer_receives_only_approved_rules(client, monkeypatch):
     assert response.status_code == 200, response.text
     assert seen["rules"] == [included["instruction"]]
     assert response.json()["approved"] is False
+
+
+def test_workspace_observation_records_only_changed_field_names(client, image_bytes):
+    project, url = populated(client, image_bytes)
+    scene_id = project["scenes"][0]["id"]
+    edited_scenes = [
+        {
+            **scene,
+            "duration": 4.0,
+            "caption": "Private unpublished punchline",
+        }
+        for scene in payload(project)["scenes"]
+    ]
+    response = client.put(
+        url + "/workspace",
+        json=payload(
+            project,
+            script="My unpublished private script",
+            scenes=edited_scenes,
+        ),
+    )
+    assert response.status_code == 200, response.text
+    updated = response.json()
+    with client.app.state.sessions() as db:
+        events = list(db.query(CreativeEditEvent).filter_by(project_id=project["id"]))
+        assert len(events) == 1
+        event = events[0]
+        assert event.from_revision == project["revision"]
+        assert event.to_revision == updated["revision"]
+        assert {"target": "project", "fields": ["script"]} in event.changes
+        scene_changes = [
+            item for item in event.changes
+            if item.get("target") == "scene" and item.get("scene_id") == scene_id
+        ]
+        assert len(scene_changes) == 1
+        assert "duration" in scene_changes[0]["fields"]
+        assert "caption" in scene_changes[0]["fields"]
+        assert "My unpublished private script" not in str(event.changes)
+        assert "Private unpublished punchline" not in str(event.changes)
+    # Neither a manual edit nor a correction automatically becomes a prompt rule.
+    assert client.get("/api/creative-dna/guide").json()["instructions"] == []
