@@ -85,5 +85,5 @@ it("offers one clear next action with a way to return to the full editor", () =>
   );
   expect(onGenerate).toHaveBeenCalledTimes(1);
   expect(onAutopilot).not.toHaveBeenCalled();
-  expect(screen.getByText(/not visual AI/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/not visual AI/i)).not.toBeInTheDocument();
 });
