@@ -6,9 +6,9 @@ audience reactions are *evidence*, never silent global prompt instructions.
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from .database import CreativeEditEvent, CreativeFeedback, CreativeRule, Project, Scene, now
@@ -95,27 +95,60 @@ def approved_instructions(db: Session, scope: str) -> list[str]:
             CreativeRule.status == "approved",
             CreativeRule.scope.in_(("global", scope)),
         )
-        .order_by(CreativeRule.created_at, CreativeRule.id)
+        .order_by(CreativeRule.updated_at.desc(), CreativeRule.id.desc())
         .limit(30)
     )
     return [rule.instruction for rule in rows]
 
 
 @router.get("")
-def overview(db: Session = Depends(session)):
+def overview(
+    rule_offset: int = Query(default=0, ge=0),
+    feedback_offset: int = Query(default=0, ge=0),
+    edit_offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(session),
+):
     rules = list(
-        db.scalars(select(CreativeRule).order_by(CreativeRule.created_at.desc()).limit(200))
+        db.scalars(
+            select(CreativeRule)
+            .order_by(CreativeRule.created_at.desc(), CreativeRule.id.desc())
+            .offset(rule_offset)
+            .limit(limit)
+        )
     )
     feedback = list(
-        db.scalars(select(CreativeFeedback).order_by(CreativeFeedback.created_at.desc()).limit(50))
+        db.scalars(
+            select(CreativeFeedback)
+            .order_by(CreativeFeedback.created_at.desc(), CreativeFeedback.id.desc())
+            .offset(feedback_offset)
+            .limit(limit)
+        )
     )
     edits = list(
-        db.scalars(select(CreativeEditEvent).order_by(CreativeEditEvent.created_at.desc()).limit(25))
+        db.scalars(
+            select(CreativeEditEvent)
+            .order_by(CreativeEditEvent.created_at.desc(), CreativeEditEvent.id.desc())
+            .offset(edit_offset)
+            .limit(limit)
+        )
     )
+    totals = {
+        "rules": db.scalar(select(func.count()).select_from(CreativeRule)) or 0,
+        "feedback": db.scalar(select(func.count()).select_from(CreativeFeedback)) or 0,
+        "edits": db.scalar(select(func.count()).select_from(CreativeEditEvent)) or 0,
+    }
     return {
         "rules": [rule_dict(r) for r in rules],
         "recent_feedback": [feedback_dict(f) for f in feedback],
         "observed_edits": [edit_dict(e) for e in edits],
+        "pagination": {
+            "limit": limit,
+            "rule_offset": rule_offset,
+            "feedback_offset": feedback_offset,
+            "edit_offset": edit_offset,
+            "totals": totals,
+        },
     }
 
 
@@ -134,15 +167,21 @@ def create_rule(data: RuleCreate, db: Session = Depends(session)):
 
 @router.patch("/rules/{rule_id}")
 def decide_rule(rule_id: str, data: RuleDecision, db: Session = Depends(session)):
-    rule = db.get(CreativeRule, rule_id)
-    if rule is None:
-        raise HTTPException(404, "Creative rule not found")
-    if rule.updated_at != data.expected_updated_at:
+    result = db.execute(
+        update(CreativeRule)
+        .where(
+            CreativeRule.id == rule_id,
+            CreativeRule.updated_at == data.expected_updated_at,
+        )
+        .values(status=data.status, updated_at=now())
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        if db.get(CreativeRule, rule_id) is None:
+            raise HTTPException(404, "Creative rule not found")
         raise HTTPException(409, "The rule changed in another window. Reload before changing it.")
-    rule.status = data.status
-    rule.updated_at = now()
     db.commit()
-    return rule_dict(rule)
+    return rule_dict(db.get(CreativeRule, rule_id))
 
 
 @router.post("/feedback", status_code=201)
