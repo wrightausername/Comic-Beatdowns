@@ -26,9 +26,15 @@ export default function Preview({
     [aim, setAim] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const reportedCursor = useRef(-1);
   useEffect(() => {
-    onTimeChange?.(cursor);
-  }, [cursor, onTimeChange]);
+    // Keep the whole editor from rerendering on every animation frame.
+    // Paused seeks still update the timeline immediately.
+    if (!playing || Math.abs(cursor - reportedCursor.current) >= 0.1) {
+      reportedCursor.current = cursor;
+      onTimeChange?.(cursor);
+    }
+  }, [cursor, onTimeChange, playing]);
   const [audioError, setAudioError] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
   const duration = timelineSeconds(scenes, project.settings.fps);
