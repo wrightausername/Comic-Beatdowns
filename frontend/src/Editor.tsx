@@ -84,7 +84,7 @@ export default function Editor({
   const [autoRunRequest, setAutoRunRequest] = useState(0);
   const [easyMode, setEasyMode] = useState(() => {
     try {
-      return localStorage.getItem("comic-beatdowns:editor-mode") !== "advanced";
+      return (localStorage.getItem(`comic-beatdowns:editor-mode:${projectId}`) ?? localStorage.getItem("comic-beatdowns:editor-mode")) !== "advanced";
     } catch {
       return true;
     }
@@ -93,7 +93,7 @@ export default function Editor({
     setEasyMode(easy);
     try {
       localStorage.setItem(
-        "comic-beatdowns:editor-mode",
+        `comic-beatdowns:editor-mode:${projectId}`,
         easy ? "easy" : "advanced",
       );
     } catch {
