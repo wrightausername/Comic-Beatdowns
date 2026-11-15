@@ -14,18 +14,20 @@ WebView2 window, with no browser tab or console window required.
 4. Extract `Comic-Beatdowns-Studio-Windows.zip` to a normal folder.
 5. Double-click **Comic Beatdowns Studio.exe** inside that folder.
 
-This uses a PyInstaller **one-folder** bundle: the executable is real, but the
-adjacent `_internal` folder is necessary. Do not move the .exe out by itself.
-The bundled package includes Python, the React frontend, Python libraries,
-FFmpeg, and FFprobe. **Node and the Python launcher are not needed at runtime.**
-Windows WebView2 Runtime and a compatible .NET runtime are still prerequisites.
-Windows 11 often has WebView2 already installed; the builder does not silently
-download system runtimes.
+This update uses a PyInstaller **single-executable** bundle. Download the
+`Comic-Beatdowns-Studio-Windows` artifact ZIP, choose **Extract All**, then launch
+**Comic Beatdowns Studio.exe**. There is no second ZIP or external `_internal`
+folder to move. Python and media tools unpack into a temporary runtime folder
+when launched; Python, Node and FFmpeg do not need to be installed separately.
+Windows WebView2 Runtime and a compatible .NET runtime remain prerequisites.
 
-The workflow builds on `windows-2022` and checks whether the frozen .exe can
-start its local API, load the frontend and locate working media tools. A passing
-CI check is **not** a substitute for checking the graphical window, drag-drop
-imports, export downloads, or real 90-second video production on a desktop.
+Windows 10 and Windows 11 are both intended desktop targets. CI verifies the
+actual downloaded executable on separate Windows Server 2022 and 2025 runners,
+with developer tools removed from PATH, checking both backend startup and the
+native WebView2 window with authenticated React UI. Those server checks do not
+establish clean Windows 10/11 desktop compatibility; actual desktop testing
+is still required before calling both fully supported. No automatic runtime
+installer or signed installer is included yet.
 
 ## Behavior and privacy
 
@@ -57,7 +59,8 @@ py -3.12 -m pip install --no-deps -e backend
 py -3.12 -m pip install "pyinstaller>=6.10,<7" "pywebview>=5.4,<7"
 choco install ffmpeg -y
 py -3.12 scripts/build_desktop.py
-& ".\desktop-dist\Comic Beatdowns Studio\Comic Beatdowns Studio.exe" --check
+& ".\desktop-dist\Comic Beatdowns Studio.exe" --check
+& ".\desktop-dist\Comic Beatdowns Studio.exe" --ui-check
 ```
 
 Before distributing beyond the project owner, audit the licenses and source

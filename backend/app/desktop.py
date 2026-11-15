@@ -108,7 +108,7 @@ def serve_desktop(ticket: str):
         raise
 
 
-def run_desktop(*, check: bool = False):
+def run_desktop(*, check: bool = False, ui_check: bool = False):
     if os.name != "nt":
         raise RuntimeError("The desktop executable must be built and run on Windows")
     if not (ROOT / "frontend" / "dist" / "index.html").is_file():
@@ -130,7 +130,7 @@ def run_desktop(*, check: bool = False):
         webview.settings["ALLOW_DOWNLOADS"] = True
         webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
         webview.settings["ALLOW_FILE_URLS"] = False
-        webview.create_window(
+        window = webview.create_window(
             "Comic Beatdowns Studio",
             url=base_url + "/__desktop/bootstrap/" + ticket,
             width=1440,
@@ -138,7 +138,36 @@ def run_desktop(*, check: bool = False):
             min_size=(980, 650),
             background_color="#0b1117",
         )
-        webview.start(gui="edgechromium", debug=False)
+        failures = []
+
+        def verify_window():
+            try:
+                if not window.events.loaded.wait(timeout=45):
+                    raise RuntimeError("Native window did not load within 45 seconds")
+                for _ in range(100):
+                    result = window.evaluate_js(
+                        "JSON.stringify({rendered: document.querySelector('#root')?.children.length > 0, "
+                        "signedIn: !document.body.innerText.includes('Unlock your studio')})"
+                    )
+                    state = json.loads(result)
+                    if state.get("rendered") and state.get("signedIn"):
+                        break
+                    time.sleep(0.2)
+                else:
+                    raise RuntimeError("Native window did not render the signed-in Studio")
+                authenticated = window.evaluate_js(
+                    "fetch('/api/auth/session').then(r => r.json()).then(r => r.authenticated)"
+                )
+                if authenticated is not True:
+                    raise RuntimeError("Native window did not receive its private session")
+            except Exception as error:
+                failures.append(error)
+            finally:
+                window.destroy()
+
+        webview.start(verify_window if ui_check else None, gui="edgechromium", debug=False)
+        if failures:
+            raise RuntimeError("Native window smoke test failed") from failures[0]
     finally:
         server.should_exit = True
         thread.join(timeout=8)
@@ -148,15 +177,16 @@ def run_desktop(*, check: bool = False):
 def main():
     parser = argparse.ArgumentParser(description="Comic Beatdowns Studio desktop")
     parser.add_argument("--check", action="store_true", help="Smoke-test packaged assets")
+    parser.add_argument("--ui-check", action="store_true", help="Test the native signed-in window")
     args = parser.parse_args()
     try:
-        run_desktop(check=args.check)
+        run_desktop(check=args.check, ui_check=args.ui_check)
     except Exception:
         # A windowed PyInstaller app has no console: preserve a local diagnostic.
         log_dir = Path(os.getenv("LOCALAPPDATA") or Path.home()) / "ComicBeatdownsStudio"
         log_dir.mkdir(parents=True, exist_ok=True)
         (log_dir / "desktop-error.log").write_text(traceback.format_exc(), encoding="utf-8")
-        if not args.check:
+        if not (args.check or args.ui_check):
             try:
                 from ctypes import windll
 

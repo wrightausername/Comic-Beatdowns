@@ -1,4 +1,4 @@
-"""Build the self-contained Windows desktop folder with PyInstaller.
+"""Build the self-contained Windows desktop executable with PyInstaller.
 
 Run on a Windows machine after building frontend/dist and installing PyInstaller
 and pywebview. FFmpeg and FFprobe are verified, then included in the bundle.
@@ -64,7 +64,7 @@ def main():
         "PyInstaller",
         "--noconfirm",
         "--clean",
-        "--onedir",
+        "--onefile",
         "--windowed",
         "--name",
         "Comic Beatdowns Studio",
@@ -95,9 +95,7 @@ def main():
         str(ROOT / "backend" / "app" / "desktop.py"),
     ]
     subprocess.run(command, cwd=ROOT, check=True)
-    exe = (
-        ROOT / "desktop-dist" / "Comic Beatdowns Studio" / "Comic Beatdowns Studio.exe"
-    )
+    exe = ROOT / "desktop-dist" / "Comic Beatdowns Studio.exe"
     if not exe.is_file():
         raise RuntimeError(
             "PyInstaller completed without creating the desktop executable"

@@ -49,24 +49,51 @@ jobs:
         run: choco install ffmpeg --no-progress -y
       - name: Build desktop executable
         run: python scripts/build_desktop.py
-      - name: Run desktop executable headless smoke test
-        shell: pwsh
-        run: |
-          $exe = Resolve-Path '.\desktop-dist\Comic Beatdowns Studio\Comic Beatdowns Studio.exe'
-          $process = Start-Process -FilePath $exe -ArgumentList '--check' -Wait -PassThru
-          if ($process.ExitCode -ne 0) {
-            $log = Join-Path $env:LOCALAPPDATA 'ComicBeatdownsStudio\desktop-error.log'
-            if (Test-Path $log) { Get-Content $log }
-            throw "Desktop EXE failed startup smoke test"
-          }
-      - name: Create portable archive
+      - name: Prepare single-executable download
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Compress-Archive -Path 'desktop-dist\Comic Beatdowns Studio\*' -DestinationPath 'artifacts\Comic-Beatdowns-Studio-Windows.zip' -CompressionLevel Optimal
+          Copy-Item 'desktop-dist/Comic Beatdowns Studio.exe' artifacts/
+          Copy-Item 'docs/windows-desktop.md' 'artifacts/README.md'
+          (Get-FileHash 'artifacts/Comic Beatdowns Studio.exe' -Algorithm SHA256).Hash | Set-Content 'artifacts/SHA256.txt'
       - uses: actions/upload-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          path: artifacts/Comic-Beatdowns-Studio-Windows.zip
+          path: artifacts/*
           retention-days: 14
           if-no-files-found: error
+
+  verify-download:
+    needs: windows-desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Comic-Beatdowns-Studio-Windows
+          path: downloaded studio
+      - name: Verify actual downloaded executable on a separate Windows machine
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'downloaded studio/Comic Beatdowns Studio.exe').Path
+          $expected = (Get-Content 'downloaded studio/SHA256.txt').Trim()
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash -ne $expected) { throw 'Downloaded executable checksum mismatch' }
+          $env:CB_DATA_DIR = Join-Path $env:RUNNER_TEMP 'studio isolated test data'
+          # Test without the build checkout or Python/Node/FFmpeg on PATH.
+          $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"
+          foreach ($mode in @('--check', '--ui-check')) {
+            $process = Start-Process -FilePath $exe -ArgumentList $mode -WorkingDirectory (Split-Path $exe) -PassThru
+            if (-not $process.WaitForExit(120000)) {
+              $process.Kill()
+              throw "Downloaded EXE timed out: $mode"
+            }
+            if ($process.ExitCode -ne 0) {
+              $log = Join-Path $env:LOCALAPPDATA 'ComicBeatdownsStudio/desktop-error.log'
+              if (Test-Path $log) { Get-Content $log }
+              throw "Downloaded EXE failed $mode with exit $($process.ExitCode)"
+            }
+          }

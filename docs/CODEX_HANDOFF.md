@@ -81,3 +81,18 @@ copy with Studio closed; see `docs/windows-desktop.md`.
 
 Validation of this combined branch is recorded in its PR. Do not infer a passing
 Windows build or downloadable artifact from the existence of the packaging code.
+
+### Download failure follow-up
+
+The owner reported a Python DLL load error on Windows 10 after downloading the
+first portable build. Archive inspection confirmed `_internal/python312.dll`
+and VC runtime DLLs were present; the specific missing dependency/extraction
+cause has not been established. The earlier build-machine smoke test was
+insufficient validation of the download experience.
+
+The revised package uses one executable and removes the nested ZIP. CI now
+retrieves the uploaded artifact on separate Windows 2022/2025 runners, verifies
+its hash, removes developer tools from PATH, and tests backend startup and a
+native authenticated WebView2 window. Windows 10 and 11 remain explicit targets,
+with clean desktop compatibility still requiring actual OS testing. See PR #13
+for exact build results; do not hand out an artifact whose download checks fail.
