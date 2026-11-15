@@ -71,7 +71,7 @@ def test_creator_feedback_is_project_revision_linked_and_reversible(client):
     assert client.post(
         "/api/creative-dna/feedback", json={**request, "project_id": "missing"}
     ).status_code == 404
-    assert client.delete(f"/api/creative-dna/feedback/{feedback['id']}").status_code == 204
+    assert client.delete(f"/api/creative-dna/feedback/{feedback['id']}").status_code == 200
     assert client.get("/api/creative-dna").json()["recent_feedback"] == []
 
 
