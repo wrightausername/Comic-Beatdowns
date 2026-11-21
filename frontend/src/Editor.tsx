@@ -1561,6 +1561,11 @@ export default function Editor({
               editScene(replaceIndex, {
                 panel: chosen[0],
                 panel_id: chosen[0].id,
+                source_crop: null,
+                glide_axis: null,
+                glide_start: 0,
+                glide_end: 1,
+                motion: "hold",
               });
               setReplaceIndex(null);
               setPicker(false);
