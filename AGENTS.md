@@ -5,7 +5,7 @@ This is the **Comic Beatdowns Production Studio** repository. Before any coding,
 1. [Canonical project handoff](docs/CODEX_HANDOFF.md): current PR status, owner decisions, next milestones, and known limitations.
 2. [README](README.md): architecture, existing workflows, startup commands, testing and security.
 3. [Creative DNA PR #11](https://github.com/wrightausername/Comic-Beatdowns/pull/11) and [stacked Easy Mode PR #12](https://github.com/wrightausername/Comic-Beatdowns/pull/12). Do not assume these branches are merged into `main`.
-4. [Issue #14](https://github.com/wrightausername/Comic-Beatdowns/issues/14), the owner's newly approved **whole-page screenshot → reading-order panels → intelligent camera traversal** goal. Check existing draft PR #4 for partial crop infrastructure; don't duplicate it.
+4. [Issue #14](https://github.com/wrightausername/Comic-Beatdowns/issues/14), the owner's newly approved **whole-page screenshot → reading-order panels → intelligent camera traversal** goal. Check [draft PR #15](https://github.com/wrightausername/Comic-Beatdowns/pull/15), stacked on existing draft PR #4, for the new virtual-page-shot and long-panel glide implementation; don't duplicate it. Verify latest CI and do not claim P0 feature is complete.
 5. Issues [#5](https://github.com/wrightausername/Comic-Beatdowns/issues/5), [#8](https://github.com/wrightausername/Comic-Beatdowns/issues/8), and [#10](https://github.com/wrightausername/Comic-Beatdowns/issues/10).
 
 ## Nonnegotiable
