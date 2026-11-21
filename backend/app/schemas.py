@@ -118,6 +118,8 @@ class SceneInput(StrictModel):
     framing: Literal["fill", "fit"] = "fill"
     source_crop: SourceRegion | None = None
     glide_axis: Literal["horizontal", "vertical"] | None = None
+    glide_start: float = Field(default=0, ge=0, le=1)
+    glide_end: float = Field(default=1, ge=0, le=1)
     sfx_source_id: str | None = None
     clear_sfx: bool = False
 
