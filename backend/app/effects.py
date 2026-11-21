@@ -24,6 +24,7 @@ Motion = Literal[
     "punch_out",
     "breathe",
     "impact_shake",
+    "panel_glide",
 ]
 Easing = Literal["linear", "smooth", "ease_in", "ease_out"]
 Transition = Literal[
@@ -72,6 +73,15 @@ def camera_expressions(scene, frames):
     strength = scene.get("motion_strength", 0.1)
     fx, fy = scene.get("focus_x", 0.5), scene.get("focus_y", 0.5)
     zoom, x, y = "1", str(fx), str(fy)
+    if motion == "panel_glide":
+        # The uncut elongated source region is fitted onto a vertical canvas.
+        # Slide one true-aspect-ratio viewport across the authored panel.
+        zoom = str(max(1.0, scene.get("glide_zoom", 1.0)))
+        if scene.get("glide_axis") == "vertical":
+            x, y = "0.5", progress
+        else:
+            x, y = progress, "0.5"
+        return zoom, f"(iw-iw/zoom)*{x}", f"(ih-ih/zoom)*{y}"
     if motion in {"zoom_in", "punch_in"} or motion.startswith("push_"):
         zoom = f"(1+{strength}*{progress})"
     elif motion in {"zoom_out", "punch_out"} or motion.startswith("pull_"):
