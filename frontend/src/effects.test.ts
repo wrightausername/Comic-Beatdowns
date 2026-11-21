@@ -74,6 +74,35 @@ describe("camera and transition preview", () => {
     expect(start.x).toBeCloseTo(0.25);
     expect(finish.x).toBeCloseTo(0.75);
   });
+  it("follows numbered path speed and holds on the last stop until audio finishes", () => {
+    const path = {
+      ...base,
+      motion: "panel_glide" as const,
+      panel: {
+        id: "page", title: "Page", width: 900, height: 300,
+      } as CameraSettings["panel"],
+      source_crop: { x: 0, y: 0, width: 1, height: 1 },
+      camera_path: [
+        { x: 0.1, y: 0.5 },
+        { x: 0.5, y: 0.5 },
+        { x: 0.9, y: 0.5 },
+      ],
+      path_move_fraction: 0.4,
+      path_zoom: 1.4,
+    };
+    const first = cameraPosition(path, 0);
+    const middle = cameraPosition(path, 0.2);
+    const end = cameraPosition(path, 0.4);
+    const held = cameraPosition(path, 0.9);
+    expect(first.x).toBeLessThan(middle.x);
+    expect(middle.x).toBeLessThan(end.x);
+    expect(held.x).toBeCloseTo(end.x);
+    expect(held.y).toBeCloseTo(end.y);
+    expect(end.zoom).toBeGreaterThan(5);
+    // Split a route into two timeline shots without returning to point 1.
+    const half = cameraPosition({ ...path, glide_start: 0.5, glide_end: 1 }, 0);
+    expect(half.x).toBeCloseTo(end.x);
+  });
   it("bounds transitions on short scenes and skips the first scene", () => {
     const scene = { duration: 0.25 },
       settings = {
