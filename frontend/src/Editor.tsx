@@ -537,6 +537,16 @@ export default function Editor({
         perform={perform}
         onChanged={onChanged}
         onReview={() => setStage("review")}
+        onFixPage={() => {
+          setStage("edit");
+          setTab("timeline");
+          requestAnimationFrame(() =>
+            document.getElementById("page-shot-review")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            }),
+          );
+        }}
         onError={onError}
       />
       <WorkflowSteps
