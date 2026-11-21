@@ -422,9 +422,9 @@ export default function VerdictAutopilot({
                 (count, page) => count + page.panel_count,
                 0,
               )}{" "}
-              proposed panel regions. Source screenshots are unchanged.
-              Open the full editor to review each region and correct unusual
-              layouts before approving.
+              proposed panel regions. Source screenshots are unchanged. Open the
+              full editor to review each region and correct unusual layouts
+              before approving.
             </p>
           )}
           {latest.report.warnings?.map((warning) => (

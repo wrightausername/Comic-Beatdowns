@@ -3,9 +3,9 @@
 All artwork is original synthetic geometry. No copyrighted pages or remote AI.
 """
 
-from types import SimpleNamespace
 import shutil
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 from PIL import Image, ImageDraw
@@ -48,8 +48,12 @@ def item(name, image, tmp_path):
     filename = name + ".png"
     image.save(tmp_path / filename)
     return SimpleNamespace(
-        id=name, storage_key=filename, title=name, width=image.width,
-        height=image.height, page=1,
+        id=name,
+        storage_key=filename,
+        title=name,
+        width=image.width,
+        height=image.height,
+        page=1,
     )
 
 
@@ -93,7 +97,7 @@ def test_splash_and_locked_user_edit_are_preserved(tmp_path):
 
 def test_virtual_source_region_is_validated_and_cropped(tmp_path):
     with pytest.raises(ValueError):
-        SceneInput(panel_id="page", source_crop={"x": .9, "y": 0, "width": .2, "height": 1})
+        SceneInput(panel_id="page", source_crop={"x": 0.9, "y": 0, "width": 0.2, "height": 1})
     image = Image.new("RGB", (800, 800), "red")
     draw = ImageDraw.Draw(image)
     draw.rectangle((400, 0, 799, 799), fill="blue")
@@ -118,7 +122,9 @@ def test_repeated_glide_moves_forward_instead_of_restarting(tmp_path):
     cut = auto_edit(
         sources,
         {"fps": 24, "narration_start": 0, "narration_end": None, "edit_pace": "fast"},
-        18.0, AutoEditInput(pace="fast"), [],
+        18.0,
+        AutoEditInput(pace="fast"),
+        [],
     )
     glides = [shot for shot in cut["scenes"] if shot["motion"] == "panel_glide"]
     assert len(glides) > 1
@@ -142,7 +148,6 @@ def test_detected_page_source_never_rewrites_existing_virtual_edit(tmp_path):
     assert not report["expanded"]
 
 
-
 @pytest.mark.render
 @pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg is required")
 def test_ffmpeg_glide_travels_across_single_wide_panel(tmp_path, settings):
@@ -156,27 +161,55 @@ def test_ffmpeg_glide_travels_across_single_wide_panel(tmp_path, settings):
     page.save(original)
     region = {"x": 0, "y": 0, "width": 1, "height": 1}
     prepare_scene_image(
-        original, prepared, size=(180, 320), framing="fit", source_crop=region,
+        original,
+        prepared,
+        size=(180, 320),
+        framing="fit",
+        source_crop=region,
     )
     shot = {
-        "duration": 1.0, "motion": "panel_glide", "motion_strength": 0.1,
-        "easing": "linear", "glide_axis": "horizontal", "glide_start": 0,
+        "duration": 1.0,
+        "motion": "panel_glide",
+        "motion_strength": 0.1,
+        "easing": "linear",
+        "glide_axis": "horizontal",
+        "glide_start": 0,
         "glide_end": 1,
         "glide_zoom": glide_zoom({"motion": "panel_glide", "source_crop": region}, 900, 300),
-        "focus_x": .5, "focus_y": .5, "transition": "cut",
+        "focus_x": 0.5,
+        "focus_y": 0.5,
+        "transition": "cut",
     }
     video = tmp_path / "scene.mp4"
     render_scene(
-        shot, None, {"fps": 24, "transition": "cut"}, settings,
-        prepared, video, tmp_path / "tail.png", size=(180, 320),
+        shot,
+        None,
+        {"fps": 24, "transition": "cut"},
+        settings,
+        prepared,
+        video,
+        tmp_path / "tail.png",
+        size=(180, 320),
     )
     assert video.is_file() and video.stat().st_size > 1000
     first, last = tmp_path / "first.png", tmp_path / "last.png"
     for moment, output in [(0.03, first), (0.95, last)]:
         subprocess.run(
-            ["ffmpeg", "-v", "error", "-ss", str(moment), "-i", str(video),
-             "-frames:v", "1", "-y", str(output)],
-            check=True, capture_output=True,
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-ss",
+                str(moment),
+                "-i",
+                str(video),
+                "-frames:v",
+                "1",
+                "-y",
+                str(output),
+            ],
+            check=True,
+            capture_output=True,
         )
     with Image.open(first) as start, Image.open(last) as finish:
         r1, _, b1 = start.getpixel((90, 160))

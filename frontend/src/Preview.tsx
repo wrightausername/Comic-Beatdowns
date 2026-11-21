@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize, Pause, Play, RotateCcw, ScanLine } from "lucide-react";
 import type { Project, Scene } from "./types";
 import { timecode, timelineSeconds } from "./utils";
-import { blendFrames, cameraPosition, cameraStyle, transitionStyles } from "./effects";
+import {
+  blendFrames,
+  cameraPosition,
+  cameraStyle,
+  transitionStyles,
+} from "./effects";
 
 function ShotImage({
   scene,
@@ -37,7 +42,9 @@ function ShotImage({
   const { zoom, x, y } = cameraPosition(scene, progress);
   return (
     <div
-      aria-label={decorative ? undefined : "Cropped panel from complete comic page"}
+      aria-label={
+        decorative ? undefined : "Cropped panel from complete comic page"
+      }
       style={{
         position: "absolute",
         overflow: "hidden",

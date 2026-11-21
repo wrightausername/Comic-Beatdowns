@@ -27,7 +27,7 @@ def wait_director(client, url):
         jobs = client.get(url + "/director").json()
         if jobs and jobs[0]["status"] not in ("queued", "working", "rendering"):
             return jobs[0]
-        time.sleep(.1)
+        time.sleep(0.1)
     raise AssertionError("Page-directed episode did not finish planning")
 
 
@@ -51,8 +51,13 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
     project = audio.json()["project"]
     enabled = client.put(
         url + "/autopilot",
-        json={"base_revision": project["revision"], "enabled": True, "mode": "basic",
-              "pace": "slow", "delivery": "draft"},
+        json={
+            "base_revision": project["revision"],
+            "enabled": True,
+            "mode": "basic",
+            "pace": "slow",
+            "delivery": "draft",
+        },
     )
     assert enabled.status_code == 200, enabled.text
     project = enabled.json()
@@ -62,6 +67,7 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
             render = db.get(RenderJob, job_id)
             render.status, render.progress = "completed", 100
             db.commit()
+
     monkeypatch.setattr(client.app.state.renderer, "enqueue", finish)
 
     started = client.post(url + "/director", json={"base_revision": project["revision"]})
@@ -80,7 +86,7 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
     # Crop edits are a normal autosaved/undoable scene change.
     original = saved["scenes"][0]["source_crop"]
     edited = saved["scenes"]
-    edited[0]["source_crop"] = {**original, "width": original["width"] * .95}
+    edited[0]["source_crop"] = {**original, "width": original["width"] * 0.95}
     changed = client.put(
         url + "/scenes",
         json={"scenes": edited},

@@ -19,8 +19,8 @@ from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
-from .panel_detection import suggest_panels
 from .page_direction import glide_zoom
+from .panel_detection import suggest_panels
 from .preflight import check_episode
 from .renderer import normalize_audio, timeline_duration, tools_available
 from .schemas import (
@@ -616,7 +616,8 @@ def queue_render_for_state(
                     db.get(Panel, s.panel_id).width,
                     db.get(Panel, s.panel_id).height,
                 )
-                if s.motion == "panel_glide" else 1.0
+                if s.motion == "panel_glide"
+                else 1.0
             ),
         }
         for s in scenes

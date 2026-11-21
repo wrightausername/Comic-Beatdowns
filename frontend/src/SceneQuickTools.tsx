@@ -29,17 +29,16 @@ export default function SceneQuickTools({
   const ratio = region
     ? (scene.panel.width * region.width) / (scene.panel.height * region.height)
     : scene.panel.width / scene.panel.height;
-  const setRegion = (
-    key: "x" | "y" | "width" | "height",
-    percent: number,
-  ) => {
+  const setRegion = (key: "x" | "y" | "width" | "height", percent: number) => {
     if (!region || !Number.isFinite(percent)) return;
     const value = percent / 100;
     const next = { ...region };
     if (key === "x") next.x = Math.min(1 - next.width, Math.max(0, value));
     if (key === "y") next.y = Math.min(1 - next.height, Math.max(0, value));
-    if (key === "width") next.width = Math.min(1 - next.x, Math.max(0.01, value));
-    if (key === "height") next.height = Math.min(1 - next.y, Math.max(0.01, value));
+    if (key === "width")
+      next.width = Math.min(1 - next.x, Math.max(0.01, value));
+    if (key === "height")
+      next.height = Math.min(1 - next.y, Math.max(0.01, value));
     onChange({ source_crop: next });
   };
   const view = 9 / 16;
@@ -206,7 +205,14 @@ export default function SceneQuickTools({
           <div className="form-grid">
             {(["x", "y", "width", "height"] as const).map((field) => (
               <label key={field}>
-                {field === "x" ? "Left" : field === "y" ? "Top" : field === "width" ? "Width" : "Height"} (%)
+                {field === "x"
+                  ? "Left"
+                  : field === "y"
+                    ? "Top"
+                    : field === "width"
+                      ? "Width"
+                      : "Height"}{" "}
+                (%)
                 <input
                   aria-label={`Scene ${index + 1} panel ${field}`}
                   type="number"
@@ -215,7 +221,9 @@ export default function SceneQuickTools({
                   step={0.1}
                   disabled={scene.locked}
                   value={Math.round(region[field] * 1000) / 10}
-                  onChange={(event) => setRegion(field, Number(event.target.value))}
+                  onChange={(event) =>
+                    setRegion(field, Number(event.target.value))
+                  }
                 />
               </label>
             ))}
@@ -226,7 +234,12 @@ export default function SceneQuickTools({
               className="button secondary small-button"
               disabled={scene.locked}
               onClick={() =>
-                onChange({ source_crop: null, glide_axis: null, motion: "hold", framing: "fit" })
+                onChange({
+                  source_crop: null,
+                  glide_axis: null,
+                  motion: "hold",
+                  framing: "fit",
+                })
               }
             >
               Keep entire page together

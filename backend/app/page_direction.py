@@ -30,11 +30,25 @@ def page_sources(scenes, panels, storage):
 
     originals = scenes or [
         SimpleNamespace(
-            id=uid(), panel_id=panel.id, duration=5, motion="hold",
-            motion_strength=0.1, easing="smooth", focus_x=0.5, focus_y=0.5,
-            transition="cut", transition_duration=None, caption="",
-            locked=False, note="", beat="custom", sfx_key=None, sfx_id=None,
-            sfx_offset=0, framing="fit", source_crop=None,
+            id=uid(),
+            panel_id=panel.id,
+            duration=5,
+            motion="hold",
+            motion_strength=0.1,
+            easing="smooth",
+            focus_x=0.5,
+            focus_y=0.5,
+            transition="cut",
+            transition_duration=None,
+            caption="",
+            locked=False,
+            note="",
+            beat="custom",
+            sfx_key=None,
+            sfx_id=None,
+            sfx_offset=0,
+            framing="fit",
+            source_crop=None,
         )
         for panel in panels
     ]
@@ -50,10 +64,14 @@ def page_sources(scenes, panels, storage):
             }
         if not candidates:
             output.append(source)
-            review.append({
-                "page_id": panel.id, "panel_count": 1, "review_required": True,
-                "reason": "No reliable straight gutters: kept complete page intact",
-            })
+            review.append(
+                {
+                    "page_id": panel.id,
+                    "panel_count": 1,
+                    "review_required": True,
+                    "reason": "No reliable straight gutters: kept complete page intact",
+                }
+            )
             continue
         for index, rect in enumerate(candidates):
             values = dict(vars(source))
@@ -79,13 +97,15 @@ def page_sources(scenes, panels, storage):
                 values["motion"] = "panel_glide"
                 values["glide_axis"] = "vertical"
             output.append(SimpleNamespace(**values))
-        review.append({
-            "page_id": panel.id,
-            "panel_count": len(candidates),
-            "review_required": True,
-            "reason": "Straight pale gutters detected; verify irregular panels and reading order",
-            "regions": candidates,
-        })
+        review.append(
+            {
+                "page_id": panel.id,
+                "panel_count": len(candidates),
+                "review_required": True,
+                "reason": "Straight pale gutters detected; verify irregular panels and reading order",
+                "regions": candidates,
+            }
+        )
     return output, {
         "expanded": len(output) > len(originals),
         "reason": "Conservative page geometry; review unusual layouts",

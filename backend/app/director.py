@@ -14,8 +14,8 @@ from .api import get_or_404, job_dict, project_dict, queue_render_for_state, ses
 from .audio import analyze_audio, transcribe
 from .automation import build_draft, storyboard
 from .database import DirectorJob, Project, ProjectVersion, RenderJob, SoundEffect, now
-from .production import project_panels
 from .page_direction import page_sources
+from .production import project_panels
 from .schemas import (
     AutopilotOptions,
     AutopilotUpdate,

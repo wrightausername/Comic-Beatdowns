@@ -78,9 +78,15 @@ def camera_expressions(scene, frames):
         # Slide one true-aspect-ratio viewport across the authored panel.
         zoom = str(max(1.0, scene.get("glide_zoom", 1.0)))
         if scene.get("glide_axis") == "vertical":
-            x, y = "0.5", f"({scene.get('glide_start', 0)}+({scene.get('glide_end', 1)}-{scene.get('glide_start', 0)})*{progress})"
+            x, y = (
+                "0.5",
+                f"({scene.get('glide_start', 0)}+({scene.get('glide_end', 1)}-{scene.get('glide_start', 0)})*{progress})",
+            )
         else:
-            x, y = f"({scene.get('glide_start', 0)}+({scene.get('glide_end', 1)}-{scene.get('glide_start', 0)})*{progress})", "0.5"
+            x, y = (
+                f"({scene.get('glide_start', 0)}+({scene.get('glide_end', 1)}-{scene.get('glide_start', 0)})*{progress})",
+                "0.5",
+            )
         return zoom, f"(iw-iw/zoom)*{x}", f"(ih-ih/zoom)*{y}"
     if motion in {"zoom_in", "punch_in"} or motion.startswith("push_"):
         zoom = f"(1+{strength}*{progress})"

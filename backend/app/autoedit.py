@@ -164,7 +164,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                 "caption": source.caption if keep else "",
                 "duration": (boundaries[i + 1] - boundaries[i]) / fps,
                 "motion": (
-                    "panel_glide" if getattr(source, "motion", "") == "panel_glide"
+                    "panel_glide"
+                    if getattr(source, "motion", "") == "panel_glide"
                     else (fast_moves if options.pace == "fast" else slow_moves)[
                         i % (6 if options.pace == "fast" else 5)
                     ]

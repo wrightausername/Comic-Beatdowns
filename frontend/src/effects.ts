@@ -171,9 +171,11 @@ export function cameraPosition(scene: CameraSettings, ratio: number) {
     y = fy;
   if (scene.motion === "panel_glide" && scene.source_crop && scene.panel) {
     const crop = scene.source_crop;
-    const aspect = (scene.panel.width * crop.width) / (scene.panel.height * crop.height);
-    zoom = Math.min(8, Math.max(1, aspect / (9 / 16), (9 / 16) / aspect));
-    const position = (scene.glide_start ?? 0) +
+    const aspect =
+      (scene.panel.width * crop.width) / (scene.panel.height * crop.height);
+    zoom = Math.min(8, Math.max(1, aspect / (9 / 16), 9 / 16 / aspect));
+    const position =
+      (scene.glide_start ?? 0) +
       ((scene.glide_end ?? 1) - (scene.glide_start ?? 0)) * t;
     if (scene.glide_axis === "vertical") {
       x = 0.5;

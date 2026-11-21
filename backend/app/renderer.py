@@ -101,8 +101,13 @@ def scene_frames(duration: float, fps: int) -> int:
 
 
 def prepare_scene_image(
-    source: Path, target: Path, focus_x=0.5, focus_y=0.5,
-    size=(1080, 1920), framing="fill", source_crop=None,
+    source: Path,
+    target: Path,
+    focus_x=0.5,
+    focus_y=0.5,
+    size=(1080, 1920),
+    framing="fill",
+    source_crop=None,
 ):
     # Fit before FFmpeg scaling so extreme source aspect ratios cannot allocate
     # an enormous intermediate frame. Pillow crops before resizing.
@@ -392,7 +397,9 @@ class RenderService:
                         scene.get("focus_x", 0.5),
                         scene.get("focus_y", 0.5),
                         size,
-                        "fit" if scene.get("motion") == "panel_glide" else scene.get("framing", "fill"),
+                        "fit"
+                        if scene.get("motion") == "panel_glide"
+                        else scene.get("framing", "fill"),
                         scene.get("source_crop"),
                     )
                     render_scene(
