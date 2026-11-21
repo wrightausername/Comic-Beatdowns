@@ -92,8 +92,7 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
         url + "/scenes",
         json={
             "scenes": [
-                {k: v for k, v in scene.items() if k in SceneInput.model_fields}
-                for scene in edited
+                {k: v for k, v in scene.items() if k in SceneInput.model_fields} for scene in edited
             ]
         },
     )
