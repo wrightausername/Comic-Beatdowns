@@ -43,6 +43,8 @@ SCENE_FIELDS = (
     "framing",
     "source_crop",
     "glide_axis",
+    "glide_start",
+    "glide_end",
 )
 
 
