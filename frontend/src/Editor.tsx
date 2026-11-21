@@ -31,7 +31,7 @@ import ProductionWorkflow, {
 } from "./ProductionWorkflow";
 import SceneQuickTools from "./SceneQuickTools";
 import PageShotReview from "./PageShotReview";
-import { fitScenes, splitScene } from "./editing";
+import { fitScenes, splitScene, mergePageShots } from "./editing";
 import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
@@ -655,6 +655,19 @@ export default function Editor({
                       update({
                         scenes: scenes.filter((_, i) => i !== index),
                       });
+                  }}
+                  onSplit={(index) => {
+                    update({
+                      scenes: splitScene(scenes, index, settings.fps),
+                    });
+                  }}
+                  onJoin={(index) => {
+                    try {
+                      update({ scenes: mergePageShots(scenes, index) });
+                      setNotice("Joined those crops. Total narration timing was preserved.");
+                    } catch (error) {
+                      onError(errorMessage(error));
+                    }
                   }}
                   onDuplicate={(index) => {
                     const source = scenes[index];
