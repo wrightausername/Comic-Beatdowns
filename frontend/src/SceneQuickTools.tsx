@@ -236,6 +236,7 @@ export default function SceneQuickTools({
               onClick={() =>
                 onChange({
                   source_crop: null,
+                  camera_path: null,
                   glide_axis: null,
                   motion: "hold",
                   framing: "fit",
