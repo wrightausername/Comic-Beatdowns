@@ -176,7 +176,7 @@ describe("plain language whole-page editor", () => {
     expect(result.onPatch).toHaveBeenCalledWith(0, expect.objectContaining({
       motion: "panel_glide",
       camera_path: [
-        { x: 0.41666666666666663, y: 0.5 },
+        { x: 0.416667, y: 0.5 },
         { x: 1, y: 1 },
       ],
     }));
