@@ -1,0 +1,99 @@
+name: Package Windows desktop EXE
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/build_desktop.py'
+      - '.github/workflows/build-desktop.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/build_desktop.py'
+      - '.github/workflows/build-desktop.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-desktop:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build React production assets
+        run: |
+          npm --prefix frontend ci --no-audit --no-fund
+          npm --prefix frontend run build
+      - name: Install Python application and packaging tools
+        run: |
+          python -m pip install --disable-pip-version-check -r backend/requirements.lock
+          python -m pip install --disable-pip-version-check --no-deps -e backend
+          python -m pip install "pyinstaller>=6.10,<7" "pywebview>=5.4,<7"
+      - name: Install full FFmpeg
+        run: choco install ffmpeg --no-progress -y
+      - name: Build desktop executable
+        run: python scripts/build_desktop.py
+      - name: Prepare single-executable download
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Copy-Item 'desktop-dist/Comic Beatdowns Studio.exe' artifacts/
+          Copy-Item 'docs/windows-desktop.md' 'artifacts/README.md'
+          (Get-FileHash 'artifacts/Comic Beatdowns Studio.exe' -Algorithm SHA256).Hash | Set-Content 'artifacts/SHA256.txt'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Comic-Beatdowns-Studio-Windows
+          path: artifacts/*
+          retention-days: 14
+          if-no-files-found: error
+
+  verify-download:
+    needs: windows-desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Comic-Beatdowns-Studio-Windows
+          path: downloaded studio
+      - name: Verify actual downloaded executable on a separate Windows machine
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'downloaded studio/Comic Beatdowns Studio.exe').Path
+          $expected = (Get-Content 'downloaded studio/SHA256.txt').Trim()
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash -ne $expected) { throw 'Downloaded executable checksum mismatch' }
+          $env:CB_DATA_DIR = Join-Path $env:RUNNER_TEMP 'studio isolated test data'
+          # Test without the build checkout or Python/Node/FFmpeg on PATH.
+          $env:PATH = "$env:SystemRoot\system32;$env:SystemRoot"
+          foreach ($mode in @('--check', '--ui-check')) {
+            $process = Start-Process -FilePath $exe -ArgumentList $mode -WorkingDirectory (Split-Path $exe) -PassThru
+            if (-not $process.WaitForExit(120000)) {
+              $process.Kill()
+              throw "Downloaded EXE timed out: $mode"
+            }
+            if ($process.ExitCode -ne 0) {
+              $log = Join-Path $env:LOCALAPPDATA 'ComicBeatdownsStudio/desktop-error.log'
+              if (Test-Path $log) { Get-Content $log }
+              throw "Downloaded EXE failed $mode with exit $($process.ExitCode)"
+            }
+          }

@@ -69,3 +69,83 @@ PR #12 final tested commit (as of this handoff): `07e7d5ecf10d9ea7cc104e06a333ef
 - After each material coding milestone, update the relevant PR and this document with **what shipped, what remains, latest tested commit, and truthful CI result**. Do not assert updates happen continuously if no agent or scheduled monitor is running.
 - If asked for a status and no repo is mounted, use the exact GitHub repo link rather than saying no Comic Beatdowns project exists. Ask to attach the GitHub repo only when Codex itself cannot access it.
 
+
+## Combined update branch (November 15, 2026)
+
+`update/studio-desktop-easy-mode` combines the existing Creative DNA (#11),
+Easy Mode (#12), and `feature/windows-desktop-exe` branches without changing main.
+The canonical handoff and existing owner decisions are retained. Older crop and
+one-click intake PRs (#4/#6) remain separate; their overlapping intake paths were
+not merged into this update.
+
+The update includes the native Windows shell, one-use local login, persistent
+`%LOCALAPPDATA%\ComicBeatdownsStudio` storage, bundled media tools, and a Windows
+portable-archive packaging workflow. ElevenLabs remains external: Easy Mode now
+explicitly asks for MP3/WAV narration and replacing editor narration warns about
+retiming existing cuts and captions. No autonomous style learning or audience
+analytics has been added. Existing data migration remains a manual, backed-up
+copy with Studio closed; see `docs/windows-desktop.md`.
+
+Validation of this combined branch is recorded in its PR. Do not infer a passing
+Windows build or downloadable artifact from the existence of the packaging code.
+
+### Download failure follow-up
+
+The owner reported a Python DLL load error on Windows 10 after downloading the
+first portable build. Archive inspection confirmed `_internal/python312.dll`
+and VC runtime DLLs were present; the specific missing dependency/extraction
+cause has not been established. The earlier build-machine smoke test was
+insufficient validation of the download experience.
+
+The revised package uses one executable and removes the nested ZIP. CI now
+retrieves the uploaded artifact on separate Windows 2022/2025 runners, verifies
+its hash, removes developer tools from PATH, and tests backend startup and a
+native authenticated WebView2 window. Windows 10 and 11 remain explicit targets,
+with clean desktop compatibility still requiring actual OS testing. See PR #13
+for exact build results; do not hand out an artifact whose download checks fail.
+
+### Editable video timeline update
+
+The combined update branch now shows a real multi-track timeline in both Easy
+Mode and the full editor, beside the existing preview. It reads the current
+scene list, so saved AI-generated cuts appear immediately; it does not display
+an unrelated mock timeline or infer AI provenance for manual shots. Tracks show
+panel thumbnails, camera moves/transitions, timed captions, selected narration,
+scene sound-effect offsets and music. Missing SFX duration is a marked event,
+not a fabricated audio length. Selecting/seeking follows the browser preview.
+
+Shot camera/transition edits, reorder, split and waveform cut timing update the
+same autosaved workspace and renderer inputs. Reorder/split/cut timing protect
+locked shots. Narration/caption timing is retained when rearranging artwork.
+The existing Undo, detailed editor and review/export gates remain in use.
+Timeline audio tracks are visible; arbitrary audio drag/trim/multitrack mixing
+is not added. Rendered previews remain necessary for hearing the complete mix.
+See PR #13 for exact test/build results and the updated Windows artifact.
+
+### Direct timeline editing (CapCut-inspired interaction)
+
+The latest update expands the timeline with draggable shot reordering,
+frame-quantized left/right trim handles, snapping to cuts/playhead/captions,
+keep-total-length cut rolls or explicit ripple trimming, and zoom/fit controls.
+Shift/Ctrl selection supports batch locking/deletion. The toolbar exposes play,
+Undo/Redo, split, duplicate, delete and lock. Focused timeline shortcuts support
+Space, S, D/Ctrl-D, Delete, arrows/Shift-arrows and +/-; Ctrl-Z remains the
+existing durable workspace history. Locked intervals cannot be crossed or
+silently shifted. Narration and timed captions stay in place during ripple edits.
+
+Shot controls include duration, motion/strength, framing, transitions, captions,
+and favorite sound selection/offset. Timed captions have text/in/out controls.
+Audio controls expose narration/SFX/music gains, music ducking, and narration
+source in/out. Sound markers can be dragged within their own shot. The track
+shows an actual narration waveform, empty tracks can be hidden, playback follows
+the playhead and zoomed playback scrolls along the timeline. Double-clicking a
+shot zooms into it. Precise narration pause/cut controls remain in a disclosure.
+
+Browser preview now plays narration, looping music and scene sound effects and
+honors their gains up to HTML audio's 100% ceiling. Browser ducking is an
+approximation based on narration presence; exact speech-dependent ducking and
+voice gain above 100% remain renderer behavior. Render a review copy for the
+final mix. This is a sequential comic-shot editor, not arbitrary stacked video
+layers, free-floating audio clips, or a complete CapCut replacement. All these
+controls write existing workspace schemas and preserve review/export gates.
+See PR #13 for verified commit, CI and executable provenance.
