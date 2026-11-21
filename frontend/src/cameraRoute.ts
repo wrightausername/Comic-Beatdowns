@@ -76,7 +76,7 @@ export function pagePointToRoute(
   crop: { x: number; y: number; width: number; height: number },
 ): CameraWaypoint {
   return {
-    x: clamp((x - crop.x) / crop.width),
-    y: clamp((y - crop.y) / crop.height),
+    x: Math.round(clamp((x - crop.x) / crop.width) * 1_000_000) / 1_000_000,
+    y: Math.round(clamp((y - crop.y) / crop.height) * 1_000_000) / 1_000_000,
   };
 }
