@@ -1023,7 +1023,7 @@ export default function PageShotReview({
               disabled={busy || !scene.id}
               onClick={() => onPreview(index)}
             >
-              <Play size={14} /> Preview this shot
+              <Play size={14} /> Preview (advanced)
             </button>
             <button
               className="text-button danger"
