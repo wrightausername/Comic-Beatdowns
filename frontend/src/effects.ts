@@ -107,7 +107,7 @@ export interface CameraSettings {
   focus_x: number;
   focus_y: number;
   source_crop?: { x: number; y: number; width: number; height: number } | null;
-  panel?: { width: number; height: number };
+  panel?: Panel;
   glide_axis?: "horizontal" | "vertical" | null;
   glide_start?: number;
   glide_end?: number;
