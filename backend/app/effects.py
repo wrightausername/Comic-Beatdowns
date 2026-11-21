@@ -2,6 +2,8 @@
 
 from typing import Literal, get_args
 
+from .camera_path import path_coordinate_expression, route_segments
+
 Motion = Literal[
     "hold",
     "zoom_in",
@@ -63,6 +65,8 @@ def camera_expressions(scene, frames):
     motion = scene["motion"]
     if motion.startswith("punch_"):
         t = f"min(1,{t}/0.18)"
+    if motion == "panel_glide" and scene.get("camera_path"):
+        t = f"min(1,{t}/{scene.get('path_move_fraction', 1)})"
     easing = scene.get("easing", "linear")
     progress = {
         "linear": t,
@@ -74,6 +78,16 @@ def camera_expressions(scene, frames):
     fx, fy = scene.get("focus_x", 0.5), scene.get("focus_y", 0.5)
     zoom, x, y = "1", str(fx), str(fy)
     if motion == "panel_glide":
+        if scene.get("camera_path"):
+            viewport_points, breaks = route_segments(
+                scene["camera_path"],
+                scene["source_aspect"],
+                max(1.0, scene.get("glide_zoom", 1.0)),
+            )
+            zoom = str(max(1.0, scene.get("glide_zoom", 1.0)))
+            x = path_coordinate_expression([p[0] for p in viewport_points], breaks, progress)
+            y = path_coordinate_expression([p[1] for p in viewport_points], breaks, progress)
+            return zoom, f"(iw-iw/zoom)*({x})", f"(ih-ih/zoom)*({y})"
         # The uncut elongated source region is fitted onto a vertical canvas.
         # Slide one true-aspect-ratio viewport across the authored panel.
         zoom = str(max(1.0, scene.get("glide_zoom", 1.0)))
