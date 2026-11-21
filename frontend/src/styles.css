@@ -4358,13 +4358,20 @@ progress::-webkit-progress-value {
   margin-top: 8px;
   padding-top: 12px;
 }
-.page-review-advanced > summary,
+.page-review-advanced > .page-review-more-button,
 .timeline-advanced > summary {
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
   color: #94c3d3;
   padding: 8px 4px;
+}
+.page-review-more-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
 }
 .page-review-advanced-inner {
   display: flex;
