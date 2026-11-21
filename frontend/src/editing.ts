@@ -133,8 +133,8 @@ export function mergePageShots(scenes: Scene[], index: number): Scene[] {
   const source_crop = {
     x,
     y,
-    width: Math.min(1 - x, right - x),
-    height: Math.min(1 - y, bottom - y),
+    width: Number(Math.min(1 - x, right - x).toFixed(6)),
+    height: Number(Math.min(1 - y, bottom - y).toFixed(6)),
   };
   const aspect =
     (first.panel.width * source_crop.width) /
