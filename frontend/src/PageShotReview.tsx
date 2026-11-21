@@ -139,7 +139,7 @@ export default function PageShotReview({
   }
   const mode = scene.motion === "panel_glide" ? "pan" : "hold";
   return (
-    <section className="surface page-shot-review" aria-label="Quick shot editor">
+    <section id="page-shot-review" className="surface page-shot-review" aria-label="Quick shot editor">
       <div className="section-heading">
         <div>
           <h3>Fix Verdict's panel choices</h3>
@@ -168,7 +168,10 @@ export default function PageShotReview({
               setDrawing(false);
             }}
           >
-            <span className="page-shot-chip-thumb">
+            <span
+              className="page-shot-chip-thumb"
+              style={{ aspectRatio: `${shot.panel.width} / ${shot.panel.height}` }}
+            >
               <img src={shot.panel.thumbnail_url} alt="" draggable={false} />
               {shot.source_crop && (
                 <span
