@@ -30,6 +30,7 @@ import ProductionWorkflow, {
   stages,
 } from "./ProductionWorkflow";
 import SceneQuickTools from "./SceneQuickTools";
+import PageShotReview from "./PageShotReview";
 import { fitScenes, splitScene } from "./editing";
 import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
@@ -634,6 +635,56 @@ export default function Editor({
                   onRun={(options) => void runAutoEdit(options)}
                 />
               </details>
+              {scenes.length > 0 && (
+                <PageShotReview
+                  scenes={scenes}
+                  busy={busy}
+                  canUndo={dirty || project.can_undo}
+                  onPatch={editScene}
+                  onMove={(from, to) => {
+                    if (!scenes[from]?.locked && !scenes[to]?.locked)
+                      reorder(from, to);
+                  }}
+                  onRemove={(index) => {
+                    if (
+                      !scenes[index].locked &&
+                      window.confirm(
+                        `Remove shot ${index + 1} from the timeline? The original page is safe, and Undo will restore the shot.`,
+                      )
+                    )
+                      update({
+                        scenes: scenes.filter((_, i) => i !== index),
+                      });
+                  }}
+                  onDuplicate={(index) => {
+                    const source = scenes[index];
+                    if (duration + source.duration > 180) return;
+                    update({
+                      scenes: [
+                        ...scenes.slice(0, index + 1),
+                        {
+                          ...source,
+                          id: newId(),
+                          locked: false,
+                          sfx_source_id: source.sfx_source_id ?? source.id,
+                        },
+                        ...scenes.slice(index + 1),
+                      ],
+                    });
+                  }}
+                  onPreview={(index) => {
+                    setPreviewOverride(null);
+                    setPreviewRequest({ index, nonce: Date.now() });
+                    document.querySelector(".preview-section")?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "nearest",
+                    });
+                  }}
+                  onUndo={() =>
+                    void perform(() => studio.history("undo"), false)
+                  }
+                />
+              )}
               <section className="surface timeline-section">
                 <div className="section-heading">
                   <div>
