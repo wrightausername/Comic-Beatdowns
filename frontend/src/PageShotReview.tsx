@@ -118,6 +118,7 @@ export default function PageShotReview({
     if (disabled || routeMode === "off") return;
     event.preventDefault();
     const place = point(event);
+    if (!place) return;
     const nextPoint = pagePointToRoute(place.x, place.y, frameCrop);
     if (routeMode === "start") {
       setDraftStart(nextPoint);
@@ -132,7 +133,13 @@ export default function PageShotReview({
     }
   }
   function startWaypoint(pointIndex: number, event: ReactPointerEvent) {
-    if (disabled || routeMode !== "off") return;
+    if (
+      disabled ||
+      routeMode !== "off" ||
+      !Number.isFinite(event.clientX) ||
+      !Number.isFinite(event.clientY)
+    )
+      return;
     event.preventDefault();
     event.stopPropagation();
     drag.current = {
@@ -181,6 +188,13 @@ export default function PageShotReview({
   }
   function point(event: ReactPointerEvent) {
     const bounds = pageRef.current!.getBoundingClientRect();
+    if (
+      !Number.isFinite(event.clientX) ||
+      !Number.isFinite(event.clientY) ||
+      bounds.width <= 0 ||
+      bounds.height <= 0
+    )
+      return null;
     return {
       x: clamp((event.clientX - bounds.left) / bounds.width),
       y: clamp((event.clientY - bounds.top) / bounds.height),
@@ -191,6 +205,7 @@ export default function PageShotReview({
     event.preventDefault();
     event.stopPropagation();
     const pos = point(event);
+    if (!pos) return;
     drag.current = {
       mode,
       x: event.clientX,
@@ -205,12 +220,19 @@ export default function PageShotReview({
     const active = drag.current;
     if (!active || disabled) return;
     const rect = pageRef.current!.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    if (
+      !rect.width ||
+      !rect.height ||
+      !Number.isFinite(event.clientX) ||
+      !Number.isFinite(event.clientY)
+    )
+      return;
     const dx = (event.clientX - active.x) / rect.width;
     const dy = (event.clientY - active.y) / rect.height;
     if (active.mode === "waypoint") {
       if (active.pointIndex === undefined) return;
       const position = point(event);
+      if (!position) return;
       const nextPoint = pagePointToRoute(position.x, position.y, frameCrop);
       const next = path.map((p, i) =>
         i === active.pointIndex ? nextPoint : p,
