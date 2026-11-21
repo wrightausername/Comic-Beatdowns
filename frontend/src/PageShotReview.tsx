@@ -59,6 +59,7 @@ export default function PageShotReview({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [routeMode, setRouteMode] = useState<
     "off" | "start" | "end" | "append"
   >("off");
@@ -682,11 +683,17 @@ export default function PageShotReview({
               ElevenLabs audio are never rewritten.
             </p>
           </div>
-          <details className="page-review-advanced">
-            <summary>
-              More controls · timing, crop size, splitting and transitions
-            </summary>
-            <div className="page-review-advanced-inner">
+          <div className="page-review-advanced">
+            <button
+              type="button"
+              className="page-review-more-button"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((open) => !open)}
+            >
+              {advancedOpen ? "Hide extra controls" : "More controls · timing, crop size, splitting and transitions"}
+            </button>
+            {advancedOpen && (
+              <div className="page-review-advanced-inner">
               <div className="page-review-action-heading">
                 Fine-tune the picture
               </div>
@@ -803,135 +810,23 @@ export default function PageShotReview({
                 </p>
               )}
 
-              <div className="page-review-action-heading">
-                Draw a numbered camera route
-              </div>
-              <div className="page-review-action-row">
-                <button
-                  type="button"
-                  className="button secondary small-button"
-                  aria-pressed={routeMode === "start" || routeMode === "end"}
-                  disabled={disabled}
-                  onClick={() => {
-                    setDrawing(false);
-                    setDraftStart(null);
-                    setRouteMode(routeMode === "off" ? "start" : "off");
-                  }}
-                >
-                  {routeMode === "start" || routeMode === "end"
-                    ? "Cancel route"
-                    : path.length >= 2
-                      ? "Redraw 1 → 2"
-                      : "Draw 1 → 2 camera route"}
-                </button>
-                <button
-                  type="button"
-                  className="button secondary small-button"
-                  disabled={disabled || path.length < 2 || path.length >= 8}
-                  aria-pressed={routeMode === "append"}
-                  onClick={() => {
-                    setDrawing(false);
-                    setDraftStart(null);
-                    setRouteMode(routeMode === "append" ? "off" : "append");
-                  }}
-                >
-                  Add next point
-                </button>
-                <button
-                  type="button"
-                  className="button secondary small-button"
-                  disabled={disabled || path.length < 2}
-                  onClick={() => {
-                    setRouteMode("off");
-                    changeRoute([...path].reverse());
-                  }}
-                >
-                  Reverse route
-                </button>
-              </div>
               {path.length >= 2 && (
-                <>
-                  <div className="page-review-action-row">
-                    <button
-                      type="button"
-                      className="button secondary small-button"
-                      disabled={disabled || mode === "pan"}
-                      onClick={() =>
-                        onPatch(index, {
-                          motion: "panel_glide",
-                          framing: "fit",
-                        })
-                      }
-                    >
-                      Use numbered route
-                    </button>
-                    <button
-                      type="button"
-                      className="text-button"
-                      disabled={disabled}
-                      onClick={() => {
-                        setRouteMode("off");
-                        onPatch(index, {
-                          camera_path: null,
-                          motion: "hold",
-                          framing: "fit",
-                        });
-                      }}
-                    >
-                      Clear route
-                    </button>
-                  </div>
-                  <label className="page-route-speed">
-                    <span>Camera travel speed</span>
-                    <input
-                      type="range"
-                      min={0.2}
-                      max={1}
-                      step={0.05}
-                      aria-label={`Shot ${index + 1} camera travel time`}
-                      disabled={disabled}
-                      value={scene.path_move_fraction ?? 1}
-                      onChange={(event) =>
-                        onPatch(index, {
-                          path_move_fraction: +event.target.value,
-                        })
-                      }
-                    />
-                    <strong>
-                      {(
-                        (scene.path_move_fraction ?? 1) * scene.duration
-                      ).toFixed(1)}
-                      s moving
-                    </strong>
-                  </label>
-                  <p className="help">
-                    The camera follows 1 → 2
-                    {path.length > 2 ? ` → … → ${path.length}` : ""} and holds
-                    on the last point for the rest of this shot. Move the slider
-                    left for a quicker pan.
-                  </p>
-                  <label className="page-route-speed">
-                    <span>Camera closeness</span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={2}
-                      step={0.1}
-                      aria-label={`Shot ${index + 1} camera closeness`}
-                      disabled={disabled}
-                      value={scene.path_zoom ?? 1.4}
-                      onChange={(event) =>
-                        onPatch(index, { path_zoom: +event.target.value })
-                      }
-                    />
-                    <strong>{(scene.path_zoom ?? 1.4).toFixed(1)}×</strong>
-                  </label>
-                  <p className="help">
-                    Drag numbered dots on the artwork to correct where the
-                    camera looks. Arrow keys make fine adjustments. Your
-                    voiceover and page file stay intact.
-                  </p>
-                </>
+                <label className="page-route-speed">
+                  <span>Camera closeness</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={2}
+                    step={0.1}
+                    aria-label={`Shot ${index + 1} camera closeness`}
+                    disabled={disabled}
+                    value={scene.path_zoom ?? 1.4}
+                    onChange={(event) =>
+                      onPatch(index, { path_zoom: +event.target.value })
+                    }
+                  />
+                  <strong>{(scene.path_zoom ?? 1.4).toFixed(1)}×</strong>
+                </label>
               )}
               <div className="page-review-action-heading">
                 3. Fix order and timing
@@ -1063,8 +958,9 @@ export default function PageShotReview({
                 All edits are reversible using Undo. Your original page image is
                 never changed.
               </p>
-            </div>
-          </details>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>
