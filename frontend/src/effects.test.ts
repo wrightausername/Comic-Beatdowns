@@ -17,7 +17,7 @@ const base: CameraSettings = {
 };
 describe("camera and transition preview", () => {
   it("provides the expanded camera and transition catalogs", () => {
-    expect(CAMERA_MOVES).toHaveLength(21);
+    expect(CAMERA_MOVES).toHaveLength(22);
     expect(TRANSITIONS).toHaveLength(12);
   });
   it("keeps every path inside the image across all easing choices", () => {
@@ -42,6 +42,27 @@ describe("camera and transition preview", () => {
     expect(cameraPosition({ ...base, motion: "breathe" }, 1).zoom).toBeCloseTo(
       1,
     );
+  });
+  it("moves once across the intact long panel in reading direction", () => {
+    const wide = {
+      ...base,
+      motion: "panel_glide" as const,
+      panel: {
+        id: "virtual", title: "Wide", series: "", issue: "",
+        page: 1, characters: "", fight: "", width: 900, height: 300,
+        source_name: "page.png", parent_id: null, created_at: "",
+        image_url: "", thumbnail_url: "",
+      },
+      source_crop: { x: 0, y: 0, width: 1, height: 1 },
+      glide_axis: "horizontal" as const,
+      glide_start: 0.25,
+      glide_end: 0.75,
+    };
+    const start = cameraPosition(wide, 0);
+    const finish = cameraPosition(wide, 1);
+    expect(start.zoom).toBeGreaterThan(4);
+    expect(start.x).toBeCloseTo(0.25);
+    expect(finish.x).toBeCloseTo(0.75);
   });
   it("bounds transitions on short scenes and skips the first scene", () => {
     const scene = { duration: 0.25 },
