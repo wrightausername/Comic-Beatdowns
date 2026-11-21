@@ -72,6 +72,10 @@ export interface Scene {
   sfx_id?: string | null;
   sfx_offset?: number;
   framing?: "fill" | "fit";
+  source_crop?: { x: number; y: number; width: number; height: number } | null;
+  glide_axis?: "horizontal" | "vertical" | null;
+  glide_start?: number;
+  glide_end?: number;
   sfx_source_id?: string | null;
   clear_sfx?: boolean;
 }
@@ -198,6 +202,17 @@ export interface DirectorJob {
     scene_count?: number;
     caption_count?: number;
     smart_crops?: SmartCropSuggestion[];
+    page_reading?: {
+      expanded: boolean;
+      reason: string;
+      pages: {
+        page_id: string;
+        panel_count: number;
+        reason: string;
+        review_required: boolean;
+        regions?: { x: number; y: number; width: number; height: number }[];
+      }[];
+    };
   };
   render: RenderJob | null;
 }
