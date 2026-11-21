@@ -41,6 +41,7 @@ export default function PageShotReview({
   onSplit,
   onJoin,
   onPreview,
+  onReviewVideo,
   onUndo,
 }: {
   scenes: Scene[];
@@ -53,6 +54,7 @@ export default function PageShotReview({
   onSplit: (index: number) => void;
   onJoin: (index: number) => void;
   onPreview: (index: number) => void;
+  onReviewVideo: () => void;
   onUndo: () => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -99,6 +101,17 @@ export default function PageShotReview({
     : scene.panel.width / scene.panel.height;
   const panAxis = ratio > 9 / 16 ? "horizontal" : "vertical";
 
+  function chooseShot(nextIndex: number) {
+    setSelectedId(scenes[nextIndex]?.id ?? null);
+    setDrawing(false);
+    setRouteMode("off");
+    setDraftStart(null);
+  }
+  function toggleQuickRoute() {
+    setDrawing(false);
+    setDraftStart(null);
+    setRouteMode(routeMode === "off" ? "start" : "off");
+  }
   function patch(region: Region | null) {
     onPatch(index, { source_crop: region });
   }
@@ -294,10 +307,11 @@ export default function PageShotReview({
     >
       <div className="section-heading">
         <div>
-          <h3>Fix Verdict's panel choices</h3>
+          <h3>Review your video, shot by shot</h3>
           <p>
-            Tap a shot, drag its crop or resize the corner, and choose how the
-            camera moves. Changes autosave. You can undo.
+            Verdict already chose the panels. Only fix a shot when something looks
+            wrong. Select it, draw the camera move if needed, then preview.
+            Changes save automatically.
           </p>
         </div>
         <button
@@ -309,6 +323,7 @@ export default function PageShotReview({
           <RotateCcw size={14} /> Undo edit
         </button>
       </div>
+      <div className="page-review-step-label">1 · Pick the shot to check</div>
       <div
         className="page-shot-strip"
         role="group"
@@ -323,12 +338,7 @@ export default function PageShotReview({
             className={
               index === shotIndex ? "page-shot-chip selected" : "page-shot-chip"
             }
-            onClick={() => {
-              setSelectedId(shot.id ?? null);
-              setDrawing(false);
-              setRouteMode("off");
-              setDraftStart(null);
-            }}
+            onClick={() => chooseShot(shotIndex)}
           >
             <span
               className="page-shot-chip-thumb"
@@ -498,7 +508,177 @@ export default function PageShotReview({
           </p>
         </div>
         <div className="page-review-actions">
-          <div className="page-review-action-heading">1. Fix the picture</div>
+          <div className="page-review-quick">
+            <h4>2 · Fix the camera (only if needed)</h4>
+            <p className="help">
+              Happy with Verdict's choice? Skip this step. To direct the camera
+              yourself, click where it starts (1), then where it ends (2).
+            </p>
+            <button
+              type="button"
+              className="button primary page-review-primary"
+              disabled={disabled}
+              aria-pressed={routeMode === "start" || routeMode === "end"}
+              onClick={toggleQuickRoute}
+            >
+              {routeMode === "start" || routeMode === "end"
+                ? "Cancel camera path"
+                : path.length >= 2
+                  ? "Redraw camera path"
+                  : "Draw 1 → 2 camera route"}
+            </button>
+            <button
+              type="button"
+              className="button secondary small-button"
+              disabled={disabled}
+              aria-pressed={drawing}
+              onClick={() => {
+                setRouteMode("off");
+                setDraftStart(null);
+                setDrawing(!drawing);
+              }}
+            >
+              {drawing ? "Cancel crop" : "Fix the panel crop"}
+            </button>
+            {routeMode !== "off" && (
+              <p className="page-review-instruction" role="status">
+                {routeMode === "start"
+                  ? "Click point 1 on the comic page."
+                  : routeMode === "end"
+                    ? "Now click point 2 to finish the move."
+                    : "Click where the camera should go next."}
+              </p>
+            )}
+            {path.length >= 2 && (
+              <>
+                <p className="help">
+                  Your route has {path.length} camera points. Drag the numbered
+                  dots on the page to adjust them.
+                </p>
+                <label className="page-route-speed">
+                  <span>How fast should it move?</span>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={1}
+                    step={0.05}
+                    aria-label={`Shot ${index + 1} camera travel time`}
+                    disabled={disabled}
+                    value={scene.path_move_fraction ?? 1}
+                    onChange={(event) =>
+                      onPatch(index, { path_move_fraction: +event.target.value })
+                    }
+                  />
+                  <strong>
+                    {((scene.path_move_fraction ?? 1) * scene.duration).toFixed(1)}s
+                  </strong>
+                </label>
+                <p className="help">
+                  Move left for a quick pan, right for a slow pan. The camera
+                  holds at the end until this shot finishes.
+                </p>
+                <div className="page-review-action-row">
+                  <button
+                    type="button"
+                    className="button secondary small-button"
+                    disabled={disabled || path.length >= 8}
+                    aria-pressed={routeMode === "append"}
+                    onClick={() => {
+                      setDrawing(false);
+                      setDraftStart(null);
+                      setRouteMode(routeMode === "append" ? "off" : "append");
+                    }}
+                  >
+                    Add another point
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary small-button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setRouteMode("off");
+                      changeRoute([...path].reverse());
+                    }}
+                  >
+                    Reverse route
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={disabled}
+                    onClick={() => {
+                      setRouteMode("off");
+                      onPatch(index, {
+                        camera_path: null,
+                        motion: "hold",
+                        framing: "fit",
+                      });
+                    }}
+                  >
+                    Remove route
+                  </button>
+                </div>
+              </>
+            )}
+            <div className="page-review-step-label">3 · Preview or continue</div>
+            <div className="page-review-action-row">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => onPreview(index)}
+              >
+                <Play size={15} /> Preview this shot
+              </button>
+              {index < scenes.length - 1 ? (
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy}
+                  onClick={() => chooseShot(index + 1)}
+                >
+                  Next shot <ArrowRight size={15} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy}
+                  onClick={onReviewVideo}
+                >
+                  Review full video <ArrowRight size={15} />
+                </button>
+              )}
+            </div>
+            {index > 0 && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => chooseShot(index - 1)}
+                disabled={busy}
+              >
+                <ArrowLeft size={14} /> Previous shot
+              </button>
+            )}
+            {scene.locked && (
+              <button
+                type="button"
+                className="button secondary small-button"
+                onClick={() => onPatch(index, { locked: false })}
+                disabled={busy}
+              >
+                Unlock this shot to edit it
+              </button>
+            )}
+            <p className="help">
+              No change needed? Hit Next shot. Your original comic pages and
+              ElevenLabs audio are never rewritten.
+            </p>
+          </div>
+          <details className="page-review-advanced">
+            <summary>More controls · timing, crop size, splitting and transitions</summary>
+            <div className="page-review-advanced-inner">
+          <div className="page-review-action-heading">Fine-tune the picture</div>
           <div className="page-review-action-row">
             <button
               className="button secondary small-button"
@@ -853,19 +1033,12 @@ export default function PageShotReview({
               <Trash2 size={14} /> Remove shot
             </button>
           </div>
-          {scene.locked && (
-            <button
-              className="button secondary small-button"
-              onClick={() => onPatch(index, { locked: false })}
-              disabled={busy}
-            >
-              Unlock this shot to edit it
-            </button>
-          )}
           <p className="help">
             All edits are reversible using Undo. Your original page image is
             never changed.
           </p>
+            </div>
+          </details>
         </div>
       </div>
     </section>
