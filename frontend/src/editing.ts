@@ -134,7 +134,14 @@ export function applyStoryboard(
     cursor += Math.round(scene.duration * fps) / fps;
     const card = cards.find((c) => c.start <= middle && c.end > middle);
     if (scene.locked || !card) return scene;
-    return { ...scene, panel_id: card.panel_id, beat: card.beat ?? "custom" };
+    return {
+      ...scene,
+      panel_id: card.panel_id,
+      source_crop: scene.panel_id === card.panel_id ? scene.source_crop : null,
+      glide_axis: scene.panel_id === card.panel_id ? scene.glide_axis : null,
+      motion: scene.panel_id === card.panel_id ? scene.motion : "hold",
+      beat: card.beat ?? "custom",
+    };
   });
 }
 export function selectExcerpt(
@@ -185,7 +192,10 @@ export function selectExcerpt(
   };
 }
 export function framingWarnings(scene: Scene, project: Project): string[] {
-  const ratio = scene.panel.width / scene.panel.height,
+  const ratio = scene.source_crop
+      ? (scene.panel.width * scene.source_crop.width) /
+        (scene.panel.height * scene.source_crop.height)
+      : scene.panel.width / scene.panel.height,
     visible = Math.min(ratio / (9 / 16), 9 / 16 / ratio);
   const warnings: string[] = [];
   if (visible < 0.65 && scene.framing !== "fit")
