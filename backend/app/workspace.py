@@ -45,6 +45,9 @@ SCENE_FIELDS = (
     "glide_axis",
     "glide_start",
     "glide_end",
+    "camera_path",
+    "path_move_fraction",
+    "path_zoom",
 )
 
 
