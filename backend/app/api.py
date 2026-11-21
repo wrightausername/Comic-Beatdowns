@@ -102,6 +102,9 @@ def scene_dict(scene, db):
         "glide_axis": scene.glide_axis,
         "glide_start": scene.glide_start,
         "glide_end": scene.glide_end,
+        "camera_path": scene.camera_path,
+        "path_move_fraction": scene.path_move_fraction,
+        "path_zoom": scene.path_zoom,
         "sfx_source_id": scene.id if scene.sfx_key else None,
         "panel": panel_dict(db.get(Panel, scene.panel_id)),
     }
@@ -610,9 +613,17 @@ def queue_render_for_state(
             "glide_axis": s.glide_axis,
             "glide_start": s.glide_start,
             "glide_end": s.glide_end,
+            "camera_path": s.camera_path,
+            "path_move_fraction": s.path_move_fraction,
+            "path_zoom": s.path_zoom,
             "glide_zoom": (
                 glide_zoom(
-                    {"motion": s.motion, "source_crop": s.source_crop},
+                    {
+                        "motion": s.motion,
+                        "source_crop": s.source_crop,
+                        "camera_path": s.camera_path,
+                        "path_zoom": s.path_zoom,
+                    },
                     db.get(Panel, s.panel_id).width,
                     db.get(Panel, s.panel_id).height,
                 )
