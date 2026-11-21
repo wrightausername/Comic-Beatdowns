@@ -25,7 +25,23 @@ export default function SceneQuickTools({
   onRender: () => void;
 }) {
   const [aim, setAim] = useState(false);
-  const ratio = scene.panel.width / scene.panel.height,
+  const region = scene.source_crop;
+  const ratio = region
+    ? (scene.panel.width * region.width) / (scene.panel.height * region.height)
+    : scene.panel.width / scene.panel.height;
+  const setRegion = (
+    key: "x" | "y" | "width" | "height",
+    percent: number,
+  ) => {
+    if (!region || !Number.isFinite(percent)) return;
+    const value = percent / 100;
+    const next = { ...region };
+    if (key === "x") next.x = Math.min(1 - next.width, Math.max(0, value));
+    if (key === "y") next.y = Math.min(1 - next.height, Math.max(0, value));
+    if (key === "width") next.width = Math.min(1 - next.x, Math.max(0.01, value));
+    if (key === "height") next.height = Math.min(1 - next.y, Math.max(0.01, value));
+    onChange({ source_crop: next });
+  };
     view = 9 / 16;
   const cropX = ratio > view ? view / ratio : 1,
     cropY = ratio < view ? ratio / view : 1;
@@ -155,6 +171,90 @@ export default function SceneQuickTools({
             Show the entire panel with borders
           </label>
         </div>
+      )}
+      {region && (
+        <details className="workflow-advanced">
+          <summary>Detected comic panel · edit source window</summary>
+          <p className="help">
+            This is a virtual crop of your original full-page screenshot. The
+            page remains intact. Adjust this outline if the gutter detector
+            mistook one long panel for two or cropped a speech balloon.
+          </p>
+          <div
+            style={{ position: "relative", width: "min(100%, 360px)" }}
+            aria-label={`Source page region for scene ${index + 1}`}
+          >
+            <img
+              src={scene.panel.image_url}
+              alt={scene.panel.title}
+              style={{ display: "block", width: "100%" }}
+            />
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: `${region.x * 100}%`,
+                top: `${region.y * 100}%`,
+                width: `${region.width * 100}%`,
+                height: `${region.height * 100}%`,
+                outline: "2px solid #ed4e5b",
+                background: "rgba(237,78,91,0.10)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
+          <div className="form-grid">
+            {(["x", "y", "width", "height"] as const).map((field) => (
+              <label key={field}>
+                {field === "x" ? "Left" : field === "y" ? "Top" : field === "width" ? "Width" : "Height"} (%)
+                <input
+                  aria-label={`Scene ${index + 1} panel ${field}`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  disabled={scene.locked}
+                  value={Math.round(region[field] * 1000) / 10}
+                  onChange={(event) => setRegion(field, Number(event.target.value))}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="toolbar">
+            <button
+              type="button"
+              className="button secondary small-button"
+              disabled={scene.locked}
+              onClick={() =>
+                onChange({ source_crop: null, glide_axis: null, motion: "hold", framing: "fit" })
+              }
+            >
+              Keep entire page together
+            </button>
+            <button
+              type="button"
+              className="button secondary small-button"
+              disabled={scene.locked}
+              onClick={() =>
+                onChange({
+                  motion: "panel_glide",
+                  glide_axis: ratio >= 9 / 16 ? "horizontal" : "vertical",
+                  framing: "fit",
+                })
+              }
+            >
+              Follow panel with camera
+            </button>
+            <button
+              type="button"
+              className="button secondary small-button"
+              disabled={scene.locked}
+              onClick={() => onChange({ motion: "hold", framing: "fit" })}
+            >
+              Hold entire panel
+            </button>
+          </div>
+        </details>
       )}
       <details className="workflow-advanced">
         <summary>Sound favorites & shot note</summary>
