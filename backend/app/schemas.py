@@ -84,6 +84,13 @@ class SourceRegion(StrictModel):
         return self
 
 
+class CameraWaypoint(StrictModel):
+    """A user-selected focal point relative to an intact source-panel window."""
+
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+
+
 class ProjectCreate(StrictModel):
     title: str = Field(min_length=1, max_length=200)
     idea: str = Field(default="", max_length=8000)
@@ -120,6 +127,9 @@ class SceneInput(StrictModel):
     glide_axis: Literal["horizontal", "vertical"] | None = None
     glide_start: float = Field(default=0, ge=0, le=1)
     glide_end: float = Field(default=1, ge=0, le=1)
+    camera_path: list[CameraWaypoint] | None = Field(default=None, min_length=2, max_length=8)
+    path_move_fraction: float = Field(default=1, ge=0.2, le=1)
+    path_zoom: float = Field(default=1.4, ge=1, le=2)
     sfx_source_id: str | None = None
     clear_sfx: bool = False
 
