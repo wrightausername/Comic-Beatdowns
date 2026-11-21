@@ -622,6 +622,16 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   );
   await expect(approve).toBeDisabled();
   await expect(card.getByText(/No timed speech found/)).toBeVisible();
+  // Creator-first route: generated video -> one button to quick shot corrections.
+  await card.getByRole("button", { name: "Check or fix my shots (optional)" }).click();
+  const quick = page.getByRole("region", { name: "Quick shot editor" });
+  await expect(quick).toBeVisible();
+  await expect(quick.getByRole("button", { name: "Draw 1 → 2 camera route" }))
+    .toBeVisible();
+  await expect(quick.getByRole("button", { name: "Preview this shot" }))
+    .toBeVisible();
+  await expect(page.getByText("Full timeline editor · optional fine-tuning"))
+    .toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("verdict-autopilot.png"),
     timeout: 60_000,
