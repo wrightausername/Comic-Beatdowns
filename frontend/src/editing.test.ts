@@ -49,6 +49,25 @@ it("splits a shot without duplicating its uploaded sound", () => {
   expect(result[1].clear_sfx).toBe(true);
   expect(result[0].duration + result[1].duration).toBe(2);
 });
+it("splits one numbered camera route without restarting it at point 1", () => {
+  const source = {
+    ...scene("route", 4),
+    camera_path: [{ x: 0.1, y: 0.2 }, { x: 0.9, y: 0.8 }],
+    path_move_fraction: 0.55,
+    path_zoom: 1.6,
+    glide_start: 0,
+    glide_end: 1,
+    motion: "panel_glide" as const,
+  };
+  const pieces = splitScene([source], 0, 24);
+  expect(pieces).toHaveLength(2);
+  expect(pieces[0].glide_end).toBeCloseTo(0.5);
+  expect(pieces[1].glide_start).toBeCloseTo(0.5);
+  expect(pieces[0].camera_path).toEqual(source.camera_path);
+  expect(pieces[1].camera_path).toEqual(source.camera_path);
+  expect(pieces[0].path_move_fraction).toBe(0.55);
+  expect(pieces[1].path_zoom).toBe(1.6);
+});
 it("moves a later sound to the second half of a split", () => {
   const result = splitScene(
     [
