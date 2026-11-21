@@ -5,10 +5,12 @@ This is the **Comic Beatdowns Production Studio** repository. Before any coding,
 1. [Canonical project handoff](docs/CODEX_HANDOFF.md): current PR status, owner decisions, next milestones, and known limitations.
 2. [README](README.md): architecture, existing workflows, startup commands, testing and security.
 3. [Creative DNA PR #11](https://github.com/wrightausername/Comic-Beatdowns/pull/11) and [stacked Easy Mode PR #12](https://github.com/wrightausername/Comic-Beatdowns/pull/12). Do not assume these branches are merged into `main`.
-4. Issues [#5](https://github.com/wrightausername/Comic-Beatdowns/issues/5), [#8](https://github.com/wrightausername/Comic-Beatdowns/issues/8), and [#10](https://github.com/wrightausername/Comic-Beatdowns/issues/10).
+4. [Issue #14](https://github.com/wrightausername/Comic-Beatdowns/issues/14), the owner's newly approved **whole-page screenshot → reading-order panels → intelligent camera traversal** goal. Check existing draft PR #4 for partial crop infrastructure; don't duplicate it.
+5. Issues [#5](https://github.com/wrightausername/Comic-Beatdowns/issues/5), [#8](https://github.com/wrightausername/Comic-Beatdowns/issues/8), and [#10](https://github.com/wrightausername/Comic-Beatdowns/issues/10).
 
 ## Nonnegotiable
 - Preserve the current React/FastAPI/FFmpeg project, Windows launcher, SQLite data, imported assets, and existing user edits. Implement features in focused branches/PRs rather than replacing the Studio.
+- **Whole-page comic screenshots are the preferred video input.** Detect panel boundaries/reading order and choose crops or within-page camera travel synchronized to narration; edits must remain reversible. This is a **goal**, not an existing complete feature (see Issue #14).
 - **ElevenLabs is the creator's external voice workflow.** Support easy narration MP3/WAV import; do not replace it with internal voice generation or require ElevenLabs API access.
 - Verdict's commentary is panel-specific, organically unhinged comic analysis, not a generic recap or arbitrary AI insults; creator review always wins.
 - Defaults should be beginner-friendly with an Advanced escape hatch, but **never silently publish or approve** an episode.
