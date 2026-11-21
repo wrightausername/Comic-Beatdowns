@@ -96,6 +96,9 @@ class Scene(Base):
     glide_axis: Mapped[str | None] = mapped_column(String, nullable=True)
     glide_start: Mapped[float] = mapped_column(Float, default=0, server_default="0")
     glide_end: Mapped[float] = mapped_column(Float, default=1, server_default="1")
+    camera_path: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    path_move_fraction: Mapped[float] = mapped_column(Float, default=1, server_default="1")
+    path_zoom: Mapped[float] = mapped_column(Float, default=1.4, server_default="1.4")
 
 
 class SoundEffect(Base):
@@ -227,6 +230,9 @@ def migrate_scene_options(engine):
         "glide_axis": "VARCHAR",
         "glide_start": "FLOAT NOT NULL DEFAULT 0",
         "glide_end": "FLOAT NOT NULL DEFAULT 1",
+        "camera_path": "JSON",
+        "path_move_fraction": "FLOAT NOT NULL DEFAULT 1",
+        "path_zoom": "FLOAT NOT NULL DEFAULT 1.4",
     }
     with engine.begin() as connection:
         existing = {c["name"] for c in inspect(connection).get_columns("scenes")}
