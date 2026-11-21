@@ -4280,7 +4280,6 @@ progress::-webkit-progress-value {
   }
 }
 
-
 /* Fast, creator-first flow for Auto-Director. Advanced controls stay accessible,
    but never compete with the actions needed to complete an episode. */
 .autopilot-primary-action {
@@ -4304,7 +4303,9 @@ progress::-webkit-progress-value {
   color: #9dc8d4;
   padding: 8px 2px;
 }
-.autopilot-simple-options .autopilot-options { margin-top: 12px; }
+.autopilot-simple-options .autopilot-options {
+  margin-top: 12px;
+}
 .page-review-step-label {
   color: #8ae2eb;
   font-weight: 750;

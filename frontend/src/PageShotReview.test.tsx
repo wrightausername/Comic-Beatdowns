@@ -80,9 +80,9 @@ function setup(scenes: Scene[] = shots, canUndo = true) {
 }
 
 function openMoreControls() {
-  const details = screen.getByText(
-    "More controls · timing, crop size, splitting and transitions",
-  ).closest("details")!;
+  const details = screen
+    .getByText("More controls · timing, crop size, splitting and transitions")
+    .closest("details")!;
   details.open = true;
 }
 
@@ -299,31 +299,44 @@ describe("plain language whole-page editor", () => {
     expect(result.onPatch).toHaveBeenCalledWith(0, { locked: false });
   });
 
-
   it("shows only the essential shot corrections until the creator asks for more", () => {
     const result = setup();
-    expect(screen.getByRole("button", { name: "Draw 1 → 2 camera route" }))
-      .toBeEnabled();
-    expect(screen.getByRole("button", { name: "Fix the panel crop" }))
-      .toBeEnabled();
-    expect(screen.queryByRole("button", { name: "Split shot in two" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Draw 1 → 2 camera route" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Fix the panel crop" }),
+    ).toBeEnabled();
+    expect(
+      screen.queryByRole("button", { name: "Split shot in two" }),
+    ).toBeNull();
     expect(screen.getByRole("button", { name: "Next shot" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Next shot" }));
-    expect(screen.getByRole("button", { name: "Review shot 2" }))
-      .toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Review shot 2" }),
+    ).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("button", { name: "Review full video" }));
     expect(result.onReviewVideo).toHaveBeenCalledTimes(1);
     openMoreControls();
-    expect(screen.getByRole("button", { name: "Split shot in two" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Split shot in two" }),
+    ).toBeEnabled();
   });
 
   it("keeps the quick travel speed and preview available without opening advanced settings", () => {
-    const result = setup([{
-      ...shots[0],
-      camera_path: [{ x: 0.1, y: 0.5 }, { x: 0.9, y: 0.5 }],
-      motion: "panel_glide",
-    }]);
-    const slider = screen.getByRole("slider", { name: "Shot 1 camera travel time" });
+    const result = setup([
+      {
+        ...shots[0],
+        camera_path: [
+          { x: 0.1, y: 0.5 },
+          { x: 0.9, y: 0.5 },
+        ],
+        motion: "panel_glide",
+      },
+    ]);
+    const slider = screen.getByRole("slider", {
+      name: "Shot 1 camera travel time",
+    });
     fireEvent.change(slider, { target: { value: "0.4" } });
     expect(result.onPatch).toHaveBeenCalledWith(0, {
       path_move_fraction: 0.4,

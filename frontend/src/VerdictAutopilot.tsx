@@ -263,7 +263,10 @@ export default function VerdictAutopilot({
         ? saved
         : await api<Project>(
             `/projects/${project.id}/autopilot`,
-            json({ ...current, enabled: true, base_revision: saved.revision }, "PUT"),
+            json(
+              { ...current, enabled: true, base_revision: saved.revision },
+              "PUT",
+            ),
           );
       if (!current.enabled) accept(ready);
       const job = await handToVerdict(ready);
@@ -327,7 +330,8 @@ export default function VerdictAutopilot({
         </button>
         {!readyForVerdict(project) && (
           <span className="muted">
-            Start by adding comic pages and one ElevenLabs narration file in Add files.
+            Start by adding comic pages and one ElevenLabs narration file in Add
+            files.
           </span>
         )}
         {dirty && (
@@ -337,7 +341,8 @@ export default function VerdictAutopilot({
         )}
         {options.mode === "vision" && !connection?.configured && (
           <span className="muted">
-            Vision AI needs a connection. Choose Basic in optional settings to run locally.
+            Vision AI needs a connection. Choose Basic in optional settings to
+            run locally.
           </span>
         )}
         {latest && ["queued", "working"].includes(latest.status) && (
@@ -359,69 +364,65 @@ export default function VerdictAutopilot({
       </div>
       <details className="autopilot-simple-options">
         <summary>Optional · change editing style or AI settings</summary>
-          <div className="form-grid autopilot-options">
-            <label>
-              How Verdict decides
-              <select
-                disabled={!!running}
-                value={options.mode}
-                onChange={(e) =>
-                  void changeOptions({
-                    mode: e.target.value as AutopilotOptions["mode"],
-                  })
-                }
-              >
-                <option value="basic">Basic · upload order + tags</option>
-                <option value="vision">Vision AI · understands panels</option>
-              </select>
-            </label>
-            <label>
-              Pacing
-              <select
-                disabled={!!running}
-                value={options.pace}
-                onChange={(e) =>
-                  void changeOptions({
-                    pace: e.target.value as AutopilotOptions["pace"],
-                  })
-                }
-              >
-                <option value="fast">Fast · punchy Shorts camera</option>
-                <option value="slow">Slow · longer readable shots</option>
-              </select>
-            </label>
-            <label>
-              Delivery
-              <select
-                disabled={!!running}
-                value={options.delivery}
-                onChange={(e) =>
-                  void changeOptions({
-                    delivery: e.target.value as AutopilotOptions["delivery"],
-                  })
-                }
-              >
-                <option value="draft">
-                  Preview first · I approve the final
-                </option>
-                <option value="final">
-                  Finish for me · automatic 1080p MP4
-                </option>
-              </select>
-            </label>
-          </div>
-          <p className="muted">
-            {options.mode === "basic"
-              ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
-              : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
-            Your full selected recording is kept. No automatic publishing.
+        <div className="form-grid autopilot-options">
+          <label>
+            How Verdict decides
+            <select
+              disabled={!!running}
+              value={options.mode}
+              onChange={(e) =>
+                void changeOptions({
+                  mode: e.target.value as AutopilotOptions["mode"],
+                })
+              }
+            >
+              <option value="basic">Basic · upload order + tags</option>
+              <option value="vision">Vision AI · understands panels</option>
+            </select>
+          </label>
+          <label>
+            Pacing
+            <select
+              disabled={!!running}
+              value={options.pace}
+              onChange={(e) =>
+                void changeOptions({
+                  pace: e.target.value as AutopilotOptions["pace"],
+                })
+              }
+            >
+              <option value="fast">Fast · punchy Shorts camera</option>
+              <option value="slow">Slow · longer readable shots</option>
+            </select>
+          </label>
+          <label>
+            Delivery
+            <select
+              disabled={!!running}
+              value={options.delivery}
+              onChange={(e) =>
+                void changeOptions({
+                  delivery: e.target.value as AutopilotOptions["delivery"],
+                })
+              }
+            >
+              <option value="draft">Preview first · I approve the final</option>
+              <option value="final">Finish for me · automatic 1080p MP4</option>
+            </select>
+          </label>
+        </div>
+        <p className="muted">
+          {options.mode === "basic"
+            ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
+            : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
+          Your full selected recording is kept. No automatic publishing.
+        </p>
+        {options.delivery === "final" && (
+          <p className="notice">
+            You’re authorizing Verdict to approve this edit and render the final
+            MP4 without another review.
           </p>
-          {options.delivery === "final" && (
-            <p className="notice">
-              You’re authorizing Verdict to approve this edit and render the
-              final MP4 without another review.
-            </p>
-          )}
+        )}
       </details>
       {latest && (
         <div className="autopilot-progress" role="status">

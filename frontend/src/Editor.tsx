@@ -713,363 +713,372 @@ export default function Editor({
               )}
               <details className="timeline-advanced">
                 <summary>Full timeline editor · optional fine-tuning</summary>
-              <section className="surface timeline-section">
-                <div className="section-heading">
-                  <div>
-                    <h3>Panel sequence</h3>
-                    <p>
-                      Drag scenes into order. Select several to edit them
-                      together.
-                    </p>
+                <section className="surface timeline-section">
+                  <div className="section-heading">
+                    <div>
+                      <h3>Panel sequence</h3>
+                      <p>
+                        Drag scenes into order. Select several to edit them
+                        together.
+                      </p>
+                    </div>
+                    <button
+                      className="button secondary small-button"
+                      onClick={() => setPicker(true)}
+                    >
+                      <Plus size={15} />
+                      Add panels
+                    </button>
                   </div>
-                  <button
-                    className="button secondary small-button"
-                    onClick={() => setPicker(true)}
-                  >
-                    <Plus size={15} />
-                    Add panels
-                  </button>
-                </div>
-                {!scenes.length ? (
-                  <Empty
-                    title="Set the fight in motion"
-                    action={
-                      <button
-                        className="button secondary"
-                        onClick={() =>
-                          panels.length ? setPicker(true) : onImport()
-                        }
-                      >
-                        <Plus size={16} />
-                        {panels.length
-                          ? "Choose panels"
-                          : "Import source panels"}
-                      </button>
-                    }
-                  >
-                    Build your sequence from the panel library, then upload
-                    narration and choose Auto Edit.
-                  </Empty>
-                ) : (
-                  <>
-                    {emotionTimeline}
-                    <WaveformTimeline
-                      projectId={projectId}
-                      audioUrl={project.narration_url}
-                      scenes={scenes}
-                      fps={settings.fps}
-                      start={settings.narration_start}
-                      cues={cues}
-                      onChange={(values) => update({ scenes: values })}
-                      onSeek={(seconds) =>
-                        setPreviewRequest({ seconds, nonce: Date.now() })
-                      }
-                    />
-                    <BulkControls
-                      scenes={scenes}
-                      selected={
-                        new Set(
-                          [...selected].filter((id) =>
-                            scenes.some((scene) => scene.id === id),
-                          ),
-                        )
-                      }
-                      setSelected={setSelected}
-                      onApply={(patch) =>
-                        update({
-                          scenes: scenes.map((scene) =>
-                            selected.has(scene.id!) && !scene.locked
-                              ? { ...scene, ...patch }
-                              : scene,
-                          ),
-                        })
-                      }
-                      onDelete={() => {
-                        update({
-                          scenes: scenes.filter(
-                            (scene) => scene.locked || !selected.has(scene.id!),
-                          ),
-                        });
-                        setSelected(new Set());
-                      }}
-                    />
-                    <div className="scene-list">
-                      {scenes.map((scene, index) => (
-                        <div
-                          className="scene-card"
-                          key={scene.id}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                            event.dataTransfer.dropEffect = "move";
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
-                            if (dragged.current !== null)
-                              reorder(dragged.current, index);
-                            dragged.current = null;
-                          }}
+                  {!scenes.length ? (
+                    <Empty
+                      title="Set the fight in motion"
+                      action={
+                        <button
+                          className="button secondary"
+                          onClick={() =>
+                            panels.length ? setPicker(true) : onImport()
+                          }
                         >
-                          <div className="scene-top">
-                            <input
-                              className="scene-select"
-                              type="checkbox"
-                              aria-label={`Select scene ${index + 1}`}
-                              checked={selected.has(scene.id!)}
-                              onChange={(event) => {
-                                const values = new Set(selected);
-                                if (event.target.checked) values.add(scene.id!);
-                                else values.delete(scene.id!);
-                                setSelected(values);
-                              }}
-                            />
-                            <span
-                              className="scene-handle"
-                              draggable
-                              onDragStart={(event) => {
-                                dragged.current = index;
-                                event.dataTransfer.effectAllowed = "move";
-                                event.dataTransfer.setData(
-                                  "text/plain",
-                                  String(index),
-                                );
-                              }}
-                              onDragEnd={() => {
-                                dragged.current = null;
-                              }}
-                            >
-                              <GripVertical size={17} />
-                              <b>{String(index + 1).padStart(2, "0")}</b>
-                            </span>
-                            <span className="scene-source">
-                              {scene.panel.series || "Source panel"}
-                              {scene.panel.issue && ` · #${scene.panel.issue}`}
-                            </span>
-                            <button
-                              className="icon-button"
-                              aria-label={`Move scene ${index + 1} up`}
-                              disabled={scene.locked || index === 0}
-                              onClick={() => reorder(index, index - 1)}
-                            >
-                              <ArrowUp size={14} />
-                            </button>
-                            <button
-                              className="icon-button"
-                              aria-label={`Move scene ${index + 1} down`}
-                              disabled={
-                                scene.locked || index === scenes.length - 1
-                              }
-                              onClick={() => reorder(index, index + 1)}
-                            >
-                              <ArrowDown size={14} />
-                            </button>
-                            <button
-                              className="icon-button danger"
-                              aria-label={`Remove scene ${index + 1}`}
-                              disabled={scene.locked}
-                              onClick={() =>
-                                update({
-                                  scenes: scenes.filter((_, i) => i !== index),
-                                })
-                              }
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          <div className="scene-body">
-                            <img
-                              src={scene.panel.thumbnail_url}
-                              alt={scene.panel.title}
-                            />
-                            <div>
-                              <strong>{scene.panel.title}</strong>
-                              <div className="form-grid">
+                          <Plus size={16} />
+                          {panels.length
+                            ? "Choose panels"
+                            : "Import source panels"}
+                        </button>
+                      }
+                    >
+                      Build your sequence from the panel library, then upload
+                      narration and choose Auto Edit.
+                    </Empty>
+                  ) : (
+                    <>
+                      {emotionTimeline}
+                      <WaveformTimeline
+                        projectId={projectId}
+                        audioUrl={project.narration_url}
+                        scenes={scenes}
+                        fps={settings.fps}
+                        start={settings.narration_start}
+                        cues={cues}
+                        onChange={(values) => update({ scenes: values })}
+                        onSeek={(seconds) =>
+                          setPreviewRequest({ seconds, nonce: Date.now() })
+                        }
+                      />
+                      <BulkControls
+                        scenes={scenes}
+                        selected={
+                          new Set(
+                            [...selected].filter((id) =>
+                              scenes.some((scene) => scene.id === id),
+                            ),
+                          )
+                        }
+                        setSelected={setSelected}
+                        onApply={(patch) =>
+                          update({
+                            scenes: scenes.map((scene) =>
+                              selected.has(scene.id!) && !scene.locked
+                                ? { ...scene, ...patch }
+                                : scene,
+                            ),
+                          })
+                        }
+                        onDelete={() => {
+                          update({
+                            scenes: scenes.filter(
+                              (scene) =>
+                                scene.locked || !selected.has(scene.id!),
+                            ),
+                          });
+                          setSelected(new Set());
+                        }}
+                      />
+                      <div className="scene-list">
+                        {scenes.map((scene, index) => (
+                          <div
+                            className="scene-card"
+                            key={scene.id}
+                            onDragOver={(event) => {
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = "move";
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              if (dragged.current !== null)
+                                reorder(dragged.current, index);
+                              dragged.current = null;
+                            }}
+                          >
+                            <div className="scene-top">
+                              <input
+                                className="scene-select"
+                                type="checkbox"
+                                aria-label={`Select scene ${index + 1}`}
+                                checked={selected.has(scene.id!)}
+                                onChange={(event) => {
+                                  const values = new Set(selected);
+                                  if (event.target.checked)
+                                    values.add(scene.id!);
+                                  else values.delete(scene.id!);
+                                  setSelected(values);
+                                }}
+                              />
+                              <span
+                                className="scene-handle"
+                                draggable
+                                onDragStart={(event) => {
+                                  dragged.current = index;
+                                  event.dataTransfer.effectAllowed = "move";
+                                  event.dataTransfer.setData(
+                                    "text/plain",
+                                    String(index),
+                                  );
+                                }}
+                                onDragEnd={() => {
+                                  dragged.current = null;
+                                }}
+                              >
+                                <GripVertical size={17} />
+                                <b>{String(index + 1).padStart(2, "0")}</b>
+                              </span>
+                              <span className="scene-source">
+                                {scene.panel.series || "Source panel"}
+                                {scene.panel.issue &&
+                                  ` · #${scene.panel.issue}`}
+                              </span>
+                              <button
+                                className="icon-button"
+                                aria-label={`Move scene ${index + 1} up`}
+                                disabled={scene.locked || index === 0}
+                                onClick={() => reorder(index, index - 1)}
+                              >
+                                <ArrowUp size={14} />
+                              </button>
+                              <button
+                                className="icon-button"
+                                aria-label={`Move scene ${index + 1} down`}
+                                disabled={
+                                  scene.locked || index === scenes.length - 1
+                                }
+                                onClick={() => reorder(index, index + 1)}
+                              >
+                                <ArrowDown size={14} />
+                              </button>
+                              <button
+                                className="icon-button danger"
+                                aria-label={`Remove scene ${index + 1}`}
+                                disabled={scene.locked}
+                                onClick={() =>
+                                  update({
+                                    scenes: scenes.filter(
+                                      (_, i) => i !== index,
+                                    ),
+                                  })
+                                }
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            <div className="scene-body">
+                              <img
+                                src={scene.panel.thumbnail_url}
+                                alt={scene.panel.title}
+                              />
+                              <div>
+                                <strong>{scene.panel.title}</strong>
+                                <div className="form-grid">
+                                  <label>
+                                    Duration (seconds)
+                                    <input
+                                      aria-label={`Scene ${index + 1} duration`}
+                                      type="number"
+                                      min="0.25"
+                                      max="30"
+                                      step="0.01"
+                                      disabled={scene.locked}
+                                      value={scene.duration}
+                                      onChange={(event) =>
+                                        editScene(index, {
+                                          duration: +event.target.value,
+                                        })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    Camera motion
+                                    <select
+                                      aria-label={`Scene ${index + 1} motion`}
+                                      disabled={scene.locked}
+                                      value={scene.motion}
+                                      onChange={(event) =>
+                                        editScene(index, {
+                                          motion: event.target.value as Motion,
+                                        })
+                                      }
+                                    >
+                                      <MotionOptions />
+                                    </select>
+                                  </label>
+                                </div>
                                 <label>
-                                  Duration (seconds)
+                                  On-screen caption
                                   <input
-                                    aria-label={`Scene ${index + 1} duration`}
-                                    type="number"
-                                    min="0.25"
-                                    max="30"
-                                    step="0.01"
-                                    disabled={scene.locked}
-                                    value={scene.duration}
+                                    aria-label={`Scene ${index + 1} caption`}
+                                    maxLength={300}
+                                    value={scene.caption}
+                                    placeholder="The punchline goes here."
                                     onChange={(event) =>
                                       editScene(index, {
-                                        duration: +event.target.value,
+                                        caption: event.target.value,
                                       })
                                     }
                                   />
                                 </label>
-                                <label>
-                                  Camera motion
-                                  <select
-                                    aria-label={`Scene ${index + 1} motion`}
-                                    disabled={scene.locked}
-                                    value={scene.motion}
-                                    onChange={(event) =>
-                                      editScene(index, {
-                                        motion: event.target.value as Motion,
+                              </div>
+                            </div>
+                            <SceneQuickTools
+                              scene={scene}
+                              index={index}
+                              effects={effects}
+                              onChange={(patch) => editScene(index, patch)}
+                              onSplit={() =>
+                                update({
+                                  scenes: splitScene(
+                                    scenes,
+                                    index,
+                                    settings.fps,
+                                  ),
+                                })
+                              }
+                              onDuplicate={() =>
+                                update({
+                                  scenes: [
+                                    ...scenes.slice(0, index + 1),
+                                    {
+                                      ...scene,
+                                      id: newId(),
+                                      locked: false,
+                                      sfx_source_id:
+                                        scene.sfx_source_id ?? scene.id,
+                                    },
+                                    ...scenes.slice(index + 1),
+                                  ],
+                                })
+                              }
+                              onReplace={() => {
+                                setReplaceIndex(index);
+                                setPicker(true);
+                              }}
+                              onPreview={() => {
+                                setPreviewOverride(null);
+                                setPreviewRequest({ index, nonce: Date.now() });
+                              }}
+                              onRender={() => {
+                                const start = timelineSeconds(
+                                  scenes.slice(0, index),
+                                  settings.fps,
+                                );
+                                void render(
+                                  "draft",
+                                  start,
+                                  start +
+                                    Math.round(scene.duration * settings.fps) /
+                                      settings.fps,
+                                );
+                              }}
+                            />
+                            <CameraControls
+                              scene={scene}
+                              index={index}
+                              settings={settings}
+                              onChange={(patch) => {
+                                if (!scene.locked) editScene(index, patch);
+                              }}
+                              onPreview={() =>
+                                setPreviewRequest({ index, nonce: Date.now() })
+                              }
+                            />
+                            <div className="scene-footer">
+                              {scene.sfx_url ? (
+                                <>
+                                  <AudioFile
+                                    url={scene.sfx_url}
+                                    label="Scene sound effect"
+                                  />
+                                  <button
+                                    className="text-button danger"
+                                    onClick={() =>
+                                      void perform(async () => {
+                                        accept(
+                                          await api<Project>(
+                                            `/projects/${projectId}/scenes/${scene.id}/sfx`,
+                                            { method: "DELETE" },
+                                          ),
+                                        );
+                                        onChanged();
                                       })
                                     }
                                   >
-                                    <MotionOptions />
-                                  </select>
+                                    Remove sound
+                                  </button>
+                                </>
+                              ) : (
+                                <label className="text-button">
+                                  Add sound effect
+                                  {fileInput(
+                                    `Upload sound effect for scene ${index + 1}`,
+                                    "audio/*",
+                                    (file) =>
+                                      void perform(async () => {
+                                        accept(
+                                          await api<Project>(
+                                            `/projects/${projectId}/scenes/${scene.id}/sfx`,
+                                            audioUpload(file),
+                                          ),
+                                        );
+                                        onChanged();
+                                      }),
+                                  )}
                                 </label>
-                              </div>
-                              <label>
-                                On-screen caption
-                                <input
-                                  aria-label={`Scene ${index + 1} caption`}
-                                  maxLength={300}
-                                  value={scene.caption}
-                                  placeholder="The punchline goes here."
-                                  onChange={(event) =>
-                                    editScene(index, {
-                                      caption: event.target.value,
-                                    })
-                                  }
-                                />
-                              </label>
+                              )}
+                              <small>Optional · maximum 30 seconds</small>
                             </div>
                           </div>
-                          <SceneQuickTools
-                            scene={scene}
-                            index={index}
-                            effects={effects}
-                            onChange={(patch) => editScene(index, patch)}
-                            onSplit={() =>
-                              update({
-                                scenes: splitScene(scenes, index, settings.fps),
-                              })
-                            }
-                            onDuplicate={() =>
-                              update({
-                                scenes: [
-                                  ...scenes.slice(0, index + 1),
-                                  {
-                                    ...scene,
-                                    id: newId(),
-                                    locked: false,
-                                    sfx_source_id:
-                                      scene.sfx_source_id ?? scene.id,
-                                  },
-                                  ...scenes.slice(index + 1),
-                                ],
-                              })
-                            }
-                            onReplace={() => {
-                              setReplaceIndex(index);
-                              setPicker(true);
-                            }}
-                            onPreview={() => {
-                              setPreviewOverride(null);
-                              setPreviewRequest({ index, nonce: Date.now() });
-                            }}
-                            onRender={() => {
-                              const start = timelineSeconds(
-                                scenes.slice(0, index),
-                                settings.fps,
-                              );
-                              void render(
-                                "draft",
-                                start,
-                                start +
-                                  Math.round(scene.duration * settings.fps) /
-                                    settings.fps,
-                              );
-                            }}
-                          />
-                          <CameraControls
-                            scene={scene}
-                            index={index}
-                            settings={settings}
-                            onChange={(patch) => {
-                              if (!scene.locked) editScene(index, patch);
-                            }}
-                            onPreview={() =>
-                              setPreviewRequest({ index, nonce: Date.now() })
-                            }
-                          />
-                          <div className="scene-footer">
-                            {scene.sfx_url ? (
-                              <>
-                                <AudioFile
-                                  url={scene.sfx_url}
-                                  label="Scene sound effect"
-                                />
-                                <button
-                                  className="text-button danger"
-                                  onClick={() =>
-                                    void perform(async () => {
-                                      accept(
-                                        await api<Project>(
-                                          `/projects/${projectId}/scenes/${scene.id}/sfx`,
-                                          { method: "DELETE" },
-                                        ),
-                                      );
-                                      onChanged();
-                                    })
-                                  }
-                                >
-                                  Remove sound
-                                </button>
-                              </>
-                            ) : (
-                              <label className="text-button">
-                                Add sound effect
-                                {fileInput(
-                                  `Upload sound effect for scene ${index + 1}`,
-                                  "audio/*",
-                                  (file) =>
-                                    void perform(async () => {
-                                      accept(
-                                        await api<Project>(
-                                          `/projects/${projectId}/scenes/${scene.id}/sfx`,
-                                          audioUpload(file),
-                                        ),
-                                      );
-                                      onChanged();
-                                    }),
-                                )}
-                              </label>
-                            )}
-                            <small>Optional · maximum 30 seconds</small>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <div className="timeline-summary">
+                    <span>
+                      {timecode(duration)} / 1:05–1:30 target
+                      {duration > 180 && " · Over 180-second limit"}
+                    </span>
+                    <div className="workflow-actions">
+                      <button
+                        className="text-button"
+                        disabled={!project.narration_url || !scenes.length}
+                        onClick={fitNarration}
+                      >
+                        Fit narration
+                      </button>
+                      <button
+                        className="button small-button"
+                        disabled={busy || !scenes.length || duration > 180}
+                        onClick={() =>
+                          void perform(async () => {
+                            setNotice(
+                              "Timeline saved. Review and approve the script for these scenes.",
+                            );
+                          })
+                        }
+                      >
+                        <Save size={15} />
+                        Save timeline
+                      </button>
                     </div>
-                  </>
-                )}
-                <div className="timeline-summary">
-                  <span>
-                    {timecode(duration)} / 1:05–1:30 target
-                    {duration > 180 && " · Over 180-second limit"}
-                  </span>
-                  <div className="workflow-actions">
-                    <button
-                      className="text-button"
-                      disabled={!project.narration_url || !scenes.length}
-                      onClick={fitNarration}
-                    >
-                      Fit narration
-                    </button>
-                    <button
-                      className="button small-button"
-                      disabled={busy || !scenes.length || duration > 180}
-                      onClick={() =>
-                        void perform(async () => {
-                          setNotice(
-                            "Timeline saved. Review and approve the script for these scenes.",
-                          );
-                        })
-                      }
-                    >
-                      <Save size={15} />
-                      Save timeline
-                    </button>
                   </div>
-                </div>
-              </section>
+                </section>
               </details>
               <section className="surface narration-section">
                 <div className="section-heading">
