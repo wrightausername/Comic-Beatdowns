@@ -286,6 +286,7 @@ describe("plain language whole-page editor", () => {
       glide_axis: null,
       glide_start: 0,
       glide_end: 1,
+      camera_path: null,
     });
   });
 });
