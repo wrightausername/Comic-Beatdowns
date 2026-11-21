@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Scene } from "./types";
+import { pagePointToRoute, type CameraWaypoint } from "./cameraRoute";
 import {
   drawCrop,
   moveCrop,
@@ -18,7 +19,8 @@ import {
 } from "./pageReviewGeometry";
 
 type Drag = {
-  mode: "move" | "resize" | "draw";
+  mode: "move" | "resize" | "draw" | "waypoint";
+  pointIndex?: number;
   x: number;
   y: number;
   original: Region | null;
@@ -55,6 +57,8 @@ export default function PageShotReview({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
+  const [routeMode, setRouteMode] = useState<"off" | "start" | "end" | "append">("off");
+  const [draftStart, setDraftStart] = useState<CameraWaypoint | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   if (!scenes.length) return null;
@@ -83,6 +87,8 @@ export default function PageShotReview({
     (scene.note?.length ?? 0) + (following.note?.length ?? 0) + 3 <= 2000,
   );
   const crop = scene.source_crop ?? null;
+  const path = scene.camera_path ?? [];
+  const frameCrop = crop ?? { x: 0, y: 0, width: 1, height: 1 };
   const disabled = busy || Boolean(scene.locked);
   const ratio = crop
     ? (scene.panel.width * crop.width) / (scene.panel.height * crop.height)
@@ -92,6 +98,69 @@ export default function PageShotReview({
   function patch(region: Region | null) {
     onPatch(index, { source_crop: region });
   }
+  function changeRoute(points: CameraWaypoint[]) {
+    onPatch(index, {
+      camera_path: points,
+      source_crop: frameCrop,
+      motion: "panel_glide",
+      framing: "fit",
+      easing: "smooth",
+      transition: "cut",
+      path_move_fraction: scene.path_move_fraction ?? 1,
+      path_zoom: scene.path_zoom ?? 1.4,
+    });
+  }
+  function routeClick(event: ReactPointerEvent) {
+    if (disabled || routeMode === "off") return;
+    event.preventDefault();
+    const place = point(event);
+    const nextPoint = pagePointToRoute(place.x, place.y, frameCrop);
+    if (routeMode === "start") {
+      setDraftStart(nextPoint);
+      setRouteMode("end");
+    } else if (routeMode === "end" && draftStart) {
+      changeRoute([draftStart, nextPoint]);
+      setDraftStart(null);
+      setRouteMode("off");
+    } else if (routeMode === "append" && path.length >= 2 && path.length < 8) {
+      changeRoute([...path, nextPoint]);
+      setRouteMode("off");
+    }
+  }
+  function startWaypoint(pointIndex: number, event: ReactPointerEvent) {
+    if (disabled || routeMode !== "off") return;
+    event.preventDefault();
+    event.stopPropagation();
+    drag.current = {
+      mode: "waypoint", pointIndex, x: event.clientX,
+      y: event.clientY, original: crop, anchorX: 0, anchorY: 0,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+  function nudgeWaypoint(pointIndex: number, event: KeyboardEvent<HTMLButtonElement>) {
+    if (disabled || routeMode !== "off") return;
+    const directions: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+      ArrowUp: [0, -1], ArrowDown: [0, 1],
+    };
+    const direction = directions[event.key];
+    if (!direction) return;
+    event.preventDefault();
+    const current = path[pointIndex];
+    const amount = event.shiftKey ? 0.05 : 0.01;
+    if (!current) return;
+    const next = path.map((p, i) => i === pointIndex
+      ? { x: clamp(p.x + direction[0] * amount), y: clamp(p.y + direction[1] * amount) }
+      : p
+    );
+    changeRoute(next);
+  }
+  function pageRoutePercent(p: CameraWaypoint) {
+    return {
+      x: (frameCrop.x + p.x * frameCrop.width) * 100,
+      y: (frameCrop.y + p.y * frameCrop.height) * 100,
+    };
+  }
   function point(event: ReactPointerEvent) {
     const bounds = pageRef.current!.getBoundingClientRect();
     return {
@@ -100,7 +169,7 @@ export default function PageShotReview({
     };
   }
   function startDrag(mode: Drag["mode"], event: ReactPointerEvent) {
-    if (disabled || (mode !== "draw" && !crop)) return;
+    if (disabled || routeMode !== "off" || (mode !== "draw" && !crop)) return;
     event.preventDefault();
     event.stopPropagation();
     const pos = point(event);
@@ -121,7 +190,13 @@ export default function PageShotReview({
     if (!rect.width || !rect.height) return;
     const dx = (event.clientX - active.x) / rect.width;
     const dy = (event.clientY - active.y) / rect.height;
-    if (active.mode === "draw") {
+    if (active.mode === "waypoint") {
+      if (active.pointIndex === undefined) return;
+      const position = point(event);
+      const nextPoint = pagePointToRoute(position.x, position.y, frameCrop);
+      const next = path.map((p, i) => i === active.pointIndex ? nextPoint : p);
+      if (next.length >= 2) changeRoute(next);
+    } else if (active.mode === "draw") {
       const proposal = drawCrop(
         active.anchorX,
         active.anchorY,
@@ -204,6 +279,8 @@ export default function PageShotReview({
             onClick={() => {
               setSelectedId(shot.id ?? null);
               setDrawing(false);
+              setRouteMode("off");
+              setDraftStart(null);
             }}
           >
             <span
@@ -246,7 +323,9 @@ export default function PageShotReview({
           </div>
           <div
             className={
-              drawing ? "page-review-page drawing" : "page-review-page"
+              drawing || routeMode !== "off"
+                ? "page-review-page drawing"
+                : "page-review-page"
             }
             ref={pageRef}
             style={{
@@ -255,7 +334,8 @@ export default function PageShotReview({
             role="group"
             aria-label={`Full source page for shot ${index + 1}`}
             onPointerDown={(event) => {
-              if (drawing) startDrag("draw", event);
+              if (routeMode !== "off") routeClick(event);
+              else if (drawing) startDrag("draw", event);
             }}
             onPointerMove={moveDrag}
             onPointerUp={finishDrag}
@@ -266,7 +346,7 @@ export default function PageShotReview({
               alt={scene.panel.title}
               draggable={false}
             />
-            {crop && !drawing && (
+            {crop && !drawing && routeMode === "off" && (
               <div
                 className="page-review-region"
                 style={{
@@ -298,11 +378,70 @@ export default function PageShotReview({
                 </button>
               </div>
             )}
+            {(path.length >= 2 || draftStart) && (
+              <>
+                <svg
+                  className="page-route-overlay"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  {path.length >= 2 && (
+                    <polyline
+                      points={path.map(p => {
+                        const pos = pageRoutePercent(p);
+                        return `${pos.x},${pos.y}`;
+                      }).join(" ")}
+                      fill="none"
+                      stroke="#72edff"
+                      strokeWidth={0.65}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                </svg>
+                {path.map((p, i) => {
+                  const position = pageRoutePercent(p);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      className="page-route-point"
+                      style={{ left: `${position.x}%`, top: `${position.y}%` }}
+                      aria-label={`Move camera point ${i + 1}. Drag or use arrow keys`}
+                      title={`Camera position ${i + 1}`}
+                      disabled={disabled || routeMode !== "off"}
+                      onPointerDown={(event) => startWaypoint(i, event)}
+                      onKeyDown={(event) => nudgeWaypoint(i, event)}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+                {draftStart && routeMode === "end" && (
+                  <span
+                    className="page-route-point pending"
+                    style={{
+                      left: `${pageRoutePercent(draftStart).x}%`,
+                      top: `${pageRoutePercent(draftStart).y}%`,
+                    }}
+                    aria-label="Starting camera point 1"
+                  >1</span>
+                )}
+              </>
+            )}
           </div>
           <p className="help page-review-caption">
-            {drawing
-              ? "Drag on the full page to draw a replacement rectangle."
-              : crop
+            {routeMode === "start"
+              ? "Click the artwork where the camera should START (point 1)."
+              : routeMode === "end"
+                ? "Click where the camera should END (point 2)."
+                : routeMode === "append"
+                  ? "Click where the camera should go NEXT."
+                  : drawing
+                    ? "Drag on the full page to draw a replacement rectangle."
+                    : crop
                 ? "The outlined area is what Verdict reads from this page. Drag to move it, or resize its corner."
                 : "This shot currently uses the entire page. You can draw a crop if needed."}
           </p>
@@ -314,7 +453,11 @@ export default function PageShotReview({
               className="button secondary small-button"
               disabled={disabled}
               aria-pressed={drawing}
-              onClick={() => setDrawing(!drawing)}
+              onClick={() => {
+                setRouteMode("off");
+                setDraftStart(null);
+                setDrawing(!drawing);
+              }}
             >
               {drawing
                 ? "Cancel drawing"
@@ -349,6 +492,7 @@ export default function PageShotReview({
                 glide_axis: null,
                 glide_start: 0,
                 glide_end: 1,
+                camera_path: null,
               });
             }}
           >
@@ -381,6 +525,7 @@ export default function PageShotReview({
                   glide_axis: panAxis,
                   glide_start: 0,
                   glide_end: 1,
+                  camera_path: null,
                   framing: "fit",
                   easing: "smooth",
                   transition: "cut",
@@ -393,10 +538,12 @@ export default function PageShotReview({
               className="button secondary small-button"
               disabled={disabled || mode !== "pan"}
               onClick={() =>
-                onPatch(index, {
-                  glide_start: scene.glide_end ?? 1,
-                  glide_end: scene.glide_start ?? 0,
-                })
+                path.length >= 2
+                  ? changeRoute([...path].reverse())
+                  : onPatch(index, {
+                      glide_start: scene.glide_end ?? 1,
+                      glide_end: scene.glide_start ?? 0,
+                    })
               }
             >
               Reverse pan
