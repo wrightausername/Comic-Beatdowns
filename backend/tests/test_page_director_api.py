@@ -7,6 +7,7 @@ from conftest import add_project, wav_bytes
 from PIL import Image, ImageDraw
 
 from app.database import RenderJob
+from app.schemas import SceneInput
 
 
 def page_png():
@@ -89,7 +90,7 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
     edited[0]["source_crop"] = {**original, "width": original["width"] * 0.95}
     changed = client.put(
         url + "/scenes",
-        json={"scenes": edited},
+        json={"scenes": [{k: v for k, v in scene.items() if k in SceneInput.model_fields} for scene in edited]},
     )
     assert changed.status_code == 200, changed.text
     assert changed.json()["scenes"][0]["source_crop"]["width"] < original["width"]
