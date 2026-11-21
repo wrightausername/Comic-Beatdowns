@@ -104,3 +104,37 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
     )
     assert restored.status_code == 200, restored.text
     assert restored.json()["scenes"][0]["source_crop"] == original
+
+
+    # The creator's manually drawn numbered route and travel speed must
+    # survive a real API save/reload and remain reversible via Undo.
+    routed = restored.json()["scenes"]
+    routed[0]["motion"] = "panel_glide"
+    routed[0]["camera_path"] = [
+        {"x": 0.15, "y": 0.4},
+        {"x": 0.45, "y": 0.55},
+        {"x": 0.9, "y": 0.6},
+    ]
+    routed[0]["path_move_fraction"] = 0.35
+    routed[0]["path_zoom"] = 1.6
+    changed = client.put(
+        url + "/scenes",
+        json={
+            "scenes": [
+                {k: v for k, v in scene.items() if k in SceneInput.model_fields}
+                for scene in routed
+            ]
+        },
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["scenes"][0]["camera_path"][2]["x"] == 0.9
+    assert changed.json()["scenes"][0]["path_move_fraction"] == 0.35
+    assert changed.json()["scenes"][0]["path_zoom"] == 1.6
+    reloaded = client.get(url).json()
+    assert len(reloaded["scenes"][0]["camera_path"]) == 3
+    undone = client.post(
+        url + "/history/undo",
+        json={"base_revision": reloaded["revision"]},
+    )
+    assert undone.status_code == 200, undone.text
+    assert undone.json()["scenes"][0]["camera_path"] is None
