@@ -83,6 +83,8 @@ export default function PageShotReview({
     !following.sfx_id &&
     !following.sfx_url &&
     !following.sfx_source_id &&
+    !scene.camera_path?.length &&
+    !following.camera_path?.length &&
     scene.duration + following.duration <= 30 &&
     (scene.note?.length ?? 0) + (following.note?.length ?? 0) + 3 <= 2000,
   );
