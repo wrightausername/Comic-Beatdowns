@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from PIL import Image
 
 from .database import uid
+from .camera_path import path_zoom
 from .panel_detection import suggest_panels
 
 MAX_VIRTUAL_SHOTS = 120
@@ -119,4 +120,6 @@ def glide_zoom(scene, panel_width, panel_height, target_ratio=9 / 16):
     if not crop or scene.get("motion") != "panel_glide":
         return 1.0
     aspect = panel_width * crop["width"] / (panel_height * crop["height"])
+    if scene.get("camera_path"):
+        return path_zoom(aspect, scene.get("path_zoom", 1.4))
     return round(min(8.0, max(1.0, aspect / target_ratio, target_ratio / aspect)), 6)
