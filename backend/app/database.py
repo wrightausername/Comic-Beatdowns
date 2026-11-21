@@ -92,6 +92,8 @@ class Scene(Base):
     note: Mapped[str] = mapped_column(Text, default="", server_default="")
     beat: Mapped[str] = mapped_column(String, default="custom", server_default="custom")
     framing: Mapped[str] = mapped_column(String, default="fill", server_default="fill")
+    source_crop: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    glide_axis: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class SoundEffect(Base):
@@ -219,6 +221,8 @@ def migrate_scene_options(engine):
         "note": "TEXT NOT NULL DEFAULT ''",
         "beat": "VARCHAR NOT NULL DEFAULT 'custom'",
         "framing": "VARCHAR NOT NULL DEFAULT 'fill'",
+        "source_crop": "JSON",
+        "glide_axis": "VARCHAR",
     }
     with engine.begin() as connection:
         existing = {c["name"] for c in inspect(connection).get_columns("scenes")}
