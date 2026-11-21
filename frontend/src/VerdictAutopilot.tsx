@@ -256,9 +256,18 @@ export default function VerdictAutopilot({
   }
   async function run() {
     await perform(async () => {
+      // The normal workflow is one click, not a separate enable toggle.
       const saved = await api<Project>(`/projects/${project.id}`);
-      const job = await handToVerdict(saved);
-      if (job) setJobs([job, ...jobs]);
+      const current = { ...defaultAutopilot, ...saved.autopilot };
+      const ready = current.enabled
+        ? saved
+        : await api<Project>(
+            `/projects/${project.id}/autopilot`,
+            json({ ...current, enabled: true, base_revision: saved.revision }, "PUT"),
+          );
+      if (!current.enabled) accept(ready);
+      const job = await handToVerdict(ready);
+      if (job) setJobs((existing) => [job, ...existing]);
     });
   }
   async function saveProvider() {
@@ -289,24 +298,15 @@ export default function VerdictAutopilot({
         <Bot size={30} />
         <div>
           <span className="eyebrow">VERDICT TAKES THE CHAIR</span>
-          <h2>Upload. Hand it over. Watch.</h2>
+          <h2>Make your video draft</h2>
           <p>
-            Add your panels and one voice recording. I’ll build the vertical
-            edit.
+            Add comic pages and your ElevenLabs voice recording. Verdict builds
+            a first edit; you review it and fix only what needs fixing.
           </p>
         </div>
-        <label className="autopilot-toggle">
-          <input
-            type="checkbox"
-            checked={options.enabled}
-            disabled={!!running}
-            onChange={(e) => void changeOptions({ enabled: e.target.checked })}
-          />
-          Verdict Autopilot
-        </label>
       </div>
-      {options.enabled && (
-        <>
+      <details className="autopilot-simple-options">
+        <summary>Optional · change editing style or AI settings</summary>
           <div className="form-grid autopilot-options">
             <label>
               How Verdict decides
@@ -370,42 +370,59 @@ export default function VerdictAutopilot({
               final MP4 without another review.
             </p>
           )}
-          <div className="toolbar">
-            <button
-              className="button primary"
-              disabled={
-                !!running ||
-                !readyForVerdict(project) ||
-                (options.mode === "vision" && !connection?.configured)
-              }
-              onClick={() => void run()}
-            >
-              <Sparkles size={17} />
-              {running ? "Verdict is working…" : "Let Verdict handle it"}
-            </button>
-            {!readyForVerdict(project) && (
-              <span className="muted">
-                First add panels and narration in Add files below.
-              </span>
-            )}
-            {latest && ["queued", "working"].includes(latest.status) && (
-              <button
-                className="button secondary"
-                onClick={() =>
-                  void perform(async () => {
-                    await api(
-                      `/projects/${project.id}/director/${latest.id}/cancel`,
-                      json({}),
-                    );
-                  })
-                }
-              >
-                Stop planning
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      </details>
+      <div className="toolbar autopilot-primary-action">
+        <button
+          type="button"
+          className="button primary"
+          disabled={
+            !!running ||
+            busy ||
+            dirty ||
+            !readyForVerdict(project) ||
+            (options.mode === "vision" && !connection?.configured)
+          }
+          onClick={() => void run()}
+        >
+          <Sparkles size={17} />
+          {running
+            ? "Verdict is building your video…"
+            : options.delivery === "final"
+              ? "Let Verdict finish the video"
+              : "Make my video draft"}
+        </button>
+        {!readyForVerdict(project) && (
+          <span className="muted">
+            Start by adding comic pages and one ElevenLabs narration file in Add files.
+          </span>
+        )}
+        {dirty && (
+          <span className="muted">
+            Finish saving your current edits before starting Verdict.
+          </span>
+        )}
+        {options.mode === "vision" && !connection?.configured && (
+          <span className="muted">
+            Vision AI needs a connection. Choose Basic in optional settings to run locally.
+          </span>
+        )}
+        {latest && ["queued", "working"].includes(latest.status) && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() =>
+              void perform(async () => {
+                await api(
+                  `/projects/${project.id}/director/${latest.id}/cancel`,
+                  json({}),
+                );
+              })
+            }
+          >
+            Stop planning
+          </button>
+        )}
+      </div>
       {latest && (
         <div className="autopilot-progress" role="status">
           <strong>{latest.message}</strong>
@@ -417,6 +434,15 @@ export default function VerdictAutopilot({
             />
           )}
           <p>{latest.report.summary}</p>
+          {latest.status === "completed" && (
+            <button
+              type="button"
+              className="button secondary"
+              onClick={onFixPage ?? onReview}
+            >
+              Check or fix my shots (optional)
+            </button>
+          )}
           {latest.report.page_reading?.expanded && (
             <div className="notice">
               <p>
