@@ -57,21 +57,68 @@ test("the guided GUI exposes Basic, Vision, pacing, and preview-first delivery",
       onError={vi.fn()}
     />,
   );
-  expect(
-    screen.getByRole("checkbox", { name: "Verdict Autopilot" }),
-  ).toBeChecked();
+  expect(screen.getByRole("button", { name: "Make my video draft" }))
+    .toBeEnabled();
+  expect(screen.getByText("Optional · change editing style or AI settings"))
+    .toBeInTheDocument();
+  fireEvent.click(screen.getByText("Optional · change editing style or AI settings"));
   expect(screen.getByLabelText("Delivery")).toHaveValue("draft");
   expect(screen.getByLabelText("Pacing")).toHaveValue("fast");
   expect(
     screen.getByText(/Basic cannot inspect the artwork/),
   ).toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: "Let Verdict handle it" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Make my video draft" }))
+    .toBeEnabled();
   await waitFor(() =>
     expect(mocked).toHaveBeenCalledWith("/verdict/connection"),
   );
 });
+test("one click enables a disabled Autopilot safely and generates a draft", async () => {
+  const off = {
+    ...project, autopilot: { ...project.autopilot!, enabled: false },
+  };
+  const enabled = {
+    ...off, revision: 5,
+    autopilot: { ...off.autopilot!, enabled: true },
+  };
+  mocked.mockImplementation(async (path) => {
+    if (path === "/verdict/connection") return { configured: false } as never;
+    if (path === "/projects/test") return off as never;
+    if (path === "/projects/test/autopilot") return enabled as never;
+    if (path === "/projects/test/director")
+      return { id: "new-director", status: "queued", report: {} } as never;
+    return [] as never;
+  });
+  render(
+    <VerdictAutopilot
+      project={off as Project}
+      dirty={false}
+      busy={false}
+      accept={vi.fn()}
+      perform={async (action) => action()}
+      onChanged={vi.fn()}
+      onReview={vi.fn()}
+      onFixPage={vi.fn()}
+      onError={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Make my video draft" }));
+  await waitFor(() => expect(mocked).toHaveBeenCalledWith(
+    "/projects/test/autopilot",
+    expect.objectContaining({
+      method: "PUT",
+      body: expect.stringContaining('"enabled":true'),
+    }),
+  ));
+  await waitFor(() => expect(mocked).toHaveBeenCalledWith(
+    "/projects/test/director",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ base_revision: 5 }),
+    }),
+  ));
+});
+
 test("an unsaved editor is not replaced by background results", async () => {
   const accept = vi.fn();
   mocked.mockImplementation(async (path) =>
