@@ -305,6 +305,58 @@ export default function VerdictAutopilot({
           </p>
         </div>
       </div>
+      <div className="toolbar autopilot-primary-action">
+        <button
+          type="button"
+          className="button primary"
+          disabled={
+            !!running ||
+            busy ||
+            dirty ||
+            !readyForVerdict(project) ||
+            (options.mode === "vision" && !connection?.configured)
+          }
+          onClick={() => void run()}
+        >
+          <Sparkles size={17} />
+          {running
+            ? "Verdict is building your video…"
+            : options.delivery === "final"
+              ? "Let Verdict finish the video"
+              : "Make my video draft"}
+        </button>
+        {!readyForVerdict(project) && (
+          <span className="muted">
+            Start by adding comic pages and one ElevenLabs narration file in Add files.
+          </span>
+        )}
+        {dirty && (
+          <span className="muted">
+            Finish saving your current edits before starting Verdict.
+          </span>
+        )}
+        {options.mode === "vision" && !connection?.configured && (
+          <span className="muted">
+            Vision AI needs a connection. Choose Basic in optional settings to run locally.
+          </span>
+        )}
+        {latest && ["queued", "working"].includes(latest.status) && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() =>
+              void perform(async () => {
+                await api(
+                  `/projects/${project.id}/director/${latest.id}/cancel`,
+                  json({}),
+                );
+              })
+            }
+          >
+            Stop planning
+          </button>
+        )}
+      </div>
       <details className="autopilot-simple-options">
         <summary>Optional · change editing style or AI settings</summary>
           <div className="form-grid autopilot-options">
@@ -371,58 +423,6 @@ export default function VerdictAutopilot({
             </p>
           )}
       </details>
-      <div className="toolbar autopilot-primary-action">
-        <button
-          type="button"
-          className="button primary"
-          disabled={
-            !!running ||
-            busy ||
-            dirty ||
-            !readyForVerdict(project) ||
-            (options.mode === "vision" && !connection?.configured)
-          }
-          onClick={() => void run()}
-        >
-          <Sparkles size={17} />
-          {running
-            ? "Verdict is building your video…"
-            : options.delivery === "final"
-              ? "Let Verdict finish the video"
-              : "Make my video draft"}
-        </button>
-        {!readyForVerdict(project) && (
-          <span className="muted">
-            Start by adding comic pages and one ElevenLabs narration file in Add files.
-          </span>
-        )}
-        {dirty && (
-          <span className="muted">
-            Finish saving your current edits before starting Verdict.
-          </span>
-        )}
-        {options.mode === "vision" && !connection?.configured && (
-          <span className="muted">
-            Vision AI needs a connection. Choose Basic in optional settings to run locally.
-          </span>
-        )}
-        {latest && ["queued", "working"].includes(latest.status) && (
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() =>
-              void perform(async () => {
-                await api(
-                  `/projects/${project.id}/director/${latest.id}/cancel`,
-                  json({}),
-                );
-              })
-            }
-          >
-            Stop planning
-          </button>
-        )}
-      </div>
       {latest && (
         <div className="autopilot-progress" role="status">
           <strong>{latest.message}</strong>
