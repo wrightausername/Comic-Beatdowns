@@ -156,6 +156,7 @@ def test_repeated_glide_moves_forward_instead_of_restarting(tmp_path):
         for a, b in zip(glides, glides[1:])
     )
     assert all(s["transition"] == "cut" for s in glides)
+    assert all(s["transition"] == "cut" for s in cut["scenes"] if s.get("source_crop"))
     zoom, x, y = camera_expressions({**glides[0], "glide_zoom": 2.4}, 32)
     assert zoom == "2.4"
     assert "iw" in x and "ih" in y
