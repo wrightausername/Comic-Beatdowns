@@ -60,6 +60,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                     "framing": "fill",
                     "source_crop": None,
                     "glide_axis": None,
+                    "glide_start": 0,
+                    "glide_end": 1,
                 }.items()
             }
             if not scene.locked:
@@ -147,6 +149,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         }
         values["source_crop"] = getattr(source, "source_crop", None)
         values["glide_axis"] = getattr(source, "glide_axis", None)
+        values["glide_start"] = getattr(source, "glide_start", 0)
+        values["glide_end"] = getattr(source, "glide_end", 1)
         result.append(
             {
                 **values,
@@ -173,6 +177,30 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                 "transition_duration": 0.12 if options.pace == "fast" else 0.25,
             }
         )
+    # Repeated shots from one long panel form ONE continuous guided pan.
+    # The full glide is divided proportional to the exact audio-framed durations.
+    i = 0
+    while i < len(result):
+        first = result[i]
+        if first["motion"] != "panel_glide":
+            i += 1
+            continue
+        j = i + 1
+        while (
+            j < len(result)
+            and result[j]["motion"] == "panel_glide"
+            and result[j]["panel_id"] == first["panel_id"]
+            and result[j].get("source_crop") == first.get("source_crop")
+        ):
+            j += 1
+        total = sum(shot["duration"] for shot in result[i:j])
+        cursor = 0.0
+        for shot in result[i:j]:
+            shot["glide_start"] = round(cursor / total, 6)
+            cursor += shot["duration"]
+            shot["glide_end"] = round(cursor / total, 6)
+            shot["transition"] = "cut"
+        i = j
     updated = {
         **settings,
         "edit_pace": options.pace,
