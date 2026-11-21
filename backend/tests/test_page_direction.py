@@ -4,6 +4,8 @@ All artwork is original synthetic geometry. No copyrighted pages or remote AI.
 """
 
 from types import SimpleNamespace
+import shutil
+import subprocess
 
 import pytest
 from PIL import Image, ImageDraw
@@ -12,7 +14,7 @@ from app.autoedit import auto_edit
 from app.effects import camera_expressions
 from app.page_direction import glide_zoom, page_sources
 from app.panel_detection import suggest_panels
-from app.renderer import prepare_scene_image
+from app.renderer import prepare_scene_image, render_scene
 from app.schemas import AutoEditInput, SceneInput
 
 
@@ -138,3 +140,46 @@ def test_detected_page_source_never_rewrites_existing_virtual_edit(tmp_path):
     unchanged, report = page_sources(sources, [panel], Storage(tmp_path))
     assert unchanged == sources
     assert not report["expanded"]
+
+
+
+@pytest.mark.render
+@pytest.mark.skipif(not shutil.which("ffmpeg"), reason="FFmpeg is required")
+def test_ffmpeg_glide_travels_across_single_wide_panel(tmp_path, settings):
+    """Verify actual MP4 frames, not just computed camera expressions."""
+    page = Image.new("RGB", (900, 300), "red")
+    draw = ImageDraw.Draw(page)
+    draw.rectangle((300, 0, 599, 299), fill="green")
+    draw.rectangle((600, 0, 899, 299), fill="blue")
+    original = tmp_path / "whole_page.png"
+    prepared = tmp_path / "prepared.png"
+    page.save(original)
+    region = {"x": 0, "y": 0, "width": 1, "height": 1}
+    prepare_scene_image(
+        original, prepared, size=(180, 320), framing="fit", source_crop=region,
+    )
+    shot = {
+        "duration": 1.0, "motion": "panel_glide", "motion_strength": 0.1,
+        "easing": "linear", "glide_axis": "horizontal", "glide_start": 0,
+        "glide_end": 1,
+        "glide_zoom": glide_zoom({"motion": "panel_glide", "source_crop": region}, 900, 300),
+        "focus_x": .5, "focus_y": .5, "transition": "cut",
+    }
+    video = tmp_path / "scene.mp4"
+    render_scene(
+        shot, None, {"fps": 24, "transition": "cut"}, settings,
+        prepared, video, tmp_path / "tail.png", size=(180, 320),
+    )
+    assert video.is_file() and video.stat().st_size > 1000
+    first, last = tmp_path / "first.png", tmp_path / "last.png"
+    for moment, output in [(0.03, first), (0.95, last)]:
+        subprocess.run(
+            ["ffmpeg", "-v", "error", "-ss", str(moment), "-i", str(video),
+             "-frames:v", "1", "-y", str(output)],
+            check=True, capture_output=True,
+        )
+    with Image.open(first) as start, Image.open(last) as finish:
+        r1, _, b1 = start.getpixel((90, 160))
+        r2, _, b2 = finish.getpixel((90, 160))
+        assert r1 > 160 and b1 < 100
+        assert b2 > 160 and r2 < 100
