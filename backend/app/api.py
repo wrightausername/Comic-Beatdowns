@@ -20,6 +20,7 @@ from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
 from .panel_detection import suggest_panels
+from .page_direction import glide_zoom
 from .preflight import check_episode
 from .renderer import normalize_audio, timeline_duration, tools_available
 from .schemas import (
@@ -97,6 +98,8 @@ def scene_dict(scene, db):
         "note": scene.note,
         "beat": scene.beat,
         "framing": scene.framing,
+        "source_crop": scene.source_crop,
+        "glide_axis": scene.glide_axis,
         "sfx_source_id": scene.id if scene.sfx_key else None,
         "panel": panel_dict(db.get(Panel, scene.panel_id)),
     }
@@ -601,6 +604,16 @@ def queue_render_for_state(
             "sfx_key": s.sfx_key,
             "sfx_offset": s.sfx_offset,
             "framing": s.framing,
+            "source_crop": s.source_crop,
+            "glide_axis": s.glide_axis,
+            "glide_zoom": (
+                glide_zoom(
+                    {"motion": s.motion, "source_crop": s.source_crop},
+                    db.get(Panel, s.panel_id).width,
+                    db.get(Panel, s.panel_id).height,
+                )
+                if s.motion == "panel_glide" else 1.0
+            ),
         }
         for s in scenes
     ]
