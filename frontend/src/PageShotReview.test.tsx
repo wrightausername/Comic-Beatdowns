@@ -80,10 +80,11 @@ function setup(scenes: Scene[] = shots, canUndo = true) {
 }
 
 function openMoreControls() {
-  const details = screen
-    .getByText("More controls · timing, crop size, splitting and transitions")
-    .closest("details")!;
-  details.open = true;
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "More controls · timing, crop size, splitting and transitions",
+    }),
+  );
 }
 
 describe("plain language whole-page editor", () => {
