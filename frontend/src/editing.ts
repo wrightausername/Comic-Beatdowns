@@ -68,9 +68,13 @@ export function splitScene(
     Math.min(frames - minimum, Math.round((at ?? source.duration / 2) * fps)),
   );
   const offset = source.sfx_offset ?? 0;
+  const travelStart = source.glide_start ?? 0;
+  const travelEnd = source.glide_end ?? 1;
+  const midpoint = travelStart + (travelEnd - travelStart) * left / frames;
   const first = {
     ...source,
     duration: left / fps,
+    ...(source.camera_path?.length ? { glide_end: midpoint } : {}),
     ...(offset >= left / fps
       ? { sfx_id: null, sfx_url: null, clear_sfx: true }
       : {}),
@@ -82,6 +86,7 @@ export function splitScene(
       offset >= left / fps ? (source.sfx_source_id ?? source.id) : null,
     clear_sfx: offset < left / fps,
     duration: (frames - left) / fps,
+    ...(source.camera_path?.length ? { glide_start: midpoint } : {}),
     caption: "",
     note: "",
     transition: "cut" as const,
@@ -107,6 +112,8 @@ export function mergePageShots(scenes: Scene[], index: number): Scene[] {
     throw new Error(
       "Choose two unlocked neighboring crops from the same original comic page.",
     );
+  if (first.camera_path?.length || next.camera_path?.length)
+    throw new Error("Clear numbered camera routes before joining two shots.");
   if (next.caption?.trim() || next.sfx_id || next.sfx_url || next.sfx_source_id)
     throw new Error(
       "The next shot has dialogue or audio. Move it first so joining won't discard it.",
@@ -204,6 +211,7 @@ export function applyStoryboard(
       ...scene,
       panel_id: card.panel_id,
       source_crop: scene.panel_id === card.panel_id ? scene.source_crop : null,
+      camera_path: scene.panel_id === card.panel_id ? scene.camera_path : null,
       glide_axis: scene.panel_id === card.panel_id ? scene.glide_axis : null,
       motion: scene.panel_id === card.panel_id ? scene.motion : "hold",
       beat: card.beat ?? "custom",
