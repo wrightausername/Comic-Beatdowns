@@ -25,6 +25,8 @@ export default function PageShotReview({
   onMove,
   onRemove,
   onDuplicate,
+  onSplit,
+  onJoin,
   onPreview,
   onUndo,
 }: {
@@ -35,6 +37,8 @@ export default function PageShotReview({
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
   onDuplicate: (index: number) => void;
+  onSplit: (index: number) => void;
+  onJoin: (index: number) => void;
   onPreview: (index: number) => void;
   onUndo: () => void;
 }) {
@@ -46,6 +50,21 @@ export default function PageShotReview({
   const found = selectedId ? scenes.findIndex((s) => s.id === selectedId) : -1;
   const index = found >= 0 ? found : Math.max(0, scenes.findIndex((s) => s.source_crop));
   const scene = scenes[index];
+  const following = scenes[index + 1];
+  const canJoin = Boolean(
+    following &&
+    scene.source_crop &&
+    following.source_crop &&
+    scene.panel_id === following.panel_id &&
+    !scene.locked &&
+    !following.locked &&
+    !following.caption?.trim() &&
+    !following.sfx_id &&
+    !following.sfx_url &&
+    !following.sfx_source_id &&
+    scene.duration + following.duration <= 30 &&
+    (scene.note?.length ?? 0) + (following.note?.length ?? 0) + 3 <= 2000
+  );
   const crop = scene.source_crop ?? null;
   const disabled = busy || Boolean(scene.locked);
   const ratio = crop
@@ -336,6 +355,27 @@ export default function PageShotReview({
               <Copy size={14} /> Repeat shot
             </button>
           </div>
+          <div className="page-review-action-row">
+            <button
+              className="button secondary small-button"
+              disabled={disabled || scene.duration < 0.5}
+              onClick={() => onSplit(index)}
+              title="Makes two timed shots of this artwork. Select the new shot and draw its own crop."
+            >
+              Split shot in two
+            </button>
+            <button
+              className="button secondary small-button"
+              disabled={busy || !canJoin}
+              onClick={() => onJoin(index)}
+              title="Combines this crop and the next crop from the same original page, without shifting narration."
+            >
+              Join with next shot
+            </button>
+          </div>
+          <p className="help">
+            Split keeps both halves on the timeline. Join combines two mistaken cuts from one source page and preserves their total time.
+          </p>
           <label className="page-review-duration">
             Time on screen (seconds)
             <input
@@ -356,6 +396,23 @@ export default function PageShotReview({
           <p className="help">
             Changing shot length shifts later cuts. The voice recording is never altered.
           </p>
+          <label className="page-review-duration">
+            Transition into this shot
+            <select
+              aria-label={`Shot ${index + 1} transition`}
+              value={scene.transition ?? "cut"}
+              disabled={disabled || index === 0}
+              onChange={(event) =>
+                onPatch(index, {
+                  transition: event.target.value as "cut" | "crossfade" | "slide_left",
+                })
+              }
+            >
+              <option value="cut">Hard cut (comic reading)</option>
+              <option value="crossfade">Gentle dissolve</option>
+              <option value="slide_left">Slide to next shot</option>
+            </select>
+          </label>
           <div className="page-review-action-row">
             <button
               className="button secondary small-button"
