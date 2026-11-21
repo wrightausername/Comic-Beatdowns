@@ -125,7 +125,10 @@ it("joins two proposed page regions into one long panel without shifting speech 
   expect(merged[0].id).toBe("a");
   expect(merged[0].duration).toBe(3.5);
   expect(merged[0].source_crop).toEqual({
-    x: 0.1, y: 0.1, width: 0.78, height: 0.25,
+    x: 0.1,
+    y: 0.1,
+    width: 0.78,
+    height: 0.25,
   });
   expect(merged[0].motion).toBe("panel_glide");
   expect(merged[0].glide_axis).toBe("horizontal");
@@ -149,14 +152,19 @@ it("refuses unsafe joins that would discard voice captions or scene effects", ()
     panel: page,
     source_crop: { x: 0.5, y: 0, width: 0.5, height: 0.5 },
   };
-  expect(() => mergePageShots([first, { ...second, locked: true }], 0))
-    .toThrow("unlocked");
-  expect(() => mergePageShots([first, { ...second, caption: "Don't drop me" }], 0))
-    .toThrow("dialogue or audio");
-  expect(() => mergePageShots([first, { ...second, sfx_url: "/hit.wav" }], 0))
-    .toThrow("dialogue or audio");
-  expect(() => mergePageShots([first, { ...second, panel_id: "another" }], 0))
-    .toThrow("same original");
-  expect(() => mergePageShots([first, { ...second, duration: 30 }], 0))
-    .toThrow("at most 30");
+  expect(() => mergePageShots([first, { ...second, locked: true }], 0)).toThrow(
+    "unlocked",
+  );
+  expect(() =>
+    mergePageShots([first, { ...second, caption: "Don't drop me" }], 0),
+  ).toThrow("dialogue or audio");
+  expect(() =>
+    mergePageShots([first, { ...second, sfx_url: "/hit.wav" }], 0),
+  ).toThrow("dialogue or audio");
+  expect(() =>
+    mergePageShots([first, { ...second, panel_id: "another" }], 0),
+  ).toThrow("same original");
+  expect(() => mergePageShots([first, { ...second, duration: 30 }], 0)).toThrow(
+    "at most 30",
+  );
 });

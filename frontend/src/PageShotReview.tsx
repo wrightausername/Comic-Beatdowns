@@ -1,9 +1,20 @@
 import { useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent } from "react";
-import { ArrowLeft, ArrowRight, Copy, Play, RotateCcw, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Copy,
+  Play,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import type { Scene } from "./types";
 import {
-  drawCrop, moveCrop, resizeCrop, scaleCrop, type Region,
+  drawCrop,
+  moveCrop,
+  resizeCrop,
+  scaleCrop,
+  type Region,
 } from "./pageReviewGeometry";
 
 type Drag = {
@@ -48,7 +59,13 @@ export default function PageShotReview({
   const drag = useRef<Drag | null>(null);
   if (!scenes.length) return null;
   const found = selectedId ? scenes.findIndex((s) => s.id === selectedId) : -1;
-  const index = found >= 0 ? found : Math.max(0, scenes.findIndex((s) => s.source_crop));
+  const index =
+    found >= 0
+      ? found
+      : Math.max(
+          0,
+          scenes.findIndex((s) => s.source_crop),
+        );
   const scene = scenes[index];
   const following = scenes[index + 1];
   const canJoin = Boolean(
@@ -63,7 +80,7 @@ export default function PageShotReview({
     !following.sfx_url &&
     !following.sfx_source_id &&
     scene.duration + following.duration <= 30 &&
-    (scene.note?.length ?? 0) + (following.note?.length ?? 0) + 3 <= 2000
+    (scene.note?.length ?? 0) + (following.note?.length ?? 0) + 3 <= 2000,
   );
   const crop = scene.source_crop ?? null;
   const disabled = busy || Boolean(scene.locked);
@@ -88,8 +105,12 @@ export default function PageShotReview({
     event.stopPropagation();
     const pos = point(event);
     drag.current = {
-      mode, x: event.clientX, y: event.clientY, original: crop,
-      anchorX: pos.x, anchorY: pos.y,
+      mode,
+      x: event.clientX,
+      y: event.clientY,
+      original: crop,
+      anchorX: pos.x,
+      anchorY: pos.y,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
   }
@@ -102,8 +123,10 @@ export default function PageShotReview({
     const dy = (event.clientY - active.y) / rect.height;
     if (active.mode === "draw") {
       const proposal = drawCrop(
-        active.anchorX, active.anchorY,
-        active.anchorX + dx, active.anchorY + dy,
+        active.anchorX,
+        active.anchorY,
+        active.anchorX + dx,
+        active.anchorY + dy,
       );
       if (proposal) patch(proposal);
     } else if (active.original) {
@@ -119,7 +142,10 @@ export default function PageShotReview({
     drag.current = null;
     setDrawing(false);
   }
-  function arrows(event: KeyboardEvent<HTMLButtonElement>, mode: "move" | "resize") {
+  function arrows(
+    event: KeyboardEvent<HTMLButtonElement>,
+    mode: "move" | "resize",
+  ) {
     if (!crop || disabled) return;
     const dir: Record<string, [number, number]> = {
       ArrowLeft: [-1, 0],
@@ -139,30 +165,42 @@ export default function PageShotReview({
   }
   const mode = scene.motion === "panel_glide" ? "pan" : "hold";
   return (
-    <section id="page-shot-review" className="surface page-shot-review" aria-label="Quick shot editor">
+    <section
+      id="page-shot-review"
+      className="surface page-shot-review"
+      aria-label="Quick shot editor"
+    >
       <div className="section-heading">
         <div>
           <h3>Fix Verdict's panel choices</h3>
           <p>
-            Tap a shot, drag its crop or resize the corner, and choose how the camera moves.
-            Changes autosave. You can undo.
+            Tap a shot, drag its crop or resize the corner, and choose how the
+            camera moves. Changes autosave. You can undo.
           </p>
         </div>
         <button
-          type="button" className="button secondary small-button"
-          onClick={onUndo} disabled={busy || !canUndo}
+          type="button"
+          className="button secondary small-button"
+          onClick={onUndo}
+          disabled={busy || !canUndo}
         >
           <RotateCcw size={14} /> Undo edit
         </button>
       </div>
-      <div className="page-shot-strip" role="group" aria-label="Shots in video order">
+      <div
+        className="page-shot-strip"
+        role="group"
+        aria-label="Shots in video order"
+      >
         {scenes.map((shot, shotIndex) => (
           <button
             key={shot.id ?? shotIndex}
             type="button"
             aria-label={`Review shot ${shotIndex + 1}`}
             aria-pressed={index === shotIndex}
-            className={index === shotIndex ? "page-shot-chip selected" : "page-shot-chip"}
+            className={
+              index === shotIndex ? "page-shot-chip selected" : "page-shot-chip"
+            }
             onClick={() => {
               setSelectedId(shot.id ?? null);
               setDrawing(false);
@@ -170,7 +208,9 @@ export default function PageShotReview({
           >
             <span
               className="page-shot-chip-thumb"
-              style={{ aspectRatio: `${shot.panel.width} / ${shot.panel.height}` }}
+              style={{
+                aspectRatio: `${shot.panel.width} / ${shot.panel.height}`,
+              }}
             >
               <img src={shot.panel.thumbnail_url} alt="" draggable={false} />
               {shot.source_crop && (
@@ -187,7 +227,11 @@ export default function PageShotReview({
             </span>
             <strong>Shot {shotIndex + 1}</strong>
             <small>
-              {shot.locked ? "Locked" : shot.source_crop ? "Page crop" : "Whole image"}
+              {shot.locked
+                ? "Locked"
+                : shot.source_crop
+                  ? "Page crop"
+                  : "Whole image"}
             </small>
           </button>
         ))}
@@ -195,13 +239,19 @@ export default function PageShotReview({
       <div className="page-review-layout">
         <div>
           <div className="page-review-help">
-            <strong>Shot {index + 1} of {scenes.length}</strong>
+            <strong>
+              Shot {index + 1} of {scenes.length}
+            </strong>
             <span>{scene.panel.title || "Comic artwork"}</span>
           </div>
           <div
-            className={drawing ? "page-review-page drawing" : "page-review-page"}
+            className={
+              drawing ? "page-review-page drawing" : "page-review-page"
+            }
             ref={pageRef}
-            style={{ aspectRatio: `${scene.panel.width} / ${scene.panel.height}` }}
+            style={{
+              aspectRatio: `${scene.panel.width} / ${scene.panel.height}`,
+            }}
             role="group"
             aria-label={`Full source page for shot ${index + 1}`}
             onPointerDown={(event) => {
@@ -211,13 +261,19 @@ export default function PageShotReview({
             onPointerUp={finishDrag}
             onPointerCancel={finishDrag}
           >
-            <img src={scene.panel.image_url} alt={scene.panel.title} draggable={false} />
+            <img
+              src={scene.panel.image_url}
+              alt={scene.panel.title}
+              draggable={false}
+            />
             {crop && !drawing && (
               <div
                 className="page-review-region"
                 style={{
-                  left: `${crop.x * 100}%`, top: `${crop.y * 100}%`,
-                  width: `${crop.width * 100}%`, height: `${crop.height * 100}%`,
+                  left: `${crop.x * 100}%`,
+                  top: `${crop.y * 100}%`,
+                  width: `${crop.width * 100}%`,
+                  height: `${crop.height * 100}%`,
                 }}
               >
                 <button
@@ -260,7 +316,11 @@ export default function PageShotReview({
               aria-pressed={drawing}
               onClick={() => setDrawing(!drawing)}
             >
-              {drawing ? "Cancel drawing" : crop ? "Draw new crop" : "Crop part of page"}
+              {drawing
+                ? "Cancel drawing"
+                : crop
+                  ? "Draw new crop"
+                  : "Crop part of page"}
             </button>
             <button
               className="button secondary small-button"
@@ -283,16 +343,26 @@ export default function PageShotReview({
             onClick={() => {
               setDrawing(false);
               onPatch(index, {
-                source_crop: null, motion: "hold", framing: "fit",
-                glide_axis: null, glide_start: 0, glide_end: 1,
+                source_crop: null,
+                motion: "hold",
+                framing: "fit",
+                glide_axis: null,
+                glide_start: 0,
+                glide_end: 1,
               });
             }}
           >
             Use complete page instead
           </button>
 
-          <div className="page-review-action-heading">2. Choose camera movement</div>
-          <div className="page-review-action-row" role="group" aria-label="Shot camera style">
+          <div className="page-review-action-heading">
+            2. Choose camera movement
+          </div>
+          <div
+            className="page-review-action-row"
+            role="group"
+            aria-label="Shot camera style"
+          >
             <button
               className="button secondary small-button"
               aria-pressed={mode === "hold"}
@@ -332,27 +402,48 @@ export default function PageShotReview({
               Reverse pan
             </button>
           </div>
-          {mode === "pan" && <p className="help">The camera moves {scene.glide_axis === "vertical" ? "vertically" : "horizontally"} through one intact panel.</p>}
+          {mode === "pan" && (
+            <p className="help">
+              The camera moves{" "}
+              {scene.glide_axis === "vertical" ? "vertically" : "horizontally"}{" "}
+              through one intact panel.
+            </p>
+          )}
 
-          <div className="page-review-action-heading">3. Fix order and timing</div>
+          <div className="page-review-action-heading">
+            3. Fix order and timing
+          </div>
           <div className="page-review-action-row">
             <button
               className="button secondary small-button"
-              disabled={busy || index === 0 || scene.locked || scenes[index - 1]?.locked}
+              disabled={
+                busy || index === 0 || scene.locked || scenes[index - 1]?.locked
+              }
               onClick={() => onMove(index, index - 1)}
             >
               <ArrowLeft size={14} /> Earlier
             </button>
             <button
               className="button secondary small-button"
-              disabled={busy || index === scenes.length - 1 || scene.locked || scenes[index + 1]?.locked}
+              disabled={
+                busy ||
+                index === scenes.length - 1 ||
+                scene.locked ||
+                scenes[index + 1]?.locked
+              }
               onClick={() => onMove(index, index + 1)}
             >
               Later <ArrowRight size={14} />
             </button>
             <button
               className="button secondary small-button"
-              disabled={disabled || scenes.reduce((total, s) => total + s.duration, scene.duration) > 180}
+              disabled={
+                disabled ||
+                scenes.reduce(
+                  (total, s) => total + s.duration,
+                  scene.duration,
+                ) > 180
+              }
               onClick={() => onDuplicate(index)}
             >
               <Copy size={14} /> Repeat shot
@@ -377,7 +468,8 @@ export default function PageShotReview({
             </button>
           </div>
           <p className="help">
-            Split keeps both halves on the timeline. Join combines two mistaken cuts from one source page and preserves their total time.
+            Split keeps both halves on the timeline. Join combines two mistaken
+            cuts from one source page and preserves their total time.
           </p>
           <label className="page-review-duration">
             Time on screen (seconds)
@@ -397,7 +489,8 @@ export default function PageShotReview({
             />
           </label>
           <p className="help">
-            Changing shot length shifts later cuts. The voice recording is never altered.
+            Changing shot length shifts later cuts. The voice recording is never
+            altered.
           </p>
           <label className="page-review-duration">
             Transition into this shot
@@ -407,7 +500,8 @@ export default function PageShotReview({
               disabled={disabled || index === 0}
               onChange={(event) =>
                 onPatch(index, {
-                  transition: event.target.value as "cut" | "crossfade" | "slide_left",
+                  transition: event.target.value as
+                    "cut" | "crossfade" | "slide_left",
                 })
               }
             >
@@ -442,7 +536,8 @@ export default function PageShotReview({
             </button>
           )}
           <p className="help">
-            All edits are reversible using Undo. Your original page image is never changed.
+            All edits are reversible using Undo. Your original page image is
+            never changed.
           </p>
         </div>
       </div>

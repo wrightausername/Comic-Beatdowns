@@ -3984,7 +3984,6 @@ progress::-webkit-progress-value {
   }
 }
 
-
 /* Creator overrides for generated full-page comic shots. No hidden AI controls. */
 .page-shot-review {
   margin: 18px 0;
@@ -4047,14 +4046,21 @@ progress::-webkit-progress-value {
   background: #e85f6e18;
   box-shadow: 0 0 0 1px #0a1019a8;
 }
-.page-shot-chip strong { font-size: 11px; }
-.page-shot-chip small { font-size: 10px; color: #91b2c0; }
+.page-shot-chip strong {
+  font-size: 11px;
+}
+.page-shot-chip small {
+  font-size: 10px;
+  color: #91b2c0;
+}
 .page-review-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(245px, 0.9fr);
   gap: 22px;
 }
-.page-review-layout > div { min-width: 0; }
+.page-review-layout > div {
+  min-width: 0;
+}
 .page-review-help {
   display: flex;
   align-items: baseline;
@@ -4109,7 +4115,9 @@ progress::-webkit-progress-value {
   cursor: grab;
   touch-action: none;
 }
-.page-review-move:active { cursor: grabbing; }
+.page-review-move:active {
+  cursor: grabbing;
+}
 .page-review-move > span {
   font-size: 10px;
   padding: 5px 7px;
@@ -4182,10 +4190,19 @@ progress::-webkit-progress-value {
   padding: 7px 9px;
 }
 @media (max-width: 1050px) {
-  .page-review-layout { grid-template-columns: 1fr; }
+  .page-review-layout {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 700px) {
-  .page-shot-review { padding: 15px; }
-  .page-review-page { width: 100%; max-width: 480px; }
-  .page-review-action-row .button { min-height: 42px; }
+  .page-shot-review {
+    padding: 15px;
+  }
+  .page-review-page {
+    width: 100%;
+    max-width: 480px;
+  }
+  .page-review-action-row .button {
+    min-height: 42px;
+  }
 }

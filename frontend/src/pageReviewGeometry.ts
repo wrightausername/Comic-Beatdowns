@@ -26,7 +26,12 @@ export function resizeCrop(region: Region, dx: number, dy: number): Region {
   };
 }
 
-export function drawCrop(x1: number, y1: number, x2: number, y2: number): Region | null {
+export function drawCrop(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): Region | null {
   const left = clamp(Math.min(x1, x2), 0, 1);
   const right = clamp(Math.max(x1, x2), 0, 1);
   const top = clamp(Math.min(y1, y2), 0, 1);
@@ -46,5 +51,10 @@ export function scaleCrop(region: Region, factor: number): Region {
   const height = clamp(region.height * factor, MIN_SIZE, 1);
   const x = clamp(region.x + (region.width - width) / 2, 0, 1 - width);
   const y = clamp(region.y + (region.height - height) / 2, 0, 1 - height);
-  return { x: round(x), y: round(y), width: round(width), height: round(height) };
+  return {
+    x: round(x),
+    y: round(y),
+    width: round(width),
+    height: round(height),
+  };
 }

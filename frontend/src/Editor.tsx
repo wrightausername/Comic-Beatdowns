@@ -674,7 +674,9 @@ export default function Editor({
                   onJoin={(index) => {
                     try {
                       update({ scenes: mergePageShots(scenes, index) });
-                      setNotice("Joined those crops. Total narration timing was preserved.");
+                      setNotice(
+                        "Joined those crops. Total narration timing was preserved.",
+                      );
                     } catch (error) {
                       onError(errorMessage(error));
                     }
