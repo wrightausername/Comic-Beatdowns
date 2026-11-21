@@ -3983,3 +3983,209 @@ progress::-webkit-progress-value {
     gap: 8px;
   }
 }
+
+
+/* Creator overrides for generated full-page comic shots. No hidden AI controls. */
+.page-shot-review {
+  margin: 18px 0;
+  border: 1px solid #375466;
+}
+.page-shot-review .section-heading {
+  flex-wrap: wrap;
+}
+.page-shot-review .section-heading p {
+  max-width: 650px;
+  line-height: 1.6;
+  font-size: 12px;
+}
+.page-shot-strip {
+  display: flex;
+  overflow-x: auto;
+  gap: 9px;
+  padding: 2px 2px 12px;
+  margin-bottom: 16px;
+  scroll-snap-type: x proximity;
+}
+.page-shot-chip {
+  display: flex;
+  flex: 0 0 96px;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+  padding: 9px 6px;
+  border: 1px solid #344255;
+  border-radius: 9px;
+  color: #c1d2df;
+  background: #121c27;
+  scroll-snap-align: start;
+}
+.page-shot-chip.selected {
+  border-color: #7ddbe3;
+  background: #1a313b;
+  box-shadow: inset 0 0 0 1px #4ba8b3;
+}
+.page-shot-chip-thumb {
+  display: block;
+  position: relative;
+  height: 64px;
+  max-width: 80px;
+  min-width: 28px;
+  overflow: hidden;
+  background: #0b111b;
+}
+.page-shot-chip-thumb img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.page-shot-chip-region {
+  display: block;
+  position: absolute;
+  border: 2px solid #e85f6e;
+  background: #e85f6e18;
+  box-shadow: 0 0 0 1px #0a1019a8;
+}
+.page-shot-chip strong { font-size: 11px; }
+.page-shot-chip small { font-size: 10px; color: #91b2c0; }
+.page-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(245px, 0.9fr);
+  gap: 22px;
+}
+.page-review-layout > div { min-width: 0; }
+.page-review-help {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: #ccdbe5;
+  margin-bottom: 10px;
+}
+.page-review-help > span {
+  font-size: 11px;
+  color: #8ba7b9;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.page-review-page {
+  position: relative;
+  width: min(100%, 480px);
+  overflow: hidden;
+  background: #070e17;
+  border: 1px solid #334455;
+  border-radius: 7px;
+  touch-action: none;
+  user-select: none;
+}
+.page-review-page.drawing {
+  cursor: crosshair;
+  border-color: #6ed1dc;
+}
+.page-review-page > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.page-review-region {
+  position: absolute;
+  border: 2px solid #f27a87;
+  background: #ef516015;
+  box-shadow: 0 0 0 999px #0509147a;
+}
+.page-review-move {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+.page-review-move:active { cursor: grabbing; }
+.page-review-move > span {
+  font-size: 10px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  color: #fff;
+  letter-spacing: 0.04em;
+  background: #0c1825d9;
+  pointer-events: none;
+}
+.page-review-resize {
+  position: absolute;
+  right: -9px;
+  bottom: -9px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: #e85e6a;
+  border: 2px solid #08101b;
+  color: white;
+  border-radius: 6px;
+  font-size: 19px;
+  line-height: 1;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+.page-review-caption {
+  max-width: 480px;
+  margin-top: 9px;
+  line-height: 1.5;
+}
+.page-review-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.page-review-action-heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ae0e6;
+  margin-top: 7px;
+}
+.page-review-action-row {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.page-review-action-row .button {
+  min-height: 37px;
+}
+.page-review-action-row [aria-pressed="true"] {
+  color: #c5fafe;
+  border-color: #54b4c4;
+  background: #16333d;
+}
+.page-review-actions > .help {
+  line-height: 1.5;
+  font-size: 11px;
+}
+.page-review-duration {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  color: #b8d1e0;
+  font-size: 12px;
+}
+.page-review-duration input {
+  width: 92px;
+  padding: 7px 9px;
+}
+@media (max-width: 1050px) {
+  .page-review-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .page-shot-review { padding: 15px; }
+  .page-review-page { width: 100%; max-width: 480px; }
+  .page-review-action-row .button { min-height: 42px; }
+}
