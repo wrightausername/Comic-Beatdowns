@@ -58,6 +58,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                     "sfx_id": None,
                     "sfx_offset": 0,
                     "framing": "fill",
+                    "source_crop": None,
+                    "glide_axis": None,
                 }.items()
             }
             if not scene.locked:
@@ -90,6 +92,7 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         if (
             groups
             and groups[-1].panel_id == scene.panel_id
+            and getattr(groups[-1], "source_crop", None) == getattr(scene, "source_crop", None)
             and not scene.caption.strip()
             and not scene.sfx_key
         ):
@@ -142,6 +145,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         values = {
             key: getattr(source, key) for key in ("panel_id", "focus_x", "focus_y", "caption")
         }
+        values["source_crop"] = getattr(source, "source_crop", None)
+        values["glide_axis"] = getattr(source, "glide_axis", None)
         result.append(
             {
                 **values,
@@ -154,9 +159,12 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                 "sfx_offset": getattr(source, "sfx_offset", 0) if keep else 0,
                 "caption": source.caption if keep else "",
                 "duration": (boundaries[i + 1] - boundaries[i]) / fps,
-                "motion": (fast_moves if options.pace == "fast" else slow_moves)[
-                    i % (6 if options.pace == "fast" else 5)
-                ],
+                "motion": (
+                    "panel_glide" if getattr(source, "motion", "") == "panel_glide"
+                    else (fast_moves if options.pace == "fast" else slow_moves)[
+                        i % (6 if options.pace == "fast" else 5)
+                    ]
+                ),
                 "motion_strength": (0.18 + (i % 3) * 0.04) if options.pace == "fast" else 0.08,
                 "easing": "ease_out" if options.pace == "fast" else "smooth",
                 "transition": "slide_left"
