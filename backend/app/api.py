@@ -100,6 +100,8 @@ def scene_dict(scene, db):
         "framing": scene.framing,
         "source_crop": scene.source_crop,
         "glide_axis": scene.glide_axis,
+        "glide_start": scene.glide_start,
+        "glide_end": scene.glide_end,
         "sfx_source_id": scene.id if scene.sfx_key else None,
         "panel": panel_dict(db.get(Panel, scene.panel_id)),
     }
@@ -606,6 +608,8 @@ def queue_render_for_state(
             "framing": s.framing,
             "source_crop": s.source_crop,
             "glide_axis": s.glide_axis,
+            "glide_start": s.glide_start,
+            "glide_end": s.glide_end,
             "glide_zoom": (
                 glide_zoom(
                     {"motion": s.motion, "source_crop": s.source_crop},
