@@ -41,6 +41,8 @@ SCENE_FIELDS = (
     "note",
     "beat",
     "framing",
+    "source_crop",
+    "glide_axis",
 )
 
 
