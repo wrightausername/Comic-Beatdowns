@@ -45,30 +45,43 @@ function ShotImage({
       aria-label={
         decorative ? undefined : "Cropped panel from complete comic page"
       }
-      style={{
-        position: "absolute",
-        overflow: "hidden",
-        left: `${(100 - width) / 2}%`,
-        top: `${(100 - height) / 2}%`,
-        width: `${width}%`,
-        height: `${height}%`,
-        transformOrigin: "center center",
-        transform: `translate(${(0.5 - x) * (zoom - 1) * 100}%, ${(0.5 - y) * (zoom - 1) * 100}%) scale(${zoom})`,
-      }}
+      style={{ position: "absolute", inset: 0, overflow: "hidden" }}
     >
-      <img
-        src={scene.panel.image_url}
-        alt={decorative ? "" : scene.panel.title}
+      {/* Match the FFmpeg zoompan filter: move the full fitted stage under a
+          stationary 9:16 viewport, not the center of the cropped artwork. */}
+      <div
         style={{
           position: "absolute",
-          display: "block",
-          maxWidth: "none",
-          width: `${100 / region.width}%`,
-          height: `${100 / region.height}%`,
-          left: `${(-region.x / region.width) * 100}%`,
-          top: `${(-region.y / region.height) * 100}%`,
+          inset: 0,
+          transformOrigin: "top left",
+          transform: `translate(${-x * (zoom - 1) * 100}%, ${-y * (zoom - 1) * 100}%) scale(${zoom})`,
         }}
-      />
+      >
+        <div
+          style={{
+            position: "absolute",
+            overflow: "hidden",
+            left: `${(100 - width) / 2}%`,
+            top: `${(100 - height) / 2}%`,
+            width: `${width}%`,
+            height: `${height}%`,
+          }}
+        >
+          <img
+            src={scene.panel.image_url}
+            alt={decorative ? "" : scene.panel.title}
+            style={{
+              position: "absolute",
+              display: "block",
+              maxWidth: "none",
+              width: `${100 / region.width}%`,
+              height: `${100 / region.height}%`,
+              left: `${(-region.x / region.width) * 100}%`,
+              top: `${(-region.y / region.height) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
