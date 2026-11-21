@@ -22,8 +22,8 @@ def wide_top():
     image = Image.new("RGB", (800, 800), "white")
     draw = ImageDraw.Draw(image)
     draw.rectangle((8, 8, 792, 312), fill="#152f45")
-    draw.rectangle((8, 389, 370, 792), fill="#5b252b")
-    draw.rectangle((438, 389, 792, 792), fill="#355c2c")
+    draw.rectangle((8, 365, 370, 792), fill="#5b252b")
+    draw.rectangle((438, 365, 792, 792), fill="#355c2c")
     return image
 
 
@@ -31,8 +31,8 @@ def tall_left():
     image = Image.new("RGB", (800, 800), "white")
     draw = ImageDraw.Draw(image)
     draw.rectangle((8, 8, 320, 792), fill="#152f45")
-    draw.rectangle((401, 8, 792, 353), fill="#5b252b")
-    draw.rectangle((401, 432, 792, 792), fill="#355c2c")
+    draw.rectangle((375, 8, 792, 353), fill="#5b252b")
+    draw.rectangle((375, 403, 792, 792), fill="#355c2c")
     return image
 
 
