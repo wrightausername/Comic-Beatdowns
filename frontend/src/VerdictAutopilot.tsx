@@ -436,7 +436,7 @@ export default function VerdictAutopilot({
                 Fix panel crops and order
               </button>
             </div>
-          )
+          )}
           {latest.report.warnings?.map((warning) => (
             <p className="muted" key={warning}>
               {warning}
