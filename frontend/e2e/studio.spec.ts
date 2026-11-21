@@ -120,6 +120,7 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     page.getByRole("heading", { name: "An original browser beatdown" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.getByRole("button", { name: "Add panels", exact: true }).click();
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
@@ -163,6 +164,8 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     .locator(".project-card")
     .filter({ hasText: "An original browser beatdown" })
     .click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
     "drift_up_right",
   );
@@ -236,6 +239,8 @@ test("mobile navigation remains usable without horizontal overflow", async ({
     .getByRole("button", { name: "Production desk", exact: true })
     .click();
   await page.locator(".project-card").first().click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.locator(".camera-details summary").first().click();
   await expect(
     page.getByLabel("Scene 1 easing", { exact: true }),
@@ -262,6 +267,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   await page.getByLabel("Project title").fill("Effortless editing");
   await page.getByRole("button", { name: "Create project" }).click();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.getByRole("button", { name: "Add panels", exact: true }).click();
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
@@ -292,6 +298,8 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
     .locator(".project-card")
     .filter({ hasText: "Effortless editing" })
     .click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await expect(page.locator(".scene-card")).toHaveCount(5);
   await page.getByLabel("Select all scenes", { exact: true }).check();
   await page.getByLabel("Bulk camera motion").selectOption("pan_up");
@@ -400,6 +408,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
     page.getByText("Brand template saved.", { exact: false }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.screenshot({
     timeout: 60_000,
     path: testInfo.outputPath("streamlined-editor.png"),
@@ -501,6 +510,7 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
   await page
     .getByRole("button", { name: "Accept selected suggestions", exact: true })
     .click();
+  await page.locator(".timeline-advanced > summary").click();
   await expect(page.locator(".scene-card")).toHaveCount(5);
   await expect(page.getByLabel("Autosave status")).toHaveText(
     "All changes saved",
