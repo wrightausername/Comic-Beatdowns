@@ -76,6 +76,9 @@ export interface Scene {
   glide_axis?: "horizontal" | "vertical" | null;
   glide_start?: number;
   glide_end?: number;
+  camera_path?: { x: number; y: number }[] | null;
+  path_move_fraction?: number;
+  path_zoom?: number;
   sfx_source_id?: string | null;
   clear_sfx?: boolean;
 }
