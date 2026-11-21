@@ -39,6 +39,18 @@ const shots: Scene[] = [
     source_crop: { x: 0.6, y: 0.15, width: 0.35, height: 0.4 },
   },
 ];
+function pointer(
+  element: Element,
+  kind: "pointerdown" | "pointermove",
+  x: number,
+  y: number,
+) {
+  fireEvent(
+    element,
+    new MouseEvent(kind, { bubbles: true, clientX: x, clientY: y }),
+  );
+}
+
 function setup(scenes: Scene[] = shots, canUndo = true) {
   const onPatch = vi.fn();
   const onMove = vi.fn();
@@ -144,8 +156,8 @@ describe("plain language whole-page editor", () => {
     const crop = screen.getByRole("button", {
       name: /Drag selected crop to move it/,
     });
-    fireEvent.pointerDown(crop, { pointerId: 1, clientX: 100, clientY: 100 });
-    fireEvent.pointerMove(page, { pointerId: 1, clientX: 140, clientY: 120 });
+    pointer(crop, "pointerdown", 100, 100);
+    pointer(page, "pointermove", 140, 120);
     expect(result.onPatch).toHaveBeenCalledWith(0, {
       source_crop: { x: 0.2, y: 0.15, width: 0.6, height: 0.6 },
     });
@@ -155,8 +167,8 @@ describe("plain language whole-page editor", () => {
       source_crop: { x: 0.11, y: 0.1, width: 0.6, height: 0.6 },
     });
     fireEvent.click(screen.getByRole("button", { name: "Draw new crop" }));
-    fireEvent.pointerDown(page, { pointerId: 2, clientX: 60, clientY: 100 });
-    fireEvent.pointerMove(page, { pointerId: 2, clientX: 300, clientY: 300 });
+    pointer(page, "pointerdown", 60, 100);
+    pointer(page, "pointermove", 300, 300);
     expect(result.onPatch).toHaveBeenCalledWith(0, {
       source_crop: { x: 0.15, y: 0.25, width: 0.6, height: 0.5 },
     });
@@ -180,11 +192,11 @@ describe("plain language whole-page editor", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Draw 1 → 2 camera route" }),
     );
-    fireEvent.pointerDown(page, { pointerId: 1, clientX: 140, clientY: 160 });
+    pointer(page, "pointerdown", 140, 160);
     expect(
       screen.getByText("Click where the camera should END (point 2)."),
     ).toBeInTheDocument();
-    fireEvent.pointerDown(page, { pointerId: 2, clientX: 280, clientY: 280 });
+    pointer(page, "pointerdown", 280, 280);
     expect(result.onPatch).toHaveBeenCalledWith(
       0,
       expect.objectContaining({
@@ -219,8 +231,8 @@ describe("plain language whole-page editor", () => {
       }),
     });
     const start = screen.getByRole("button", { name: /Move camera point 1/ });
-    fireEvent.pointerDown(start, { pointerId: 1, clientX: 60, clientY: 100 });
-    fireEvent.pointerMove(page, { pointerId: 1, clientX: 220, clientY: 220 });
+    pointer(start, "pointerdown", 60, 100);
+    pointer(page, "pointermove", 220, 220);
     expect(result.onPatch).toHaveBeenCalledWith(
       0,
       expect.objectContaining({
