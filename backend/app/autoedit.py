@@ -151,6 +151,9 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         values["glide_axis"] = getattr(source, "glide_axis", None)
         values["glide_start"] = getattr(source, "glide_start", 0)
         values["glide_end"] = getattr(source, "glide_end", 1)
+        values["camera_path"] = getattr(source, "camera_path", None)
+        values["path_move_fraction"] = getattr(source, "path_move_fraction", 1)
+        values["path_zoom"] = getattr(source, "path_zoom", 1.4)
         result.append(
             {
                 **values,
