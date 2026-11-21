@@ -1,0 +1,43 @@
+name: Format numbered camera path once
+
+on:
+  push:
+    branches:
+      - feature/whole-page-director-p0
+    paths:
+      - '.github/workflows/format-camera-route-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Format Python and frontend camera route changes
+        run: |
+          python -m pip install ruff==0.17.1
+          ruff check --fix backend/app/camera_path.py backend/app/page_direction.py backend/app/effects.py backend/app/api.py backend/app/autoedit.py backend/app/database.py backend/app/schemas.py backend/app/workspace.py backend/tests/test_camera_path.py backend/tests/test_page_director_api.py
+          ruff format backend/app/camera_path.py backend/app/page_direction.py backend/app/effects.py backend/app/api.py backend/app/autoedit.py backend/app/database.py backend/app/schemas.py backend/app/workspace.py backend/tests/test_camera_path.py backend/tests/test_page_director_api.py
+          npm --prefix frontend ci --no-audit --no-fund
+          npx --prefix frontend prettier --write frontend/src/cameraRoute.ts frontend/src/cameraRoute.test.ts frontend/src/effects.ts frontend/src/effects.test.ts frontend/src/editing.ts frontend/src/editing.test.ts frontend/src/PageShotReview.tsx frontend/src/PageShotReview.test.tsx frontend/src/Preview.tsx frontend/src/Editor.tsx frontend/src/SceneQuickTools.tsx frontend/src/types.ts frontend/src/useStudioDraft.ts frontend/src/styles.css
+      - name: Commit only formatting changes
+        run: |
+          git config user.name 'Comic Beatdowns CI'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app backend/tests/test_camera_path.py backend/tests/test_page_director_api.py frontend/src
+          if ! git diff --staged --quiet; then
+            git commit -m 'Format numbered creator camera route implementation'
+            git push origin HEAD:feature/whole-page-director-p0
+          fi
