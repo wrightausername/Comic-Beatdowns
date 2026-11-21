@@ -690,274 +690,280 @@ export default function PageShotReview({
               aria-expanded={advancedOpen}
               onClick={() => setAdvancedOpen((open) => !open)}
             >
-              {advancedOpen ? "Hide extra controls" : "More controls · timing, crop size, splitting and transitions"}
+              {advancedOpen
+                ? "Hide extra controls"
+                : "More controls · timing, crop size, splitting and transitions"}
             </button>
             {advancedOpen && (
               <div className="page-review-advanced-inner">
-              <div className="page-review-action-heading">
-                Fine-tune the picture
-              </div>
-              <div className="page-review-action-row">
+                <div className="page-review-action-heading">
+                  Fine-tune the picture
+                </div>
+                <div className="page-review-action-row">
+                  <button
+                    className="button secondary small-button"
+                    disabled={disabled}
+                    aria-pressed={drawing}
+                    onClick={() => {
+                      setRouteMode("off");
+                      setDraftStart(null);
+                      setDrawing(!drawing);
+                    }}
+                  >
+                    {drawing
+                      ? "Cancel drawing"
+                      : crop
+                        ? "Draw new crop"
+                        : "Crop part of page"}
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    disabled={disabled || !crop}
+                    onClick={() => crop && patch(scaleCrop(crop, 1.12))}
+                  >
+                    Show more art
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    disabled={disabled || !crop}
+                    onClick={() => crop && patch(scaleCrop(crop, 0.88))}
+                  >
+                    Crop tighter
+                  </button>
+                </div>
                 <button
-                  className="button secondary small-button"
-                  disabled={disabled}
-                  aria-pressed={drawing}
+                  className="text-button"
+                  disabled={disabled || (!crop && scene.motion === "hold")}
                   onClick={() => {
-                    setRouteMode("off");
-                    setDraftStart(null);
-                    setDrawing(!drawing);
-                  }}
-                >
-                  {drawing
-                    ? "Cancel drawing"
-                    : crop
-                      ? "Draw new crop"
-                      : "Crop part of page"}
-                </button>
-                <button
-                  className="button secondary small-button"
-                  disabled={disabled || !crop}
-                  onClick={() => crop && patch(scaleCrop(crop, 1.12))}
-                >
-                  Show more art
-                </button>
-                <button
-                  className="button secondary small-button"
-                  disabled={disabled || !crop}
-                  onClick={() => crop && patch(scaleCrop(crop, 0.88))}
-                >
-                  Crop tighter
-                </button>
-              </div>
-              <button
-                className="text-button"
-                disabled={disabled || (!crop && scene.motion === "hold")}
-                onClick={() => {
-                  setDrawing(false);
-                  onPatch(index, {
-                    source_crop: null,
-                    motion: "hold",
-                    framing: "fit",
-                    glide_axis: null,
-                    glide_start: 0,
-                    glide_end: 1,
-                    camera_path: null,
-                  });
-                }}
-              >
-                Use complete page instead
-              </button>
-
-              <div className="page-review-action-heading">
-                2. Choose camera movement
-              </div>
-              <div
-                className="page-review-action-row"
-                role="group"
-                aria-label="Shot camera style"
-              >
-                <button
-                  className="button secondary small-button"
-                  aria-pressed={mode === "hold"}
-                  disabled={disabled}
-                  onClick={() =>
-                    onPatch(index, { motion: "hold", framing: "fit" })
-                  }
-                >
-                  Hold still
-                </button>
-                <button
-                  className="button secondary small-button"
-                  aria-pressed={mode === "pan"}
-                  disabled={disabled || !crop}
-                  onClick={() =>
+                    setDrawing(false);
                     onPatch(index, {
-                      motion: "panel_glide",
-                      glide_axis: panAxis,
+                      source_crop: null,
+                      motion: "hold",
+                      framing: "fit",
+                      glide_axis: null,
                       glide_start: 0,
                       glide_end: 1,
                       camera_path: null,
-                      framing: "fit",
-                      easing: "smooth",
-                      transition: "cut",
-                    })
-                  }
-                >
-                  Pan across
-                </button>
-                <button
-                  className="button secondary small-button"
-                  disabled={disabled || mode !== "pan"}
-                  onClick={() =>
-                    path.length >= 2
-                      ? changeRoute([...path].reverse())
-                      : onPatch(index, {
-                          glide_start: scene.glide_end ?? 1,
-                          glide_end: scene.glide_start ?? 0,
-                        })
-                  }
-                >
-                  Reverse pan
-                </button>
-              </div>
-              {mode === "pan" && (
-                <p className="help">
-                  The camera moves{" "}
-                  {scene.glide_axis === "vertical"
-                    ? "vertically"
-                    : "horizontally"}{" "}
-                  through one intact panel.
-                </p>
-              )}
-
-              {path.length >= 2 && (
-                <label className="page-route-speed">
-                  <span>Camera closeness</span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={2}
-                    step={0.1}
-                    aria-label={`Shot ${index + 1} camera closeness`}
-                    disabled={disabled}
-                    value={scene.path_zoom ?? 1.4}
-                    onChange={(event) =>
-                      onPatch(index, { path_zoom: +event.target.value })
-                    }
-                  />
-                  <strong>{(scene.path_zoom ?? 1.4).toFixed(1)}×</strong>
-                </label>
-              )}
-              <div className="page-review-action-heading">
-                3. Fix order and timing
-              </div>
-              <div className="page-review-action-row">
-                <button
-                  className="button secondary small-button"
-                  disabled={
-                    busy ||
-                    index === 0 ||
-                    scene.locked ||
-                    scenes[index - 1]?.locked
-                  }
-                  onClick={() => onMove(index, index - 1)}
-                >
-                  <ArrowLeft size={14} /> Earlier
-                </button>
-                <button
-                  className="button secondary small-button"
-                  disabled={
-                    busy ||
-                    index === scenes.length - 1 ||
-                    scene.locked ||
-                    scenes[index + 1]?.locked
-                  }
-                  onClick={() => onMove(index, index + 1)}
-                >
-                  Later <ArrowRight size={14} />
-                </button>
-                <button
-                  className="button secondary small-button"
-                  disabled={
-                    disabled ||
-                    scenes.reduce(
-                      (total, s) => total + s.duration,
-                      scene.duration,
-                    ) > 180
-                  }
-                  onClick={() => onDuplicate(index)}
-                >
-                  <Copy size={14} /> Repeat shot
-                </button>
-              </div>
-              <div className="page-review-action-row">
-                <button
-                  className="button secondary small-button"
-                  disabled={disabled || scene.duration < 0.5}
-                  onClick={() => onSplit(index)}
-                  title="Makes two timed shots of this artwork. Select the new shot and draw its own crop."
-                >
-                  Split shot in two
-                </button>
-                <button
-                  className="button secondary small-button"
-                  disabled={busy || !canJoin}
-                  onClick={() => onJoin(index)}
-                  title="Combines this crop and the next crop from the same original page, without shifting narration."
-                >
-                  Join with next shot
-                </button>
-              </div>
-              <p className="help">
-                Split keeps both halves on the timeline. Join combines two
-                mistaken cuts from one source page and preserves their total
-                time.
-              </p>
-              <label className="page-review-duration">
-                Time on screen (seconds)
-                <input
-                  type="number"
-                  min={0.25}
-                  max={30}
-                  step={0.25}
-                  disabled={disabled}
-                  aria-label={`Shot ${index + 1} duration`}
-                  value={scene.duration}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    if (Number.isFinite(value) && value >= 0.25 && value <= 30)
-                      onPatch(index, { duration: value });
+                    });
                   }}
-                />
-              </label>
-              <p className="help">
-                Changing shot length shifts later cuts. The voice recording is
-                never altered.
-              </p>
-              <label className="page-review-duration">
-                Transition into this shot
-                <select
-                  aria-label={`Shot ${index + 1} transition`}
-                  value={scene.transition ?? "inherit"}
-                  disabled={disabled || index === 0}
-                  onChange={(event) =>
-                    onPatch(index, {
-                      transition:
-                        event.target.value === "inherit"
-                          ? null
-                          : (event.target.value as
-                              "cut" | "crossfade" | "slide_left"),
-                    })
-                  }
                 >
-                  <option value="inherit">
-                    Use project's default transition
-                  </option>
-                  <option value="cut">Hard cut (comic reading)</option>
-                  <option value="crossfade">Gentle dissolve</option>
-                  <option value="slide_left">Slide to next shot</option>
-                </select>
-              </label>
-              <div className="page-review-action-row">
-                <button
-                  className="button secondary small-button"
-                  disabled={busy || !scene.id}
-                  onClick={() => onPreview(index)}
-                >
-                  <Play size={14} /> Preview (advanced)
+                  Use complete page instead
                 </button>
-                <button
-                  className="text-button danger"
-                  disabled={disabled}
-                  onClick={() => onRemove(index)}
+
+                <div className="page-review-action-heading">
+                  2. Choose camera movement
+                </div>
+                <div
+                  className="page-review-action-row"
+                  role="group"
+                  aria-label="Shot camera style"
                 >
-                  <Trash2 size={14} /> Remove shot
-                </button>
-              </div>
-              <p className="help">
-                All edits are reversible using Undo. Your original page image is
-                never changed.
-              </p>
+                  <button
+                    className="button secondary small-button"
+                    aria-pressed={mode === "hold"}
+                    disabled={disabled}
+                    onClick={() =>
+                      onPatch(index, { motion: "hold", framing: "fit" })
+                    }
+                  >
+                    Hold still
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    aria-pressed={mode === "pan"}
+                    disabled={disabled || !crop}
+                    onClick={() =>
+                      onPatch(index, {
+                        motion: "panel_glide",
+                        glide_axis: panAxis,
+                        glide_start: 0,
+                        glide_end: 1,
+                        camera_path: null,
+                        framing: "fit",
+                        easing: "smooth",
+                        transition: "cut",
+                      })
+                    }
+                  >
+                    Pan across
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    disabled={disabled || mode !== "pan"}
+                    onClick={() =>
+                      path.length >= 2
+                        ? changeRoute([...path].reverse())
+                        : onPatch(index, {
+                            glide_start: scene.glide_end ?? 1,
+                            glide_end: scene.glide_start ?? 0,
+                          })
+                    }
+                  >
+                    Reverse pan
+                  </button>
+                </div>
+                {mode === "pan" && (
+                  <p className="help">
+                    The camera moves{" "}
+                    {scene.glide_axis === "vertical"
+                      ? "vertically"
+                      : "horizontally"}{" "}
+                    through one intact panel.
+                  </p>
+                )}
+
+                {path.length >= 2 && (
+                  <label className="page-route-speed">
+                    <span>Camera closeness</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={2}
+                      step={0.1}
+                      aria-label={`Shot ${index + 1} camera closeness`}
+                      disabled={disabled}
+                      value={scene.path_zoom ?? 1.4}
+                      onChange={(event) =>
+                        onPatch(index, { path_zoom: +event.target.value })
+                      }
+                    />
+                    <strong>{(scene.path_zoom ?? 1.4).toFixed(1)}×</strong>
+                  </label>
+                )}
+                <div className="page-review-action-heading">
+                  3. Fix order and timing
+                </div>
+                <div className="page-review-action-row">
+                  <button
+                    className="button secondary small-button"
+                    disabled={
+                      busy ||
+                      index === 0 ||
+                      scene.locked ||
+                      scenes[index - 1]?.locked
+                    }
+                    onClick={() => onMove(index, index - 1)}
+                  >
+                    <ArrowLeft size={14} /> Earlier
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    disabled={
+                      busy ||
+                      index === scenes.length - 1 ||
+                      scene.locked ||
+                      scenes[index + 1]?.locked
+                    }
+                    onClick={() => onMove(index, index + 1)}
+                  >
+                    Later <ArrowRight size={14} />
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    disabled={
+                      disabled ||
+                      scenes.reduce(
+                        (total, s) => total + s.duration,
+                        scene.duration,
+                      ) > 180
+                    }
+                    onClick={() => onDuplicate(index)}
+                  >
+                    <Copy size={14} /> Repeat shot
+                  </button>
+                </div>
+                <div className="page-review-action-row">
+                  <button
+                    className="button secondary small-button"
+                    disabled={disabled || scene.duration < 0.5}
+                    onClick={() => onSplit(index)}
+                    title="Makes two timed shots of this artwork. Select the new shot and draw its own crop."
+                  >
+                    Split shot in two
+                  </button>
+                  <button
+                    className="button secondary small-button"
+                    disabled={busy || !canJoin}
+                    onClick={() => onJoin(index)}
+                    title="Combines this crop and the next crop from the same original page, without shifting narration."
+                  >
+                    Join with next shot
+                  </button>
+                </div>
+                <p className="help">
+                  Split keeps both halves on the timeline. Join combines two
+                  mistaken cuts from one source page and preserves their total
+                  time.
+                </p>
+                <label className="page-review-duration">
+                  Time on screen (seconds)
+                  <input
+                    type="number"
+                    min={0.25}
+                    max={30}
+                    step={0.25}
+                    disabled={disabled}
+                    aria-label={`Shot ${index + 1} duration`}
+                    value={scene.duration}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      if (
+                        Number.isFinite(value) &&
+                        value >= 0.25 &&
+                        value <= 30
+                      )
+                        onPatch(index, { duration: value });
+                    }}
+                  />
+                </label>
+                <p className="help">
+                  Changing shot length shifts later cuts. The voice recording is
+                  never altered.
+                </p>
+                <label className="page-review-duration">
+                  Transition into this shot
+                  <select
+                    aria-label={`Shot ${index + 1} transition`}
+                    value={scene.transition ?? "inherit"}
+                    disabled={disabled || index === 0}
+                    onChange={(event) =>
+                      onPatch(index, {
+                        transition:
+                          event.target.value === "inherit"
+                            ? null
+                            : (event.target.value as
+                                "cut" | "crossfade" | "slide_left"),
+                      })
+                    }
+                  >
+                    <option value="inherit">
+                      Use project's default transition
+                    </option>
+                    <option value="cut">Hard cut (comic reading)</option>
+                    <option value="crossfade">Gentle dissolve</option>
+                    <option value="slide_left">Slide to next shot</option>
+                  </select>
+                </label>
+                <div className="page-review-action-row">
+                  <button
+                    className="button secondary small-button"
+                    disabled={busy || !scene.id}
+                    onClick={() => onPreview(index)}
+                  >
+                    <Play size={14} /> Preview (advanced)
+                  </button>
+                  <button
+                    className="text-button danger"
+                    disabled={disabled}
+                    onClick={() => onRemove(index)}
+                  >
+                    <Trash2 size={14} /> Remove shot
+                  </button>
+                </div>
+                <p className="help">
+                  All edits are reversible using Undo. Your original page image
+                  is never changed.
+                </p>
               </div>
             )}
           </div>
