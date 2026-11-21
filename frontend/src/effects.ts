@@ -25,6 +25,11 @@ export const CAMERA_MOVES = [
     group: "Still & zoom",
   },
   { value: "pan_left", label: "Pan left", group: "Pans" },
+  {
+    value: "panel_glide",
+    label: "Follow a long comic panel",
+    group: "Pans",
+  },
   { value: "pan_right", label: "Pan right", group: "Pans" },
   { value: "pan_up", label: "Pan up", group: "Pans" },
   { value: "pan_down", label: "Pan down", group: "Pans" },
@@ -100,6 +105,11 @@ export interface CameraSettings {
   easing: Easing;
   focus_x: number;
   focus_y: number;
+  source_crop?: { x: number; y: number; width: number; height: number } | null;
+  panel?: { width: number; height: number };
+  glide_axis?: "horizontal" | "vertical" | null;
+  glide_start?: number;
+  glide_end?: number;
 }
 export const CAMERA_PRESETS: { name: string; settings: CameraSettings }[] = [
   {
@@ -158,6 +168,21 @@ export function cameraPosition(scene: CameraSettings, ratio: number) {
   let zoom = 1,
     x = fx,
     y = fy;
+  if (scene.motion === "panel_glide" && scene.source_crop && scene.panel) {
+    const crop = scene.source_crop;
+    const aspect = (scene.panel.width * crop.width) / (scene.panel.height * crop.height);
+    zoom = Math.min(8, Math.max(1, aspect / (9 / 16), (9 / 16) / aspect));
+    const position = (scene.glide_start ?? 0) +
+      ((scene.glide_end ?? 1) - (scene.glide_start ?? 0)) * t;
+    if (scene.glide_axis === "vertical") {
+      x = 0.5;
+      y = position;
+    } else {
+      x = position;
+      y = 0.5;
+    }
+    return { zoom, x, y };
+  }
   if (
     ["zoom_in", "punch_in"].includes(scene.motion) ||
     scene.motion.startsWith("push_")
