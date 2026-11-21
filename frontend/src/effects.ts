@@ -169,7 +169,11 @@ export function cameraPosition(scene: CameraSettings, ratio: number) {
   let t = clamp(ratio);
   if (scene.motion.startsWith("punch_")) t = clamp(t / 0.18);
   if (scene.motion === "panel_glide" && scene.camera_path?.length)
-    t = clamp(t / (scene.path_move_fraction ?? 1));
+    t = clamp(
+      ((scene.glide_start ?? 0) +
+        ((scene.glide_end ?? 1) - (scene.glide_start ?? 0)) * t) /
+        (scene.path_move_fraction ?? 1),
+    );
   if (scene.easing === "smooth") t = smooth(t);
   else if (scene.easing === "ease_in") t *= t;
   else if (scene.easing === "ease_out") t = 1 - (1 - t) ** 2;
