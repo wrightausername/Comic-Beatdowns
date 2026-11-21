@@ -42,7 +42,7 @@ export default function SceneQuickTools({
     if (key === "height") next.height = Math.min(1 - next.y, Math.max(0.01, value));
     onChange({ source_crop: next });
   };
-    view = 9 / 16;
+  const view = 9 / 16;
   const cropX = ratio > view ? view / ratio : 1,
     cropY = ratio < view ? ratio / view : 1;
   return (
