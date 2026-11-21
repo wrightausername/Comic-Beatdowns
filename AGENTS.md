@@ -10,6 +10,7 @@ This is the **Comic Beatdowns Production Studio** repository. Before any coding,
 
 ## Nonnegotiable
 - Preserve the current React/FastAPI/FFmpeg project, Windows launcher, SQLite data, imported assets, and existing user edits. Implement features in focused branches/PRs rather than replacing the Studio.
+- **P0 RELEASE GATE: whole-page comic reading and camera planning is the CORE feature.** The one-click episode is not production-complete until Issue #14 passes page segmentation, correct long-panel handling, narration-timed pan/cuts, manual override, actual render, and Windows trial. No manual screenshot pre-cropping may be required for ordinary pages. Existing partial automation may be tested but not represented as finished. 
 - **Whole-page comic screenshots are the preferred video input.** Detect panel boundaries/reading order and choose crops or within-page camera travel synchronized to narration; edits must remain reversible. This is a **goal**, not an existing complete feature (see Issue #14).
 - **ElevenLabs is the creator's external voice workflow.** Support easy narration MP3/WAV import; do not replace it with internal voice generation or require ElevenLabs API access.
 - Verdict's commentary is panel-specific, organically unhinged comic analysis, not a generic recap or arbitrary AI insults; creator review always wins.
