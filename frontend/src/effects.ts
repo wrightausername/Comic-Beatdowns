@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { Panel } from "./types";
 
 export const CAMERA_MOVES = [
   {
