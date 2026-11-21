@@ -415,6 +415,18 @@ export default function VerdictAutopilot({
             />
           )}
           <p>{latest.report.summary}</p>
+          {latest.report.page_reading?.expanded && (
+            <p className="notice">
+              Full comic pages mapped to{" "}
+              {latest.report.page_reading.pages.reduce(
+                (count, page) => count + page.panel_count,
+                0,
+              )}{" "}
+              proposed panel regions. Source screenshots are unchanged.
+              Open the full editor to review each region and correct unusual
+              layouts before approving.
+            </p>
+          )}
           {latest.report.warnings?.map((warning) => (
             <p className="muted" key={warning}>
               {warning}
