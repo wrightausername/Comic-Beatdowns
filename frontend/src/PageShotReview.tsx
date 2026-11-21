@@ -212,7 +212,7 @@ export default function PageShotReview({
             onPointerCancel={finishDrag}
           >
             <img src={scene.panel.image_url} alt={scene.panel.title} draggable={false} />
-            {crop && (
+            {crop && !drawing && (
               <div
                 className="page-review-region"
                 style={{
