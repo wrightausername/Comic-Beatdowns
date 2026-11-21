@@ -4279,3 +4279,120 @@ progress::-webkit-progress-value {
     grid-row: 2;
   }
 }
+
+
+/* Fast, creator-first flow for Auto-Director. Advanced controls stay accessible,
+   but never compete with the actions needed to complete an episode. */
+.autopilot-primary-action {
+  margin-top: 13px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.autopilot-primary-action > .button.primary {
+  min-height: 46px;
+  font-weight: 750;
+  padding: 12px 20px;
+}
+.autopilot-simple-options {
+  margin-top: 14px;
+  border-top: 1px solid #334854;
+  padding-top: 12px;
+}
+.autopilot-simple-options > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #9dc8d4;
+  padding: 8px 2px;
+}
+.autopilot-simple-options .autopilot-options { margin-top: 12px; }
+.page-review-step-label {
+  color: #8ae2eb;
+  font-weight: 750;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.page-review-quick {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.page-review-quick h4 {
+  font-size: 15px;
+  margin: 0;
+  color: #e6f3f7;
+}
+.page-review-quick .page-review-primary {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+}
+.page-review-quick .page-review-action-row {
+  align-items: center;
+  gap: 9px;
+}
+.page-review-quick .page-review-action-row .button {
+  min-height: 40px;
+}
+.page-review-quick > .help {
+  margin: 0;
+  line-height: 1.5;
+}
+.page-review-instruction {
+  margin: 0;
+  border: 1px solid #579bad;
+  border-radius: 8px;
+  background: #142c36;
+  color: #bcf8fc;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+.page-review-quick .page-route-speed {
+  margin-top: 4px;
+}
+.page-review-advanced {
+  width: 100%;
+  border-top: 1px solid #334b5b;
+  margin-top: 8px;
+  padding-top: 12px;
+}
+.page-review-advanced > summary,
+.timeline-advanced > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94c3d3;
+  padding: 8px 4px;
+}
+.page-review-advanced-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 13px;
+}
+.timeline-advanced {
+  margin: 18px 0;
+}
+.timeline-advanced > summary {
+  padding: 12px 16px;
+  border: 1px solid #354957;
+  border-radius: 8px;
+}
+.timeline-advanced[open] > summary {
+  margin-bottom: 14px;
+}
+@media (max-width: 700px) {
+  .autopilot-primary-action > .button.primary {
+    width: 100%;
+    justify-content: center;
+  }
+  .page-review-quick > .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .page-review-quick .page-review-action-row .button {
+    flex: 1 1 auto;
+  }
+}
