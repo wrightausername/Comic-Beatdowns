@@ -105,7 +105,6 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
     assert restored.status_code == 200, restored.text
     assert restored.json()["scenes"][0]["source_crop"] == original
 
-
     # The creator's manually drawn numbered route and travel speed must
     # survive a real API save/reload and remain reversible via Undo.
     routed = restored.json()["scenes"]
@@ -121,8 +120,7 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
         url + "/scenes",
         json={
             "scenes": [
-                {k: v for k, v in scene.items() if k in SceneInput.model_fields}
-                for scene in routed
+                {k: v for k, v in scene.items() if k in SceneInput.model_fields} for scene in routed
             ]
         },
     )

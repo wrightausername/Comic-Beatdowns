@@ -45,11 +45,19 @@ export function interpolateCameraRoute(
   progress: number,
 ): CameraWaypoint {
   if (!points.length) return { x: 0.5, y: 0.5 };
-  if (points.length === 1) return cameraFocalToViewport(points[0], aspect, zoom);
-  const locations = points.map((point) => cameraFocalToViewport(point, aspect, zoom));
-  const distance = points.slice(1).map((point, i) =>
-    Math.max(0.000001, Math.hypot(point.x - points[i].x, point.y - points[i].y)),
+  if (points.length === 1)
+    return cameraFocalToViewport(points[0], aspect, zoom);
+  const locations = points.map((point) =>
+    cameraFocalToViewport(point, aspect, zoom),
   );
+  const distance = points
+    .slice(1)
+    .map((point, i) =>
+      Math.max(
+        0.000001,
+        Math.hypot(point.x - points[i].x, point.y - points[i].y),
+      ),
+    );
   const total = distance.reduce((a, b) => a + b, 0);
   let elapsed = 0;
   const t = clamp(progress);

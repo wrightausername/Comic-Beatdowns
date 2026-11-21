@@ -52,7 +52,10 @@ it("splits a shot without duplicating its uploaded sound", () => {
 it("splits one numbered camera route without restarting it at point 1", () => {
   const source = {
     ...scene("route", 4),
-    camera_path: [{ x: 0.1, y: 0.2 }, { x: 0.9, y: 0.8 }],
+    camera_path: [
+      { x: 0.1, y: 0.2 },
+      { x: 0.9, y: 0.8 },
+    ],
     path_move_fraction: 0.55,
     path_zoom: 1.6,
     glide_start: 0,

@@ -189,9 +189,7 @@ export function cameraPosition(scene: CameraSettings, ratio: number) {
       (scene.panel.width * crop.width) / (scene.panel.height * crop.height);
     if (scene.camera_path && scene.camera_path.length >= 2) {
       zoom = cameraPathZoom(aspect, scene.path_zoom ?? 1.4);
-      const camera = interpolateCameraRoute(
-        scene.camera_path, aspect, zoom, t,
-      );
+      const camera = interpolateCameraRoute(scene.camera_path, aspect, zoom, t);
       return { zoom, x: camera.x, y: camera.y };
     }
     zoom = Math.min(8, Math.max(1, aspect / (9 / 16), 9 / 16 / aspect));

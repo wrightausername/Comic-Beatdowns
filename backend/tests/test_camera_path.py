@@ -46,7 +46,9 @@ def scene(**updates):
 
 def test_camera_route_validation_rejects_invalid_points_and_speed():
     base = scene()
-    valid = SceneInput.model_validate({k: v for k, v in base.items() if k in SceneInput.model_fields})
+    valid = SceneInput.model_validate(
+        {k: v for k, v in base.items() if k in SceneInput.model_fields}
+    )
     assert len(valid.camera_path) == 3
     assert valid.path_move_fraction == 0.5
     for invalid in [
@@ -58,10 +60,12 @@ def test_camera_route_validation_rejects_invalid_points_and_speed():
         {"path_zoom": 5},
     ]:
         with pytest.raises(ValueError):
-            SceneInput.model_validate({
-                **{k: v for k, v in base.items() if k in SceneInput.model_fields},
-                **invalid,
-            })
+            SceneInput.model_validate(
+                {
+                    **{k: v for k, v in base.items() if k in SceneInput.model_fields},
+                    **invalid,
+                }
+            )
 
 
 def test_waypoints_keep_viewport_inside_source_image():
@@ -107,7 +111,9 @@ def test_actual_three_stop_ffmpeg_pan_finishes_early_and_holds(tmp_path, setting
     original, prepared = tmp_path / "original.png", tmp_path / "source.png"
     page.save(original)
     prepare_scene_image(
-        original, prepared, framing="fit",
+        original,
+        prepared,
+        framing="fit",
         size=(180, 320),
         source_crop={"x": 0, "y": 0, "width": 1, "height": 1},
     )
@@ -115,17 +121,36 @@ def test_actual_three_stop_ffmpeg_pan_finishes_early_and_holds(tmp_path, setting
     shot["glide_zoom"] = glide_zoom(shot, 900, 300)
     output = tmp_path / "numbered-route.mp4"
     render_scene(
-        shot, None, {"fps": 24, "transition": "cut"}, settings,
-        prepared, output, tmp_path / "final-frame.png", size=(180, 320),
+        shot,
+        None,
+        {"fps": 24, "transition": "cut"},
+        settings,
+        prepared,
+        output,
+        tmp_path / "final-frame.png",
+        size=(180, 320),
     )
     assert output.is_file() and output.stat().st_size > 1000
     frames = []
     for label, time_s in [("first", 0.04), ("mid", 0.51), ("end", 1.19), ("hold", 1.83)]:
         target = tmp_path / f"{label}.png"
         subprocess.run(
-            ["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", str(time_s), "-i", str(output),
-             "-frames:v", "1", str(target)],
-            check=True, capture_output=True,
+            [
+                "ffmpeg",
+                "-nostdin",
+                "-y",
+                "-v",
+                "error",
+                "-ss",
+                str(time_s),
+                "-i",
+                str(output),
+                "-frames:v",
+                "1",
+                str(target),
+            ],
+            check=True,
+            capture_output=True,
         )
         with Image.open(target) as image:
             frames.append(image.convert("RGB").getpixel((90, 160)))

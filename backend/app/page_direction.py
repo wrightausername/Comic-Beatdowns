@@ -9,8 +9,8 @@ from types import SimpleNamespace
 
 from PIL import Image
 
-from .database import uid
 from .camera_path import path_zoom
+from .database import uid
 from .panel_detection import suggest_panels
 
 MAX_VIRTUAL_SHOTS = 120

@@ -70,7 +70,7 @@ export function splitScene(
   const offset = source.sfx_offset ?? 0;
   const travelStart = source.glide_start ?? 0;
   const travelEnd = source.glide_end ?? 1;
-  const midpoint = travelStart + (travelEnd - travelStart) * left / frames;
+  const midpoint = travelStart + ((travelEnd - travelStart) * left) / frames;
   const first = {
     ...source,
     duration: left / fps,

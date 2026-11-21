@@ -57,7 +57,9 @@ export default function PageShotReview({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
-  const [routeMode, setRouteMode] = useState<"off" | "start" | "end" | "append">("off");
+  const [routeMode, setRouteMode] = useState<
+    "off" | "start" | "end" | "append"
+  >("off");
   const [draftStart, setDraftStart] = useState<CameraWaypoint | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -134,16 +136,26 @@ export default function PageShotReview({
     event.preventDefault();
     event.stopPropagation();
     drag.current = {
-      mode: "waypoint", pointIndex, x: event.clientX,
-      y: event.clientY, original: crop, anchorX: 0, anchorY: 0,
+      mode: "waypoint",
+      pointIndex,
+      x: event.clientX,
+      y: event.clientY,
+      original: crop,
+      anchorX: 0,
+      anchorY: 0,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
   }
-  function nudgeWaypoint(pointIndex: number, event: KeyboardEvent<HTMLButtonElement>) {
+  function nudgeWaypoint(
+    pointIndex: number,
+    event: KeyboardEvent<HTMLButtonElement>,
+  ) {
     if (disabled || routeMode !== "off") return;
     const directions: Record<string, [number, number]> = {
-      ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-      ArrowUp: [0, -1], ArrowDown: [0, 1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
     };
     const direction = directions[event.key];
     if (!direction) return;
@@ -151,9 +163,13 @@ export default function PageShotReview({
     const current = path[pointIndex];
     const amount = event.shiftKey ? 0.05 : 0.01;
     if (!current) return;
-    const next = path.map((p, i) => i === pointIndex
-      ? { x: clamp(p.x + direction[0] * amount), y: clamp(p.y + direction[1] * amount) }
-      : p
+    const next = path.map((p, i) =>
+      i === pointIndex
+        ? {
+            x: clamp(p.x + direction[0] * amount),
+            y: clamp(p.y + direction[1] * amount),
+          }
+        : p,
     );
     changeRoute(next);
   }
@@ -196,7 +212,9 @@ export default function PageShotReview({
       if (active.pointIndex === undefined) return;
       const position = point(event);
       const nextPoint = pagePointToRoute(position.x, position.y, frameCrop);
-      const next = path.map((p, i) => i === active.pointIndex ? nextPoint : p);
+      const next = path.map((p, i) =>
+        i === active.pointIndex ? nextPoint : p,
+      );
       if (next.length >= 2) changeRoute(next);
     } else if (active.mode === "draw") {
       const proposal = drawCrop(
@@ -240,7 +258,12 @@ export default function PageShotReview({
         : resizeCrop(crop, dx * amount, dy * amount),
     );
   }
-  const mode = scene.motion === "panel_glide" ? "pan" : scene.motion === "hold" ? "hold" : "other";
+  const mode =
+    scene.motion === "panel_glide"
+      ? "pan"
+      : scene.motion === "hold"
+        ? "hold"
+        : "other";
   return (
     <section
       id="page-shot-review"
@@ -390,10 +413,12 @@ export default function PageShotReview({
                 >
                   {path.length >= 2 && (
                     <polyline
-                      points={path.map(p => {
-                        const pos = pageRoutePercent(p);
-                        return `${pos.x},${pos.y}`;
-                      }).join(" ")}
+                      points={path
+                        .map((p) => {
+                          const pos = pageRoutePercent(p);
+                          return `${pos.x},${pos.y}`;
+                        })
+                        .join(" ")}
                       fill="none"
                       stroke="#72edff"
                       strokeWidth={0.65}
@@ -429,7 +454,9 @@ export default function PageShotReview({
                       top: `${pageRoutePercent(draftStart).y}%`,
                     }}
                     aria-label="Starting camera point 1"
-                  >1</span>
+                  >
+                    1
+                  </span>
                 )}
               </>
             )}
@@ -444,8 +471,8 @@ export default function PageShotReview({
                   : drawing
                     ? "Drag on the full page to draw a replacement rectangle."
                     : crop
-                ? "The outlined area is what Verdict reads from this page. Drag to move it, or resize its corner."
-                : "This shot currently uses the entire page. You can draw a crop if needed."}
+                      ? "The outlined area is what Verdict reads from this page. Drag to move it, or resize its corner."
+                      : "This shot currently uses the entire page. You can draw a crop if needed."}
           </p>
         </div>
         <div className="page-review-actions">
@@ -559,7 +586,9 @@ export default function PageShotReview({
             </p>
           )}
 
-          <div className="page-review-action-heading">Draw a numbered camera route</div>
+          <div className="page-review-action-heading">
+            Draw a numbered camera route
+          </div>
           <div className="page-review-action-row">
             <button
               type="button"
@@ -610,7 +639,9 @@ export default function PageShotReview({
                   type="button"
                   className="button secondary small-button"
                   disabled={disabled || mode === "pan"}
-                  onClick={() => onPatch(index, { motion: "panel_glide", framing: "fit" })}
+                  onClick={() =>
+                    onPatch(index, { motion: "panel_glide", framing: "fit" })
+                  }
                 >
                   Use numbered route
                 </button>
@@ -621,7 +652,9 @@ export default function PageShotReview({
                   onClick={() => {
                     setRouteMode("off");
                     onPatch(index, {
-                      camera_path: null, motion: "hold", framing: "fit",
+                      camera_path: null,
+                      motion: "hold",
+                      framing: "fit",
                     });
                   }}
                 >
@@ -643,13 +676,17 @@ export default function PageShotReview({
                   }
                 />
                 <strong>
-                  {((scene.path_move_fraction ?? 1) * scene.duration).toFixed(1)}s moving
+                  {((scene.path_move_fraction ?? 1) * scene.duration).toFixed(
+                    1,
+                  )}
+                  s moving
                 </strong>
               </label>
               <p className="help">
-                The camera follows 1 → 2{path.length > 2 ? ` → … → ${path.length}` : ""}
-                {" "}and holds on the last point for the rest of this shot.
-                Move the slider left for a quicker pan.
+                The camera follows 1 → 2
+                {path.length > 2 ? ` → … → ${path.length}` : ""} and holds on
+                the last point for the rest of this shot. Move the slider left
+                for a quicker pan.
               </p>
               <label className="page-route-speed">
                 <span>Camera closeness</span>
@@ -668,8 +705,9 @@ export default function PageShotReview({
                 <strong>{(scene.path_zoom ?? 1.4).toFixed(1)}×</strong>
               </label>
               <p className="help">
-                Drag numbered dots on the artwork to correct where the camera looks.
-                Arrow keys make fine adjustments. Your voiceover and page file stay intact.
+                Drag numbered dots on the artwork to correct where the camera
+                looks. Arrow keys make fine adjustments. Your voiceover and page
+                file stay intact.
               </p>
             </>
           )}
@@ -766,7 +804,8 @@ export default function PageShotReview({
                   transition:
                     event.target.value === "inherit"
                       ? null
-                      : (event.target.value as "cut" | "crossfade" | "slide_left"),
+                      : (event.target.value as
+                          "cut" | "crossfade" | "slide_left"),
                 })
               }
             >

@@ -28,6 +28,7 @@ def focal_to_viewport(point, aspect, zoom):
     else:
         artwork_width, artwork_height = aspect / TARGET_RATIO, 1.0
     viewport = 1 / zoom
+
     def axis(value, content_length):
         offset = (1 - content_length) / 2
         low, high = offset, offset + content_length - viewport
@@ -45,8 +46,7 @@ def route_segments(points, aspect, zoom):
     """Return (path bounds, normalized elapsed-distance breaks)."""
     viewports = [focal_to_viewport(p, aspect, zoom) for p in points]
     distances = [
-        max(0.000001, hypot(b["x"] - a["x"], b["y"] - a["y"]))
-        for a, b in zip(points, points[1:])
+        max(0.000001, hypot(b["x"] - a["x"], b["y"] - a["y"])) for a, b in zip(points, points[1:])
     ]
     total = sum(distances)
     breaks = [0.0]

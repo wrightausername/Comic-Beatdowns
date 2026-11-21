@@ -20,7 +20,9 @@ describe("numbered camera route geometry", () => {
 
   it("interpolates through numbered points, not diagonally past middle stops", () => {
     const points = [
-      { x: 0.1, y: 0.1 }, { x: 0.9, y: 0.1 }, { x: 0.9, y: 0.9 },
+      { x: 0.1, y: 0.1 },
+      { x: 0.9, y: 0.1 },
+      { x: 0.9, y: 0.9 },
     ];
     const aspect = 0.75;
     const zoom = cameraPathZoom(aspect, 2);
@@ -36,7 +38,8 @@ describe("numbered camera route geometry", () => {
   it("converts whole-page clicks to crop-relative route points", () => {
     const crop = { x: 0.2, y: 0.3, width: 0.4, height: 0.5 };
     expect(pagePointToRoute(0.4, 0.55, crop)).toEqual({
-      x: 0.5, y: 0.5,
+      x: 0.5,
+      y: 0.5,
     });
     expect(pagePointToRoute(0.9, 0.95, crop)).toEqual({ x: 1, y: 1 });
   });

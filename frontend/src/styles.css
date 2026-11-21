@@ -4241,7 +4241,9 @@ progress::-webkit-progress-value {
   touch-action: none;
   box-shadow: 0 1px 8px #050b13b8;
 }
-.page-route-point:active { cursor: grabbing; }
+.page-route-point:active {
+  cursor: grabbing;
+}
 .page-route-point.pending {
   background: #f9dd79;
   pointer-events: none;

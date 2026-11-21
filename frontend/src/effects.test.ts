@@ -79,7 +79,10 @@ describe("camera and transition preview", () => {
       ...base,
       motion: "panel_glide" as const,
       panel: {
-        id: "page", title: "Page", width: 900, height: 300,
+        id: "page",
+        title: "Page",
+        width: 900,
+        height: 300,
       } as CameraSettings["panel"],
       source_crop: { x: 0, y: 0, width: 1, height: 1 },
       camera_path: [

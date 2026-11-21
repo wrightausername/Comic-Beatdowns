@@ -164,55 +164,95 @@ describe("plain language whole-page editor", () => {
 
   it("draws a numbered 1→2 route on the original page and adjusts speed", () => {
     const result = setup();
-    const page = screen.getByRole("group", { name: "Full source page for shot 1" });
-    Object.defineProperty(page, "getBoundingClientRect", {
-      value: () => ({ width: 400, height: 400, left: 0, top: 0, right: 400, bottom: 400 }),
+    const page = screen.getByRole("group", {
+      name: "Full source page for shot 1",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Draw 1 → 2 camera route" }));
+    Object.defineProperty(page, "getBoundingClientRect", {
+      value: () => ({
+        width: 400,
+        height: 400,
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 400,
+      }),
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Draw 1 → 2 camera route" }),
+    );
     fireEvent.pointerDown(page, { pointerId: 1, clientX: 140, clientY: 160 });
-    expect(screen.getByText("Click where the camera should END (point 2)."))
-      .toBeInTheDocument();
+    expect(
+      screen.getByText("Click where the camera should END (point 2)."),
+    ).toBeInTheDocument();
     fireEvent.pointerDown(page, { pointerId: 2, clientX: 280, clientY: 280 });
-    expect(result.onPatch).toHaveBeenCalledWith(0, expect.objectContaining({
-      motion: "panel_glide",
-      camera_path: [
-        { x: 0.416667, y: 0.5 },
-        { x: 1, y: 1 },
-      ],
-    }));
+    expect(result.onPatch).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({
+        motion: "panel_glide",
+        camera_path: [
+          { x: 0.416667, y: 0.5 },
+          { x: 1, y: 1 },
+        ],
+      }),
+    );
   });
 
   it("lets the creator drag numbered dots and pick a travel speed", () => {
     const route = [
-      { x: 0.1, y: 0.25 }, { x: 0.9, y: 0.75 },
+      { x: 0.1, y: 0.25 },
+      { x: 0.9, y: 0.75 },
     ];
-    const result = setup([{ ...shots[0], camera_path: route, motion: "panel_glide" }]);
-    const page = screen.getByRole("group", { name: "Full source page for shot 1" });
+    const result = setup([
+      { ...shots[0], camera_path: route, motion: "panel_glide" },
+    ]);
+    const page = screen.getByRole("group", {
+      name: "Full source page for shot 1",
+    });
     Object.defineProperty(page, "getBoundingClientRect", {
-      value: () => ({ width: 400, height: 400, left: 0, top: 0, right: 400, bottom: 400 }),
+      value: () => ({
+        width: 400,
+        height: 400,
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 400,
+      }),
     });
     const start = screen.getByRole("button", { name: /Move camera point 1/ });
     fireEvent.pointerDown(start, { pointerId: 1, clientX: 60, clientY: 100 });
     fireEvent.pointerMove(page, { pointerId: 1, clientX: 220, clientY: 220 });
-    expect(result.onPatch).toHaveBeenCalledWith(0, expect.objectContaining({
-      camera_path: [
-        { x: 0.75, y: 0.75 }, { x: 0.9, y: 0.75 },
-      ],
-    }));
+    expect(result.onPatch).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({
+        camera_path: [
+          { x: 0.75, y: 0.75 },
+          { x: 0.9, y: 0.75 },
+        ],
+      }),
+    );
     fireEvent.pointerUp(page, { pointerId: 1 });
     fireEvent.change(
       screen.getByRole("slider", { name: "Shot 1 camera travel time" }),
       { target: { value: "0.35" } },
     );
-    expect(result.onPatch).toHaveBeenCalledWith(0, { path_move_fraction: 0.35 });
+    expect(result.onPatch).toHaveBeenCalledWith(0, {
+      path_move_fraction: 0.35,
+    });
     fireEvent.click(screen.getByRole("button", { name: "Reverse route" }));
-    expect(result.onPatch).toHaveBeenCalledWith(0, expect.objectContaining({
-      camera_path: [route[1], route[0]],
-    }));
+    expect(result.onPatch).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({
+        camera_path: [route[1], route[0]],
+      }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Clear route" }));
-    expect(result.onPatch).toHaveBeenCalledWith(0, expect.objectContaining({
-      motion: "hold", camera_path: null,
-    }));
+    expect(result.onPatch).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({
+        motion: "hold",
+        camera_path: null,
+      }),
+    );
   });
 
   it("prevents modifying locked source shots or unsafe joins", () => {
