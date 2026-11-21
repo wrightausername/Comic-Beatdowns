@@ -270,7 +270,7 @@ describe("plain language whole-page editor", () => {
         camera_path: [route[1], route[0]],
       }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Clear route" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove route" }));
     expect(result.onPatch).toHaveBeenCalledWith(
       0,
       expect.objectContaining({
