@@ -91,6 +91,57 @@ export function splitScene(
   };
   return [...scenes.slice(0, index), first, second, ...scenes.slice(index + 1)];
 }
+/** Manually join adjacent virtual shots that really are one comic composition. */
+export function mergePageShots(scenes: Scene[], index: number): Scene[] {
+  const first = scenes[index];
+  const next = scenes[index + 1];
+  if (
+    !first || !next || first.locked || next.locked ||
+    !first.source_crop || !next.source_crop ||
+    first.panel_id !== next.panel_id
+  )
+    throw new Error("Choose two unlocked neighboring crops from the same original comic page.");
+  if (
+    next.caption?.trim() || next.sfx_id || next.sfx_url || next.sfx_source_id
+  )
+    throw new Error("The next shot has dialogue or audio. Move it first so joining won't discard it.");
+  if (first.duration + next.duration > 30)
+    throw new Error("A joined shot can be at most 30 seconds. Shorten the shots first.");
+  if ((first.note?.length ?? 0) + (next.note?.length ?? 0) + 3 > 2000)
+    throw new Error("These shots have too many notes to join safely.");
+  const a = first.source_crop, b = next.source_crop;
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  const right = Math.max(a.x + a.width, b.x + b.width);
+  const bottom = Math.max(a.y + a.height, b.y + b.height);
+  const source_crop = {
+    x, y, width: Math.min(1 - x, right - x), height: Math.min(1 - y, bottom - y),
+  };
+  const aspect =
+    first.panel.width * source_crop.width /
+    (first.panel.height * source_crop.height);
+  const glide_axis = aspect >= 1.35
+    ? "horizontal" as const
+    : aspect <= 0.42 ? "vertical" as const : null;
+  return [
+    ...scenes.slice(0, index),
+    {
+      ...first,
+      duration: Number((first.duration + next.duration).toFixed(6)),
+      source_crop,
+      motion: glide_axis ? "panel_glide" as const : "hold" as const,
+      glide_axis,
+      glide_start: 0,
+      glide_end: 1,
+      transition: "cut" as const,
+      framing: "fit" as const,
+      easing: "smooth" as const,
+      note: [first.note, next.note].filter(Boolean).join(" • "),
+    },
+    ...scenes.slice(index + 2),
+  ];
+}
+
 export function fitScenes(
   scenes: Scene[],
   seconds: number,
