@@ -10,6 +10,12 @@
 - The project is a **GitHub repository**, not a ChatGPT Site. If a Codex environment shows no attached repository, **connect/open/clone this exact repository** before claiming there is no project. Check which branch is checked out.
 - This status document is on `main` so it remains visible in future fresh checkouts. **Do not confuse this documentation commit with merging the feature branches.**
 
+## Latest Codex task entry (November 21, 2026)
+
+**Start here:** [docs/CODEX_NEXT_TASK.md](CODEX_NEXT_TASK.md). This is the owner's complete actionable handoff for the **simplest possible app workflow** and the latest P0 comic-page Auto-Director code. On draft [PR #15](https://github.com/wrightausername/Comic-Beatdowns/pull/15), `feature/whole-page-director-p0` at verified HEAD `22369eb9f1c7508d37339a6cb67f87abd8734517`, the new flow is **Make my video draft → review shot strip → fix the camera only if needed by drawing 1→2 → adjust speed → preview/next → final review**, with advanced controls collapsed. **Latest green verification:** [CI 44955553693](https://github.com/wrightausername/Comic-Beatdowns/actions/runs/44955553693), both validate and Windows jobs green. This feature is unmerged and not yet part of an installable release; real episode testing and smarter irregular-panel detection are pending.
+
+Do not create another unrelated flow/editor, claim Codex chat is automatically synchronized, or merge without explicit approval.
+
 ## Active PRs and implementation reality
 
 | Area | Reference | Status as verified Nov 15, 2026 |
