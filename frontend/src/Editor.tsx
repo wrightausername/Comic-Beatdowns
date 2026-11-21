@@ -697,6 +697,7 @@ export default function Editor({
                       ],
                     });
                   }}
+                  onReviewVideo={() => setStage("review")}
                   onPreview={(index) => {
                     setPreviewOverride(null);
                     setPreviewRequest({ index, nonce: Date.now() });
@@ -710,6 +711,8 @@ export default function Editor({
                   }
                 />
               )}
+              <details className="timeline-advanced">
+                <summary>Full timeline editor · optional fine-tuning</summary>
               <section className="surface timeline-section">
                 <div className="section-heading">
                   <div>
@@ -1067,6 +1070,7 @@ export default function Editor({
                   </div>
                 </div>
               </section>
+              </details>
               <section className="surface narration-section">
                 <div className="section-heading">
                   <div>
