@@ -57,6 +57,27 @@ def item(name, image, tmp_path):
     )
 
 
+def test_four_panel_page_creates_ordered_virtual_shots_from_one_source(tmp_path):
+    page = Image.new("RGB", (800, 800), "white")
+    draw = ImageDraw.Draw(page)
+    draw.rectangle((8, 8, 350, 350), fill="#234c61")
+    draw.rectangle((405, 8, 792, 350), fill="#654220")
+    draw.rectangle((8, 405, 350, 792), fill="#52416b")
+    draw.rectangle((405, 405, 792, 792), fill="#264d2e")
+    parent = item("grid", page, tmp_path)
+
+    shots, report = page_sources([], [parent], Storage(tmp_path))
+    assert report["expanded"] is True
+    assert len(shots) == 4
+    assert [shot.panel_id for shot in shots] == ["grid"] * 4
+    assert len({shot.id for shot in shots}) == 4
+    coords = [shot.source_crop for shot in shots]
+    assert coords[0]["y"] == coords[1]["y"]
+    assert coords[0]["x"] < coords[1]["x"]
+    assert coords[2]["y"] == coords[3]["y"]
+    assert coords[0]["y"] < coords[2]["y"]
+
+
 def test_wide_spanning_panel_is_one_composition(tmp_path):
     panel = item("wide", wide_top(), tmp_path)
     boxes = suggest_panels(wide_top())
