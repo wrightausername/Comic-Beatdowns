@@ -163,7 +163,7 @@ export default function PageShotReview({
         : resizeCrop(crop, dx * amount, dy * amount),
     );
   }
-  const mode = scene.motion === "panel_glide" ? "pan" : "hold";
+  const mode = scene.motion === "panel_glide" ? "pan" : scene.motion === "hold" ? "hold" : "other";
   return (
     <section
       id="page-shot-review"
@@ -496,15 +496,18 @@ export default function PageShotReview({
             Transition into this shot
             <select
               aria-label={`Shot ${index + 1} transition`}
-              value={scene.transition ?? "cut"}
+              value={scene.transition ?? "inherit"}
               disabled={disabled || index === 0}
               onChange={(event) =>
                 onPatch(index, {
-                  transition: event.target.value as
-                    "cut" | "crossfade" | "slide_left",
+                  transition:
+                    event.target.value === "inherit"
+                      ? null
+                      : (event.target.value as "cut" | "crossfade" | "slide_left"),
                 })
               }
             >
+              <option value="inherit">Use project's default transition</option>
               <option value="cut">Hard cut (comic reading)</option>
               <option value="crossfade">Gentle dissolve</option>
               <option value="slide_left">Slide to next shot</option>
