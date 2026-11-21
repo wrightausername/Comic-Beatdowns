@@ -202,6 +202,11 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
             shot["glide_end"] = round(cursor / total, 6)
             shot["transition"] = "cut"
         i = j
+    # Ordinary adjacent panels do not warrant arbitrary wipe/slide effects.
+    # Let explicit script-driven beats and manual choices decide transitions.
+    for shot in result:
+        if shot.get("source_crop") is not None:
+            shot["transition"] = "cut"
     updated = {
         **settings,
         "edit_pace": options.pace,
