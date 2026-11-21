@@ -616,6 +616,14 @@ def queue_render_for_state(
             "camera_path": s.camera_path,
             "path_move_fraction": s.path_move_fraction,
             "path_zoom": s.path_zoom,
+            "source_aspect": (
+                db.get(Panel, s.panel_id).width
+                * (s.source_crop["width"] if s.source_crop else 1)
+                / (
+                    db.get(Panel, s.panel_id).height
+                    * (s.source_crop["height"] if s.source_crop else 1)
+                )
+            ),
             "glide_zoom": (
                 glide_zoom(
                     {
