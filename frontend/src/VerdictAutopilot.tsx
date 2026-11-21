@@ -131,6 +131,7 @@ export default function VerdictAutopilot({
   perform,
   onChanged,
   onReview,
+  onFixPage,
   onError,
 }: {
   project: Project;
@@ -141,6 +142,7 @@ export default function VerdictAutopilot({
   perform: (action: () => Promise<void>) => Promise<void>;
   onChanged: () => void;
   onReview: () => void;
+  onFixPage?: () => void;
   onError: (message: string) => void;
 }) {
   const [jobs, setJobs] = useState<DirectorJob[]>([]);
@@ -416,17 +418,25 @@ export default function VerdictAutopilot({
           )}
           <p>{latest.report.summary}</p>
           {latest.report.page_reading?.expanded && (
-            <p className="notice">
-              Full comic pages mapped to{" "}
-              {latest.report.page_reading.pages.reduce(
-                (count, page) => count + page.panel_count,
-                0,
-              )}{" "}
-              proposed panel regions. Source screenshots are unchanged. Open the
-              full editor to review each region and correct unusual layouts
-              before approving.
-            </p>
-          )}
+            <div className="notice">
+              <p>
+                Verdict found{" "}
+                {latest.report.page_reading.pages.reduce(
+                  (count, page) => count + page.panel_count,
+                  0,
+                )}{" "}
+                page regions. The original screenshots are safe. You can move,
+                merge, split, reorder or replace any choice before final export.
+              </p>
+              <button
+                type="button"
+                className="button secondary small-button"
+                onClick={onFixPage ?? onReview}
+              >
+                Fix panel crops and order
+              </button>
+            </div>
+          )
           {latest.report.warnings?.map((warning) => (
             <p className="muted" key={warning}>
               {warning}
