@@ -69,6 +69,21 @@ class SmartCropSelection(StrictModel):
         return value
 
 
+class SourceRegion(StrictModel):
+    """A virtual shot window on the preserved full-page artwork."""
+
+    x: float = Field(ge=0, lt=1)
+    y: float = Field(ge=0, lt=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+
+    @model_validator(mode="after")
+    def inside_page(self):
+        if self.x + self.width > 1.000001 or self.y + self.height > 1.000001:
+            raise ValueError("A source panel region must remain inside the page")
+        return self
+
+
 class ProjectCreate(StrictModel):
     title: str = Field(min_length=1, max_length=200)
     idea: str = Field(default="", max_length=8000)
@@ -101,6 +116,8 @@ class SceneInput(StrictModel):
     sfx_id: str | None = None
     sfx_offset: float = Field(default=0, ge=0, le=30)
     framing: Literal["fill", "fit"] = "fill"
+    source_crop: SourceRegion | None = None
+    glide_axis: Literal["horizontal", "vertical"] | None = None
     sfx_source_id: str | None = None
     clear_sfx: bool = False
 
