@@ -25,7 +25,7 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Format Python and frontend camera route changes
+      - name: Format latest Python and frontend camera route changes
         run: |
           python -m pip install ruff==0.17.1
           ruff check --fix backend/app/camera_path.py backend/app/page_direction.py backend/app/effects.py backend/app/api.py backend/app/autoedit.py backend/app/database.py backend/app/schemas.py backend/app/workspace.py backend/tests/test_camera_path.py backend/tests/test_page_director_api.py
