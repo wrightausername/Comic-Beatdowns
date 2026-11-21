@@ -88,12 +88,14 @@ test("one click enables a disabled Autopilot safely and generates a draft", asyn
     revision: 5,
     autopilot: { ...off.autopilot!, enabled: true },
   };
-  mocked.mockImplementation(async (path) => {
+  mocked.mockImplementation(async (path, options) => {
     if (path === "/verdict/connection") return { configured: false } as never;
     if (path === "/projects/test") return off as never;
     if (path === "/projects/test/autopilot") return enabled as never;
     if (path === "/projects/test/director")
-      return { id: "new-director", status: "queued", report: {} } as never;
+      return options?.method === "POST"
+        ? ({ id: "new-director", status: "queued", report: {} } as never)
+        : ([] as never);
     return [] as never;
   });
   render(
