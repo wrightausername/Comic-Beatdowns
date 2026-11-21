@@ -243,7 +243,7 @@ def build_draft(project, scenes, panels, options, pauses, effects):
                     scene[key] = getattr(old, key)
             else:
                 scene.update(motion="hold", transition="cut")
-        elif beat in BEATS:
+        elif beat in BEATS and scene.get("motion") != "panel_glide":
             scene.update(BEATS[beat], beat=beat, framing="fit" if beat == "read" else "fill")
             if beat == "hit" and index % 2:
                 scene["motion"] = "impact_shake"
