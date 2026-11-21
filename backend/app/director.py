@@ -15,6 +15,7 @@ from .audio import analyze_audio, transcribe
 from .automation import build_draft, storyboard
 from .database import DirectorJob, Project, ProjectVersion, RenderJob, SoundEffect, now
 from .production import project_panels
+from .page_direction import page_sources
 from .schemas import (
     AutopilotOptions,
     AutopilotUpdate,
@@ -165,6 +166,7 @@ class DirectorService:
                         "fight",
                         "width",
                         "height",
+                        "page",
                     )
                 }
                 for p in panels
@@ -282,6 +284,15 @@ class DirectorService:
                     warnings.append(
                         "Some Smart Crop targets are uncertain and use whole-panel framing. Review them before approval."
                     )
+            # Creator supplied complete pages, not necessarily pre-cropped images.
+            # Use conservative local geometry to generate virtual scenes only
+            # when this project still has one untouched scene per source page.
+            scenes, page_report = page_sources(scenes, panels, storage)
+            if page_report["expanded"]:
+                warnings.append(
+                    "Whole-page panels were detected using straight gutters. "
+                    "Review the proposed boundaries, order and captions."
+                )
             self.progress(
                 job_id,
                 "editing",
@@ -294,7 +305,11 @@ class DirectorService:
                     project,
                     scenes,
                     panels,
-                    BuildDraftInput(pace=options.pace, captions=bool(project.caption_cues)),
+                    BuildDraftInput(
+                        pace=options.pace,
+                        match_panels=not page_report["expanded"],
+                        captions=bool(project.caption_cues),
+                    ),
                     analysis["pauses"],
                     effects,
                 )
@@ -403,6 +418,7 @@ class DirectorService:
                     "scene_count": len(items),
                     "caption_count": len(project.caption_cues),
                     "smart_crops": crop_reviews,
+                    "page_reading": page_report,
                 }
                 # queue_render commits edit and immutable render together.
                 queue_render_for_state(
