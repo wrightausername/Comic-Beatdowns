@@ -66,7 +66,9 @@ def camera_expressions(scene, frames):
     if motion.startswith("punch_"):
         t = f"min(1,{t}/0.18)"
     if motion == "panel_glide" and scene.get("camera_path"):
-        t = f"min(1,{t}/{scene.get('path_move_fraction', 1)})"
+        start, end = scene.get("glide_start", 0), scene.get("glide_end", 1)
+        # Preserve the same route after splits and narration-paced Auto Edit cuts.
+        t = f"min(1,({start}+({end}-{start})*{t})/{scene.get('path_move_fraction', 1)})"
     easing = scene.get("easing", "linear")
     progress = {
         "linear": t,
