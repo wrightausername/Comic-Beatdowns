@@ -4,6 +4,7 @@ import {
   ArrowDownToLine,
   ArrowRight,
   BookOpen,
+  BrainCircuit,
   Check,
   ChevronRight,
   CircleHelp,
@@ -40,6 +41,7 @@ import {
 import { ImportPanels, NewProject, PanelDetail } from "./dialogs";
 import Editor from "./Editor";
 import PublishingDesk from "./PublishingDesk";
+import CreativeDNA from "./CreativeDNA";
 import BatchQueue from "./BatchQueue";
 import type {
   Integrations,
@@ -56,6 +58,7 @@ type Page =
   | "library"
   | "exports"
   | "publishing"
+  | "creative-dna"
   | "templates"
   | "connections";
 const initialIntegrations: Integrations = {
@@ -233,6 +236,12 @@ export default function App() {
       id: "publishing" as const,
       icon: Send,
       title: "Publishing",
+      count: 0,
+    },
+    {
+      id: "creative-dna" as const,
+      icon: BrainCircuit,
+      title: "Creative DNA",
       count: 0,
     },
   ];
@@ -820,6 +829,7 @@ export default function App() {
                     </>
                   )}
                   {page === "publishing" && <PublishingDesk jobs={jobs} />}
+                  {page === "creative-dna" && <CreativeDNA />}
                   {page === "exports" &&
                     (jobs.length ? (
                       <div className="exports-grid">

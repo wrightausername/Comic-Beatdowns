@@ -163,6 +163,46 @@ class DirectorJob(Base):
     finished_at: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
+class CreativeRule(Base):
+    """Creator-controlled style instruction; no automatic promotion of audience opinions."""
+
+    __tablename__ = "creative_rules"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    scope: Mapped[str] = mapped_column(String, default="global")
+    category: Mapped[str] = mapped_column(String)
+    instruction: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String, default="creator")
+    status: Mapped[str] = mapped_column(String, default="proposed")
+    created_at: Mapped[str] = mapped_column(String, default=now)
+    updated_at: Mapped[str] = mapped_column(String, default=now)
+
+
+class CreativeEditEvent(Base):
+    """Compact observation of a saved edit, not a preference or learning rule."""
+
+    __tablename__ = "creative_edit_events"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    from_revision: Mapped[int] = mapped_column(Integer)
+    to_revision: Mapped[int] = mapped_column(Integer)
+    changes: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[str] = mapped_column(String, default=now)
+
+
+class CreativeFeedback(Base):
+    """Private creator feedback tied to the exact episode revision at capture time."""
+
+    __tablename__ = "creative_feedback"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    project_revision: Mapped[int] = mapped_column(Integer)
+    scene_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    category: Mapped[str] = mapped_column(String)
+    decision: Mapped[str] = mapped_column(String)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[str] = mapped_column(String, default=now)
+
+
 def connect(data_dir):
     engine = create_engine(
         f"sqlite:///{data_dir / 'studio.sqlite3'}",

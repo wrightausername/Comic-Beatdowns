@@ -12,6 +12,7 @@ from .api import router
 from .auth import authenticated
 from .automation import ensure_builtin_effects
 from .config import ROOT, Settings
+from .creative_dna import router as creative_dna_router
 from .database import Template, connect
 from .director import DirectorService
 from .director import router as director_router
@@ -96,6 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_middleware(BodyLimitMiddleware, max_bytes=config.max_upload_bytes + 1024 * 1024)
     app.include_router(router)
+    app.include_router(creative_dna_router)
     app.include_router(production_router)
     app.include_router(director_router)
     app.include_router(publishing_router)
