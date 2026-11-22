@@ -20,6 +20,8 @@ Do not create another unrelated flow/editor, claim Codex chat is automatically s
 
 The shared straight-gutter detector checks proposed splits at full image resolution for dark interruptions. A thin outlined balloon tail crossing a gutter now keeps the original page intact and flags it for review. Synthetic fixtures cover both orientations. This conservative check can also defer noisy gutters to manual review. See the [PR checks](https://github.com/wrightausername/Comic-Beatdowns/pull/15/checks) for verification of the follow-up commit. Irregular-panel interpretation, narration alignment, and owner acceptance remain open.
 
+Rerunning the Director preserves existing custom numbered routes and their shot duration, even if the shot is unlocked. The API regression saves a route, reloads it, undoes and redoes it, and reruns Basic Auto-Director. Existing virtual crops also stay attached to their source page during storyboard matching.
+
 ## Active PRs and implementation reality
 
 | Area | Reference | Status as verified Nov 15, 2026 |

@@ -16,28 +16,33 @@ def audio_range(settings, duration):
 def auto_edit(scenes, settings, duration, options, pauses=()):
     if not scenes:
         raise ValueError("Add panels before creating an automatic edit")
-    if any(getattr(scene, "locked", False) for scene in scenes):
-        # Locked shots retain all their settings; distribute remaining time only
-        # across existing unlocked shots instead of replacing their identities.
+    fixed_shots = [
+        bool(getattr(scene, "locked", False) or getattr(scene, "camera_path", None))
+        for scene in scenes
+    ]
+    if any(fixed_shots):
+        # Preserve a creator's route and its duration just like a locked shot.
+        # Fit the remaining narration over the other shots without reordering.
         start, end = audio_range(settings, duration)
         if options.length == "short":
             end = min(end, start + 30)
         fps = settings["fps"]
         total = math.ceil((end - start) * fps - 1e-6)
-        fixed = sum(round(s.duration * fps) for s in scenes if s.locked)
-        unlocked = [s for s in scenes if not s.locked]
+        fixed = sum(round(s.duration * fps) for s, keep in zip(scenes, fixed_shots) if keep)
+        adjustable = fixed_shots.count(False)
         remaining = total - fixed
         minimum = math.ceil(0.25 * fps)
         if (
-            (not unlocked and remaining)
-            or remaining < len(unlocked) * minimum
-            or remaining > len(unlocked) * 30 * fps
+            (not adjustable and remaining)
+            or remaining < adjustable * minimum
+            or remaining > adjustable * 30 * fps
         ):
             raise ValueError(
-                "Locked scenes leave too little or too much time. Unlock a scene or change the narration range."
+                "Locked shots and custom camera routes leave too little or too much time. "
+                "Adjust the shot durations or narration range."
             )
-        result, used_frames = [], 0
-        for scene in scenes:
+        result, adjusted = [], 0
+        for scene, keep in zip(scenes, fixed_shots):
             values = {
                 key: getattr(scene, key, default)
                 for key, default in {
@@ -62,12 +67,15 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                     "glide_axis": None,
                     "glide_start": 0,
                     "glide_end": 1,
+                    "camera_path": None,
+                    "path_move_fraction": 1,
+                    "path_zoom": 1.4,
                 }.items()
             }
-            if not scene.locked:
-                i = unlocked.index(scene)
-                frames = remaining // len(unlocked) + (i < remaining % len(unlocked))
-                used_frames += frames
+            if not keep:
+                i = adjusted
+                adjusted += 1
+                frames = remaining // adjustable + (i < remaining % adjustable)
                 values.update(
                     duration=frames / fps,
                     motion=("punch_in" if i % 2 == 0 else "pan_right")

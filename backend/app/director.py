@@ -320,7 +320,7 @@ class DirectorService:
             panel_map = {p.id: p for p in panels}
             for shot in cut["scenes"]:
                 middle = cursor + shot["duration"] / 2
-                if decisions and not shot.get("locked"):
+                if decisions and not (shot.get("locked") or shot.get("camera_path")):
                     card, decision = min(
                         decisions,
                         key=lambda pair: abs((pair[0]["start"] + pair[0]["end"]) / 2 - middle),

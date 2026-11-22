@@ -136,3 +136,29 @@ def test_complete_page_becomes_timed_editable_3_shot_preview(client, monkeypatch
     )
     assert undone.status_code == 200, undone.text
     assert undone.json()["scenes"][0]["camera_path"] is None
+
+    # Regeneration must keep a creator's route even when the shot is unlocked.
+    redone = client.post(
+        url + "/history/redo",
+        json={"base_revision": undone.json()["revision"]},
+    )
+    assert redone.status_code == 200, redone.text
+    before = redone.json()["scenes"][0]
+    started = client.post(url + "/director", json={"base_revision": redone.json()["revision"]})
+    assert started.status_code == 202, started.text
+    job = wait_director(client, url)
+    assert job["id"] == started.json()["id"] and job["status"] == "completed", job
+
+    after = client.get(url).json()["scenes"][0]
+    assert not after["locked"]
+    for key in (
+        "id",
+        "panel_id",
+        "duration",
+        "motion",
+        "source_crop",
+        "camera_path",
+        "path_move_fraction",
+        "path_zoom",
+    ):
+        assert after[key] == before[key]

@@ -24,7 +24,12 @@ def page_sources(scenes, panels, storage):
     """
     if scenes and (
         len(scenes) != len(panels)
-        or any(getattr(s, "locked", False) or getattr(s, "source_crop", None) for s in scenes)
+        or any(
+            getattr(s, "locked", False)
+            or getattr(s, "source_crop", None)
+            or getattr(s, "camera_path", None)
+            for s in scenes
+        )
         or [s.panel_id for s in scenes] != [p.id for p in panels]
     ):
         return scenes, {"expanded": False, "reason": "Existing edited shots preserved", "pages": []}
