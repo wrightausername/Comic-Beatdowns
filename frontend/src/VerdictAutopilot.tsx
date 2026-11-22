@@ -28,10 +28,14 @@ export function orderForProduction<T extends { kind: string }>(
     throw new Error(
       "Choose one narration recording. Set other audio files to music or sound effects, or remove them.",
     );
+  if (files.filter((item) => item.kind === "script").length > 1)
+    throw new Error("Choose one episode script. Remove the extra script files.");
   // Narration replacement resets old captions. Apply this batch's SRT last.
-  return [...files].sort(
-    (a, b) => Number(a.kind === "captions") - Number(b.kind === "captions"),
-  );
+  return files
+    .filter((item) => item.kind !== "skip")
+    .sort(
+      (a, b) => Number(a.kind === "captions") - Number(b.kind === "captions"),
+    );
 }
 export async function handToVerdict(project: Project) {
   if (project.autopilot?.enabled && readyForVerdict(project)) {

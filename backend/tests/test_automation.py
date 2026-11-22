@@ -288,6 +288,31 @@ def test_drop_import_keeps_project_assets_and_replacement_keeps_cameras(client, 
     assert any(e["name"] == "sfx-impact" for e in client.get("/api/sound-effects").json())
 
 
+def test_script_file_import_is_undoable_and_preserves_existing_script(client):
+    project = add_project(client)
+    url = "/api/projects/" + project["id"]
+    script = "# Verdict\nAzure punches through the ceiling."
+    imported = client.post(
+        url + "/import-file",
+        files={"file": ("episode.md", ("\ufeff" + script).encode(), "text/markdown")},
+    )
+    assert imported.status_code == 201, imported.text
+    saved = imported.json()["project"]
+    assert saved["script"] == script
+    assert not saved["script_approved"]
+
+    duplicate = client.post(url + "/import-file", files={"file": ("episode.txt", script)})
+    assert duplicate.status_code == 201, duplicate.text
+    assert duplicate.json()["project"]["revision"] == saved["revision"]
+    conflict = client.post(url + "/import-file", files={"file": ("other.txt", "Different script")})
+    assert conflict.status_code == 422, conflict.text
+    assert client.get(url).json()["script"] == script
+
+    undone = client.post(url + "/history/undo", json={"base_revision": saved["revision"]})
+    assert undone.status_code == 200, undone.text
+    assert not undone.json()["script"]
+
+
 def test_watched_folder_imports_stable_files_once_and_records_errors(client, image_bytes):
     watcher = client.app.state.inbox
     watcher.stop()  # Drive passes explicitly, without timing-dependent sleeps.

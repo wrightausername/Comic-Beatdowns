@@ -439,8 +439,8 @@ export default function ProductionWorkflow(props: Props) {
         <section className="surface">
           <h2>1. Add your files</h2>
           <p>
-            Drop panels, narration, music, effects, and captions together. Check
-            each file’s role, then import.
+            Drop panels, narration, scripts, music, effects, and captions together.
+            Check each file’s role, then import.
           </p>
           <div
             className="project-dropzone"
@@ -459,7 +459,7 @@ export default function ProductionWorkflow(props: Props) {
                 aria-label="Project files"
                 type="file"
                 multiple
-                accept="image/*,.pdf,.cbz,audio/*,.srt"
+                accept="image/*,.pdf,.cbz,audio/*,.srt,.txt,.md"
                 hidden
                 onChange={(e) => {
                   addFiles(Array.from(e.target.files ?? []));
@@ -489,13 +489,18 @@ export default function ProductionWorkflow(props: Props) {
                         )
                       }
                     >
-                      {["panels", "narration", "music", "sfx", "captions"].map(
-                        (kind) => (
-                          <option key={kind} value={kind}>
-                            {kind === "sfx" ? "Sound effect" : kind}
-                          </option>
-                        ),
-                      )}
+                      {[
+                        "panels",
+                        "narration",
+                        "script",
+                        "music",
+                        "sfx",
+                        "captions",
+                      ].map((kind) => (
+                        <option key={kind} value={kind}>
+                          {kind === "sfx" ? "Sound effect" : kind}
+                        </option>
+                      ))}
                     </select>
                     <button
                       className="icon-button"
@@ -1654,6 +1659,7 @@ export default function ProductionWorkflow(props: Props) {
 }
 export function guessKind(filename: string) {
   if (/\.srt$/i.test(filename)) return "captions";
+  if (/\.(txt|md)$/i.test(filename)) return "script";
   if (/\.(wav|mp3|m4a|ogg|flac|aac|webm)$/i.test(filename))
     return /^(music|bgm)/i.test(filename)
       ? "music"

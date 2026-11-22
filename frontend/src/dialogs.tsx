@@ -141,13 +141,37 @@ export function NewProject({
   );
   const [files, setFiles] = useState<{ file: File; kind: string }[]>([]);
   const [busy, setBusy] = useState(false);
-  function addProjectFiles(chosen: File[]) {
-    setFiles((old) => [
-      ...old,
-      ...chosen.map((file) => ({ file, kind: guessKind(file.name) })),
-    ]);
-    if (!title && chosen.length)
-      setTitle(chosen[0].name.replace(/\.[^.]+$/, "").slice(0, 200));
+  function addProjectFiles(chosen: File[], fromFolder = false) {
+    if (!chosen.length) return;
+    const filePath = (file: File) => file.webkitRelativePath || file.name;
+    const collator = new Intl.Collator("en", { numeric: true });
+    const ordered = fromFolder
+      ? [...chosen].sort((a, b) => collator.compare(filePath(a), filePath(b)))
+      : chosen;
+    setFiles((old) => {
+      const identity = (file: File) =>
+        JSON.stringify([filePath(file), file.size, file.lastModified]);
+      const seen = new Set(old.map(({ file }) => identity(file)));
+      const next = [...old];
+      for (const file of ordered) {
+        const key = identity(file);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const kind = guessKind(file.name);
+        const unsupported =
+          fromFolder &&
+          kind === "panels" &&
+          !/\.(png|jpe?g|webp|gif|pdf|cbz)$/i.test(file.name);
+        next.push({ file, kind: unsupported ? "skip" : kind });
+      }
+      return next;
+    });
+    if (!title) {
+      const first = ordered[0];
+      const folder = first.webkitRelativePath.split("/")[0];
+      const name = fromFolder ? folder : first.name.replace(/\.[^.]+$/, "");
+      setTitle(name.slice(0, 200));
+    }
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -305,9 +329,24 @@ export function NewProject({
               aria-label="New project files"
               hidden
               multiple
-              accept="image/*,.pdf,.cbz,audio/*,.srt"
+              accept="image/*,.pdf,.cbz,audio/*,.srt,.txt,.md"
               onChange={(e) => {
                 addProjectFiles(Array.from(e.target.files ?? []));
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <label className="button secondary">
+            Choose episode folder
+            <input
+              type="file"
+              aria-label="Episode folder"
+              hidden
+              ref={(input) => {
+                input?.setAttribute("webkitdirectory", "");
+              }}
+              onChange={(e) => {
+                addProjectFiles(Array.from(e.target.files ?? []), true);
                 e.target.value = "";
               }}
             />
@@ -327,13 +366,19 @@ export function NewProject({
                 )
               }
             >
-              {["panels", "narration", "music", "sfx", "captions"].map(
-                (kind) => (
-                  <option key={kind} value={kind}>
-                    {kind}
-                  </option>
-                ),
-              )}
+              {[
+                "panels",
+                "narration",
+                "script",
+                "music",
+                "sfx",
+                "captions",
+                "skip",
+              ].map((kind) => (
+                <option key={kind} value={kind}>
+                  {kind === "skip" ? "Skip this file" : kind}
+                </option>
+              ))}
             </select>
             <button
               type="button"

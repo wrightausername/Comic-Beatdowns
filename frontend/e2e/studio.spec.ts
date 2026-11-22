@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { deflateSync } from "node:zlib";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 function crc32(buffer: Buffer) {
   let crc = -1;
@@ -667,4 +668,49 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   const file = await fileEvent;
   expect(file.suggestedFilename()).toContain("Verdict_upload_handoff_Final");
   expect(errors).toEqual([]);
+});
+
+test("episode folder queues pages in order and imports script and voice", async ({
+  page,
+}, testInfo) => {
+  const folder = testInfo.outputPath("Episode intake");
+  await mkdir(folder, { recursive: true });
+  await Promise.all([
+    writeFile(join(folder, "page-10.png"), originalPng()),
+    writeFile(join(folder, "page-2.png"), originalPng()),
+    writeFile(join(folder, "episode.md"), "Verdict explains the first punch."),
+    writeFile(join(folder, "voice.wav"), silentWav(2)),
+    writeFile(join(folder, "unrelated.json"), "{}"),
+  ]);
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  const chooser = page.getByLabel("Episode folder", { exact: true });
+  await chooser.setInputFiles(folder);
+  await chooser.setInputFiles(folder);
+  await expect(page.getByLabel("Project title", { exact: true })).toHaveValue(
+    "Episode intake",
+  );
+  await expect(page.getByLabel("New project role for voice.wav")).toHaveValue(
+    "narration",
+  );
+  await expect(
+    page.getByLabel("New project role for unrelated.json"),
+  ).toHaveValue("skip");
+  const pages = page.getByRole("combobox", { name: /New project role for page/ });
+  await expect(pages).toHaveCount(2);
+  await expect(pages.first()).toHaveAccessibleName(
+    "New project role for page-2.png",
+  );
+
+  const narration = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/import-file") &&
+      response.request().postData()?.includes('filename="voice.wav"') === true,
+  );
+  await page.getByRole("button", { name: "Create project" }).click();
+  const response = await narration;
+  expect(response.status()).toBe(201);
+  const { project } = await response.json();
+  expect(project.script).toBe("Verdict explains the first punch.");
+  expect(project.workflow.panel_ids).toHaveLength(2);
+  expect(project.narration_url).toBeTruthy();
 });
