@@ -1,4 +1,10 @@
 import type { CSSProperties } from "react";
+import type { Panel } from "./types";
+import {
+  cameraPathZoom,
+  interpolateCameraRoute,
+  type CameraWaypoint,
+} from "./cameraRoute";
 
 export const CAMERA_MOVES = [
   {
@@ -25,6 +31,11 @@ export const CAMERA_MOVES = [
     group: "Still & zoom",
   },
   { value: "pan_left", label: "Pan left", group: "Pans" },
+  {
+    value: "panel_glide",
+    label: "Follow a long comic panel",
+    group: "Pans",
+  },
   { value: "pan_right", label: "Pan right", group: "Pans" },
   { value: "pan_up", label: "Pan up", group: "Pans" },
   { value: "pan_down", label: "Pan down", group: "Pans" },
@@ -100,6 +111,14 @@ export interface CameraSettings {
   easing: Easing;
   focus_x: number;
   focus_y: number;
+  source_crop?: { x: number; y: number; width: number; height: number } | null;
+  panel?: Panel;
+  glide_axis?: "horizontal" | "vertical" | null;
+  glide_start?: number;
+  glide_end?: number;
+  camera_path?: CameraWaypoint[] | null;
+  path_move_fraction?: number;
+  path_zoom?: number;
 }
 export const CAMERA_PRESETS: { name: string; settings: CameraSettings }[] = [
   {
@@ -149,6 +168,12 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 export function cameraPosition(scene: CameraSettings, ratio: number) {
   let t = clamp(ratio);
   if (scene.motion.startsWith("punch_")) t = clamp(t / 0.18);
+  if (scene.motion === "panel_glide" && scene.camera_path?.length)
+    t = clamp(
+      ((scene.glide_start ?? 0) +
+        ((scene.glide_end ?? 1) - (scene.glide_start ?? 0)) * t) /
+        (scene.path_move_fraction ?? 1),
+    );
   if (scene.easing === "smooth") t = smooth(t);
   else if (scene.easing === "ease_in") t *= t;
   else if (scene.easing === "ease_out") t = 1 - (1 - t) ** 2;
@@ -158,6 +183,28 @@ export function cameraPosition(scene: CameraSettings, ratio: number) {
   let zoom = 1,
     x = fx,
     y = fy;
+  if (scene.motion === "panel_glide" && scene.source_crop && scene.panel) {
+    const crop = scene.source_crop;
+    const aspect =
+      (scene.panel.width * crop.width) / (scene.panel.height * crop.height);
+    if (scene.camera_path && scene.camera_path.length >= 2) {
+      zoom = cameraPathZoom(aspect, scene.path_zoom ?? 1.4);
+      const camera = interpolateCameraRoute(scene.camera_path, aspect, zoom, t);
+      return { zoom, x: camera.x, y: camera.y };
+    }
+    zoom = Math.min(8, Math.max(1, aspect / (9 / 16), 9 / 16 / aspect));
+    const position =
+      (scene.glide_start ?? 0) +
+      ((scene.glide_end ?? 1) - (scene.glide_start ?? 0)) * t;
+    if (scene.glide_axis === "vertical") {
+      x = 0.5;
+      y = position;
+    } else {
+      x = position;
+      y = 0.5;
+    }
+    return { zoom, x, y };
+  }
   if (
     ["zoom_in", "punch_in"].includes(scene.motion) ||
     scene.motion.startsWith("push_")

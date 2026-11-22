@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { FormEvent, PointerEvent } from "react";
+import type { DragEvent, FormEvent, PointerEvent } from "react";
 import { Check, FileImage, Plus, Scissors, Upload, X } from "lucide-react";
 import { api, json } from "./api";
 import { Modal } from "./components";
@@ -10,6 +10,7 @@ import {
   orderForProduction,
 } from "./VerdictAutopilot";
 import { guessKind } from "./ProductionWorkflow";
+import { readDroppedFolder, type EpisodeFile } from "./episodeFolder";
 import type {
   AutopilotOptions,
   Easing,
@@ -26,6 +27,14 @@ import {
   TransitionOptions,
 } from "./EffectOptions";
 import { errorMessage } from "./utils";
+
+type SuggestedPanelCrop = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+};
 
 type ErrorHandler = (message: string) => void;
 const initialMetadata = {
@@ -126,43 +135,99 @@ export function NewProject({
   const [autopilot, setAutopilot] = useState(initialAutopilot);
   const [directorOptions, setDirectorOptions] =
     useState<AutopilotOptions>(defaultAutopilot);
+  const [paceOverride, setPaceOverride] = useState(false);
   const [title, setTitle] = useState("");
   const [idea, setIdea] = useState("");
-  const [template, setTemplate] = useState(
-    initialTemplateId ?? templates[0]?.id ?? "",
-  );
-  const [files, setFiles] = useState<{ file: File; kind: string }[]>([]);
+  const [template, setTemplate] = useState(initialTemplateId ?? "");
+  const [files, setFiles] = useState<(EpisodeFile & { kind: string })[]>([]);
   const [busy, setBusy] = useState(false);
-  function addProjectFiles(chosen: File[]) {
-    setFiles((old) => [
-      ...old,
-      ...chosen.map((file) => ({ file, kind: guessKind(file.name) })),
-    ]);
-    if (!title && chosen.length)
-      setTitle(chosen[0].name.replace(/\.[^.]+$/, "").slice(0, 200));
+  const [readingFolder, setReadingFolder] = useState(false);
+  const [folderSelected, setFolderSelected] = useState(false);
+  function addProjectFiles(chosen: EpisodeFile[], fromFolder = false) {
+    if (!chosen.length) return;
+    if (fromFolder) setFolderSelected(true);
+    const collator = new Intl.Collator("en", { numeric: true });
+    const ordered = fromFolder
+      ? [...chosen].sort((a, b) => collator.compare(a.path, b.path))
+      : chosen;
+    setFiles((old) => {
+      const identity = ({ file, path }: EpisodeFile) =>
+        JSON.stringify([path, file.size, file.lastModified]);
+      const seen = new Set(old.map(identity));
+      const next = [...old];
+      for (const item of ordered) {
+        const key = identity(item);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const kind = guessKind(item.file.name);
+        const unsupported =
+          fromFolder &&
+          kind === "panels" &&
+          !/\.(png|jpe?g|webp|gif|pdf|cbz)$/i.test(item.file.name);
+        next.push({ ...item, kind: unsupported ? "skip" : kind });
+      }
+      return next;
+    });
+    const first = ordered[0];
+    const name = fromFolder
+      ? first.path.split("/")[0]
+      : first.file.name.replace(/\.[^.]+$/, "");
+    setTitle((current) => current || name.slice(0, 200));
+  }
+  function addPickedFiles(chosen: File[], fromFolder = false) {
+    addProjectFiles(
+      chosen.map((file) => ({
+        file,
+        path: file.webkitRelativePath || file.name,
+      })),
+      fromFolder,
+    );
+  }
+  async function handleEpisodeDrop(event: DragEvent) {
+    event.preventDefault();
+    if (busy || readingFolder) return;
+    const files = Array.from(event.dataTransfer.files);
+    const entries = Array.from(event.dataTransfer.items)
+      .map((item) => item.webkitGetAsEntry?.())
+      .filter((entry): entry is FileSystemEntry => Boolean(entry));
+    if (!entries.some((entry) => entry.isDirectory)) {
+      addPickedFiles(files);
+      return;
+    }
+    setReadingFolder(true);
+    try {
+      const chosen = await readDroppedFolder(entries);
+      if (!chosen.length) onError("The episode folder is empty.");
+      addProjectFiles(chosen, true);
+    } catch (error) {
+      onError(`Could not read the episode folder. ${errorMessage(error)}`);
+    } finally {
+      setReadingFolder(false);
+    }
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (readingFolder || busy) return;
     setBusy(true);
     try {
       const orderedFiles = orderForProduction(files);
       let created = await api<Project>(
         "/projects",
         json({
-          title:
-            title.trim() ||
-            idea.trim().split("\n")[0].slice(0, 120) ||
-            "New beatdown",
+          title: title.trim() || idea.trim().slice(0, 80) || "Untitled episode",
           idea,
           template_id: template || null,
         }),
       );
-      if (autopilot)
+      if (autopilot && !folderSelected)
         created = await api<Project>(
           `/projects/${created.id}/autopilot`,
           json(
             {
               ...directorOptions,
+              pace: paceOverride
+                ? directorOptions.pace
+                : created.settings.edit_pace,
               enabled: true,
               base_revision: created.revision,
             },
@@ -187,7 +252,7 @@ export function NewProject({
           );
         }
       }
-      if (!failed) {
+      if (!failed && !folderSelected) {
         try {
           await handToVerdict(created);
         } catch (error) {
@@ -208,102 +273,102 @@ export function NewProject({
       onClose={onClose}
     >
       <form onSubmit={submit}>
-        <p className="muted">
-          Start with an idea and whatever files you already have. You can finish
-          adding everything inside the project.
-        </p>
-        <label className="autopilot-review">
-          <input
-            type="checkbox"
-            checked={autopilot}
-            onChange={(e) => setAutopilot(e.target.checked)}
-          />
-          Let Verdict handle the edit after upload
-        </label>
-        <p className="muted">
-          For this build, automatic editing needs comic panels and one narration
-          recording. You can start without them and add files later. Publishing
-          always requires your approval.
-        </p>
-        {autopilot && (
-          <details className="workflow-advanced">
-            <summary>Optional: change how Verdict edits</summary>
-            <div className="form-grid">
-              <label>
-                Verdict mode
-                <select
-                  value={directorOptions.mode}
-                  onChange={(e) =>
-                    setDirectorOptions({
-                      ...directorOptions,
-                      mode: e.target.value as AutopilotOptions["mode"],
-                    })
-                  }
-                >
-                  <option value="basic">Basic · local, no API key</option>
-                  <option value="vision">
-                    Vision AI · saved connection required
-                  </option>
-                </select>
-              </label>
-              <label>
-                Editing pace
-                <select
-                  value={directorOptions.pace}
-                  onChange={(e) =>
-                    setDirectorOptions({
-                      ...directorOptions,
-                      pace: e.target.value as AutopilotOptions["pace"],
-                    })
-                  }
-                >
-                  <option value="fast">Fast · punchy Shorts camera</option>
-                  <option value="slow">Slow · longer readable shots</option>
-                </select>
-              </label>
-              <label>
-                Verdict delivery
-                <select
-                  value={directorOptions.delivery}
-                  onChange={(e) =>
-                    setDirectorOptions({
-                      ...directorOptions,
-                      delivery: e.target.value as AutopilotOptions["delivery"],
-                    })
-                  }
-                >
-                  <option value="draft">Preview first · I approve</option>
-                  <option value="final">
-                    Finish for me · automatic 1080p MP4
-                  </option>
-                </select>
-              </label>
-              {directorOptions.delivery === "final" && (
-                <p className="notice">
-                  You authorize Verdict to approve and render the final edit
-                  automatically.
-                </p>
-              )}
-              {directorOptions.mode === "vision" && (
-                <p className="muted">
-                  Uses your saved AI connection and sends resized panels and
-                  narration text to that provider. Speech audio is sent only if
-                  a Speech model is saved. Provider charges may apply. Connect
-                  the model inside an existing project first.
-                </p>
-              )}
-            </div>
+        {!folderSelected && (
+          <details className="new-project-advanced">
+            <summary>Advanced generation settings · optional</summary>
+            <label className="autopilot-review">
+              <input
+                type="checkbox"
+                checked={autopilot}
+                onChange={(e) => setAutopilot(e.target.checked)}
+              />
+              Let Verdict handle the edit after upload
+            </label>
+            <p className="muted">
+              Autopilot builds and renders a preview from your panels and voice.
+              No API key needed. Connect vision AI inside the project for
+              artwork understanding.
+            </p>
+            {autopilot && (
+              <div className="form-grid">
+                <label>
+                  Verdict mode
+                  <select
+                    value={directorOptions.mode}
+                    onChange={(e) =>
+                      setDirectorOptions({
+                        ...directorOptions,
+                        mode: e.target.value as AutopilotOptions["mode"],
+                      })
+                    }
+                  >
+                    <option value="basic">Basic · local, no API key</option>
+                    <option value="vision">
+                      Vision AI · saved connection required
+                    </option>
+                  </select>
+                </label>
+                <label>
+                  Editing pace
+                  <select
+                    value={paceOverride ? directorOptions.pace : ""}
+                    onChange={(e) => {
+                      setPaceOverride(Boolean(e.target.value));
+                      if (e.target.value)
+                        setDirectorOptions({
+                          ...directorOptions,
+                          pace: e.target.value as AutopilotOptions["pace"],
+                        });
+                    }}
+                  >
+                    <option value="">Use recipe pace</option>
+                    <option value="fast">Fast · punchy Shorts camera</option>
+                    <option value="slow">Slow · longer readable shots</option>
+                  </select>
+                </label>
+                <label>
+                  Verdict delivery
+                  <select
+                    value={directorOptions.delivery}
+                    onChange={(e) =>
+                      setDirectorOptions({
+                        ...directorOptions,
+                        delivery: e.target
+                          .value as AutopilotOptions["delivery"],
+                      })
+                    }
+                  >
+                    <option value="draft">Preview first · I approve</option>
+                    <option value="final">
+                      Finish for me · automatic 1080p MP4
+                    </option>
+                  </select>
+                </label>
+                {directorOptions.delivery === "final" && (
+                  <p className="notice">
+                    You authorize Verdict to approve and render the final edit
+                    automatically.
+                  </p>
+                )}
+                {directorOptions.mode === "vision" && (
+                  <p className="muted">
+                    Uses your saved AI connection and sends resized panels and
+                    narration text to that provider. Speech audio is sent only
+                    if a Speech model is saved. Provider charges may apply.
+                    Connect the model inside an existing project first.
+                  </p>
+                )}
+              </div>
+            )}
           </details>
         )}
         <div
           className="project-dropzone"
           onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            addProjectFiles(Array.from(e.dataTransfer.files));
-          }}
+          onDrop={(event) => void handleEpisodeDrop(event)}
         >
-          <strong>Drop files to start your episode</strong>
+          <strong>Drop an episode folder or files</strong>
+          {readingFolder && <p role="status">Reading episode folder…</p>}
           <label className="button secondary">
             Choose project files
             <input
@@ -311,14 +376,34 @@ export function NewProject({
               aria-label="New project files"
               hidden
               multiple
-              accept="image/*,.pdf,.cbz,audio/*,.srt"
+              accept="image/*,.pdf,.cbz,audio/*,.srt,.txt,.md"
               onChange={(e) => {
-                addProjectFiles(Array.from(e.target.files ?? []));
+                addPickedFiles(Array.from(e.target.files ?? []));
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <label className="button secondary">
+            Choose episode folder
+            <input
+              type="file"
+              aria-label="Episode folder"
+              hidden
+              ref={(input) => {
+                input?.setAttribute("webkitdirectory", "");
+              }}
+              onChange={(e) => {
+                addPickedFiles(Array.from(e.target.files ?? []), true);
                 e.target.value = "";
               }}
             />
           </label>
         </div>
+        {folderSelected && !files.some((item) => item.kind === "narration") && (
+          <p className="notice">
+            Add an ElevenLabs MP3 or WAV before making your video draft.
+          </p>
+        )}
         {files.map((item, index) => (
           <div className="import-file-row" key={index}>
             <span>{item.file.name}</span>
@@ -333,13 +418,19 @@ export function NewProject({
                 )
               }
             >
-              {["panels", "narration", "music", "sfx", "captions"].map(
-                (kind) => (
-                  <option key={kind} value={kind}>
-                    {kind}
-                  </option>
-                ),
-              )}
+              {[
+                "panels",
+                "narration",
+                "script",
+                "music",
+                "sfx",
+                "captions",
+                "skip",
+              ].map((kind) => (
+                <option key={kind} value={kind}>
+                  {kind === "skip" ? "Skip this file" : kind}
+                </option>
+              ))}
             </select>
             <button
               type="button"
@@ -360,7 +451,7 @@ export function NewProject({
             value={title}
             maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Optional: we can name it from your idea"
+            placeholder="A fight worth talking about"
           />
         </label>
         <label>
@@ -394,7 +485,7 @@ export function NewProject({
           <button type="button" className="button secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="button" disabled={busy}>
+          <button className="button" disabled={busy || readingFolder}>
             <Plus size={16} />
             {busy ? "Creating…" : "Create project"}
           </button>
@@ -538,7 +629,44 @@ export function PanelDetail({
   const [crop, setCrop] = useState({ x: 0, y: 0, width: 1, height: 1 });
   const [outputWidth, setOutputWidth] = useState("");
   const [busy, setBusy] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestedPanelCrop[] | null>(
+    null,
+  );
+  const [chosen, setChosen] = useState<number[]>([]);
+  const [detectMessage, setDetectMessage] = useState("");
   const start = useRef<{ x: number; y: number } | null>(null);
+  async function detectPanels() {
+    setBusy(true);
+    try {
+      const response = await api<{
+        candidates: SuggestedPanelCrop[];
+        notice: string;
+      }>(`/panels/${panel.id}/smart-crops`);
+      setSuggestions(response.candidates);
+      setChosen(response.candidates.map((_, i) => i));
+      setDetectMessage(
+        response.candidates.length
+          ? response.notice
+          : "No clear straight gutters found. This page needs manual cropping.",
+      );
+    } catch (error) {
+      onError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function acceptPanels() {
+    setBusy(true);
+    try {
+      await api(`/panels/${panel.id}/smart-crops`, json({ indices: chosen }));
+      onSaved();
+    } catch (error) {
+      onError(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function point(e: PointerEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     return {
@@ -614,6 +742,23 @@ export function PanelDetail({
                 height: `${crop.height * 100}%`,
               }}
             />
+            {suggestions?.map((suggestion, index) => (
+              <span
+                key={index}
+                className="crop-selection"
+                aria-hidden="true"
+                style={{
+                  left: `${suggestion.x * 100}%`,
+                  top: `${suggestion.y * 100}%`,
+                  width: `${suggestion.width * 100}%`,
+                  height: `${suggestion.height * 100}%`,
+                  outline: chosen.includes(index)
+                    ? "3px solid #53ebdb"
+                    : "2px dashed #dd9e56",
+                  pointerEvents: "none",
+                }}
+              />
+            ))}
           </div>
           <div className="crop-info">
             <span>
@@ -625,6 +770,45 @@ export function PanelDetail({
             >
               Reset selection
             </button>
+          </div>
+          <div className="smart-panel-detect">
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() => void detectPanels()}
+            >
+              <Scissors size={16} /> Detect comic panels
+            </button>
+            {detectMessage && <p className="help">{detectMessage}</p>}
+            {suggestions && suggestions.length > 0 && (
+              <>
+                <div className="smart-panel-choices">
+                  {suggestions.map((_, index) => (
+                    <label className="check-label" key={index}>
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(index)}
+                        onChange={(e) =>
+                          setChosen((before) =>
+                            e.target.checked
+                              ? [...before, index]
+                              : before.filter((value) => value !== index),
+                          )
+                        }
+                      />
+                      Panel {index + 1} · suggested region
+                    </label>
+                  ))}
+                </div>
+                <button
+                  className="button"
+                  disabled={busy || chosen.length === 0}
+                  onClick={() => void acceptPanels()}
+                >
+                  Create {chosen.length} selected panel crops
+                </button>
+              </>
+            )}
           </div>
           <label>
             Resize crop to width (px)

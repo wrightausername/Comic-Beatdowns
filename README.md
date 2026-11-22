@@ -56,6 +56,33 @@ make ui    # Vite on port 5173, proxying /api to FastAPI
 
 Stop other servers before running browser tests, which own ports 8000 and 5173. Cloud tasks are already isolated: use the existing checkout; no extra Git worktree is necessary. Cloud onboarding does not supply public localhost preview links.
 
+## Tell Verdict what to fix
+
+Open **Fix just this · paste an instruction or a ChatGPT editing plan** and select
+a shot. Local examples include **Show the whole panel**, **Hold the shot**,
+**Make the camera slower**, **Use crossfade**, and **Hold for 2 seconds**.
+**Preview proposed changes** lists the exact fields before/after without saving
+them; **Watch proposed edit** previews them. **Apply reviewed changes** saves the
+revision and preserves Undo. Duration requests may adjust a neighboring unlocked
+cut to keep narration aligned; the proposal lists both shots.
+
+When you cannot describe the fix, choose **Copy editing brief for ChatGPT**,
+paste the brief into ChatGPT and explain the problem. Paste the returned JSON
+plan into the instruction box. The brief contains current project/scene IDs and
+revision, so older plans cannot overwrite newer edits. No API subscription is
+needed for this copy/paste workflow. Arbitrary prose beyond the local command
+set requires explicit opt-in to your configured writing provider; the app sends
+text/settings/panel labels, not artwork or credentials. Rewritten scripts need a
+matching external ElevenLabs recording; the app does not silently change audio.
+
+The **Review queue** lists actionable technical and Director review flags, with
+jumps to shots, skip reasons per revision, and safe-fix proposals. Checks have
+visible limits; watch the rendered preview before approving. **My recipe and
+learning** can save this video's template as the automatic default for future
+episodes. Repeated settings corrections across three distinct episodes propose
+Creative DNA defaults for explicit approval, with disable/opt-out/erase controls.
+No installer changes or automatic publication are included.
+
 ## Video timeline
 
 Easy Mode and the full editor show the current edit on a shared video timeline.
@@ -129,9 +156,17 @@ For an existing project, switch on Autopilot above the five editing steps, then 
 
 **Vision AI (optional)** sends resized panel images and narration text to an OpenAI-compatible image-capable model to choose panel matches, hit/reveal/reaction/read beats, and crop targets. Open **Optional: connect Verdict’s vision AI**, enter the API base URL, model, and optional key, save, and choose **Vision AI**. Local servers such as Ollama can use `http://localhost:11434/v1` with no key; remote providers require HTTPS and may charge for usage. A separate optional **Speech model** sends narration audio to `/audio/transcriptions` and must support `verbose_json` segment timestamps. Blank uses offline English recognition; supplied SRT captions bypass speech recognition. Selecting Basic never calls these providers. Vision supports at most 30 project panels per run, validates all chosen panel IDs and coordinates, and fails visibly on unusable responses instead of quietly switching modes. No new dialogue or narration is generated.
 
-Connection secrets are saved atomically in `.data/.verdict-provider.json`, outside media routes; API responses and job snapshots never return the key. POSIX files use private permissions; Windows inherits the data folder’s ACL. Remove the saved connection/key using its GUI button. Keep the data folder private and preserve it when updating. The existing optional script-writer environment settings are separate from this vision connection.
+**Smart Crop review (first implementation):** Vision AI now selects the panel for each narration card before the shot builder runs and chooses a focal point for that artwork. After an Autopilot run, expand **Smart Crop review** to inspect the source image, its focal marker, the corresponding narration, the provider's visual reason, and confidence (when the model supplies one). Low-confidence results below 55% fall back to whole-panel framing rather than a risky close-up. Existing locked shots remain untouched. Review the rendered video and adjust individual shots in the timeline before approval. Basic mode has no image comprehension, and model-estimated confidence is not an objective accuracy guarantee. This initial implementation does **not** segment whole comic pages, draw exact crop rectangles, recognize characters reliably, or change existing manual shots unless they are locked. Full page segmentation and richer focal editing remain future work.\n\nConnection secrets are saved atomically in `.data/.verdict-provider.json`, outside media routes; API responses and job snapshots never return the key. POSIX files use private permissions; Windows inherits the data folder’s ACL. Remove the saved connection/key using its GUI button. Keep the data folder private and preserve it when updating. The existing optional script-writer environment settings are separate from this vision connection.
 
 Autopilot jobs survive browser navigation. Restarting Studio stops an unfinished planning job with a retry message; an interrupted render follows the renderer’s existing recovery rules. Cancel is available during planning; a queued render continues through the existing export workflow. A failed provider request leaves the saved edit unchanged. AI suggestions still need judgment for continuity, names, dialogue readability, and framing. Unit/integration tests mock remote vision/speech providers, including invalid panel IDs and authentication failure; **live provider compatibility and output quality have not been verified with paid credentials**. Automated tests render real preview/final MP4 files from original generated images and silence, including Windows validation in GitHub Actions.
+
+### Faster first cuts: detected panels and technical preflight
+
+**Split comic pages:** Open **Panel library**, click a source page, then choose **Detect comic panels**. The local read-only detector looks for complete, straight, light gutters and shows outlined candidate regions. Uncheck any incorrect crop and click **Create selected panel crops** to save separate, linked child images while preserving the original. It supports straightforward rectangular layouts, not overlapping frames, dark/irregular gutters or characters crossing boundaries. When no clear candidate is found, use the existing manual crop selection. The new child panels can then be selected in project editing.
+
+**Script-aware framing:** In an episode with narration and supplied panels, select **Verdict Autopilot → Vision AI** after configuring the optional image-capable model. It now feeds the model's chosen panel into the scene builder before aiming the camera; its expandable **Smart Crop review** shows the source image, focal point, narration quote, reason and any supplied confidence. Low-confidence suggestions below 55% default to whole-panel framing. The image model may still misidentify characters/actions, so inspect the rendered preview. Basic mode continues using local tags and ordering, not visual comprehension.
+
+**Technical preflight:** Open an episode's **Review** step. **Verdict preflight** lists issues from the saved revision, with jump-to-time controls where applicable. Checks include missing voice or shots, timing mismatches, overly fast cuts, long static holds, small source crops, repeated artwork, missing timed captions, and a potential start/end loop mismatch. This is a deterministic technical scan, not actual AI inspection of faces, speech balloons, joke quality, or how the final video feels. Correct any mistakes and replay the actual video before publication.
 
 ### Camera and transition controls
 

@@ -4,10 +4,11 @@ import { api, json } from "./api";
 import type {
   AutopilotOptions,
   DirectorJob,
+  Panel,
   Project,
   VisionConnection,
 } from "./types";
-import { errorMessage } from "./utils";
+import { errorMessage, timecode } from "./utils";
 
 export const defaultAutopilot: AutopilotOptions = {
   enabled: false,
@@ -27,10 +28,16 @@ export function orderForProduction<T extends { kind: string }>(
     throw new Error(
       "Choose one narration recording. Set other audio files to music or sound effects, or remove them.",
     );
+  if (files.filter((item) => item.kind === "script").length > 1)
+    throw new Error(
+      "Choose one episode script. Remove the extra script files.",
+    );
   // Narration replacement resets old captions. Apply this batch's SRT last.
-  return [...files].sort(
-    (a, b) => Number(a.kind === "captions") - Number(b.kind === "captions"),
-  );
+  return files
+    .filter((item) => item.kind !== "skip")
+    .sort(
+      (a, b) => Number(a.kind === "captions") - Number(b.kind === "captions"),
+    );
 }
 export async function handToVerdict(project: Project) {
   if (project.autopilot?.enabled && readyForVerdict(project)) {
@@ -42,29 +49,113 @@ export async function handToVerdict(project: Project) {
   return null;
 }
 
+function SmartCropReview({
+  crops,
+  panels,
+  onReview,
+}: {
+  crops: NonNullable<DirectorJob["report"]["smart_crops"]>;
+  panels: Panel[];
+  onReview: () => void;
+}) {
+  const needsReview = crops.filter((crop) => crop.review_required).length;
+  return (
+    <details className="autopilot-crop-review">
+      <summary>
+        Smart Crop review · {crops.length} shots
+        {needsReview ? ` · ${needsReview} flagged` : ""}
+      </summary>
+      <p className="muted">
+        Each marker shows Verdict's suggested focal point on the source artwork,
+        not an exact crop boundary. Confirm the punch, reaction and any
+        important dialogue remain visible in the rendered preview.
+      </p>
+      <div className="autopilot-crop-list">
+        {crops.slice(0, 12).map((crop, index) => {
+          const panel = panels.find((item) => item.id === crop.panel_id);
+          return (
+            <div className="autopilot-crop-item" key={crop.scene_id + index}>
+              {panel && (
+                <div className="autopilot-crop-image">
+                  <img
+                    src={panel.thumbnail_url || panel.image_url}
+                    alt={panel.title || "Comic source artwork"}
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="autopilot-crop-target"
+                    style={{
+                      left: `${crop.target_x * 100}%`,
+                      top: `${crop.target_y * 100}%`,
+                    }}
+                  />
+                </div>
+              )}
+              <div className="autopilot-crop-text">
+                <strong>
+                  Shot {index + 1} · {timecode(crop.start)}
+                </strong>
+                <p>{crop.text}</p>
+                <p className="muted">
+                  {crop.reason || "No visual evidence described"}
+                </p>
+                <small>
+                  {crop.framing === "fit"
+                    ? "Whole-panel framing"
+                    : "Close framing"}
+                  {" · "}
+                  {crop.confidence == null
+                    ? "Confidence not supplied"
+                    : `Model confidence: ${Math.round(crop.confidence * 100)}%`}
+                  {crop.review_required ? " · Check this shot" : ""}
+                  {!crop.applied ? " · Fallback framing" : ""}
+                </small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {crops.length > 12 && (
+        <p className="muted">
+          Showing the first 12 of {crops.length} shots. Review the full video
+          for remaining crops.
+        </p>
+      )}
+      <button className="button secondary" onClick={onReview}>
+        Review the edit and camera framing
+      </button>
+    </details>
+  );
+}
+
 export default function VerdictAutopilot({
+  project,
   simple = false,
   autoRunRequest = 0,
-  project,
+  panels = [],
   dirty,
   busy,
   accept,
   perform,
   onChanged,
   onReview,
+  onFixPage,
   onError,
 }: {
+  project: Project;
   simple?: boolean;
   autoRunRequest?: number;
-  project: Project;
+  panels?: Panel[];
   dirty: boolean;
   busy: boolean;
   accept: (project: Project) => void;
   perform: (action: () => Promise<void>) => Promise<void>;
   onChanged: () => void;
   onReview: () => void;
+  onFixPage?: () => void;
   onError: (message: string) => void;
 }) {
+  const lastAutomaticStart = useRef(0);
   const [jobs, setJobs] = useState<DirectorJob[]>([]);
   const [connection, setConnection] = useState<VisionConnection | null>(null);
   const [connectionForm, setConnectionForm] = useState({
@@ -77,7 +168,6 @@ export default function VerdictAutopilot({
   const [providerMessage, setProviderMessage] = useState("");
   const [pollError, setPollError] = useState("");
   const [reviewed, setReviewed] = useState(false);
-  const lastAutomaticStart = useRef(0);
   const gate = useRef({ dirty, busy, revision: project.revision });
   gate.current = { dirty, busy, revision: project.revision };
   const callbacks = useRef({ accept, onChanged });
@@ -85,7 +175,11 @@ export default function VerdictAutopilot({
   const latest = jobs[0];
   const running =
     latest && ["queued", "working", "rendering"].includes(latest.status);
-  const options = { ...defaultAutopilot, ...project.autopilot };
+  const options = {
+    ...defaultAutopilot,
+    pace: project.settings?.edit_pace ?? defaultAutopilot.pace,
+    ...project.autopilot,
+  };
   const currentResult = latest?.output_revision === project.revision;
   useEffect(() => {
     setReviewed(false);
@@ -177,45 +271,49 @@ export default function VerdictAutopilot({
   }
   async function run() {
     await perform(async () => {
-      let saved = await api<Project>(`/projects/${project.id}`);
-      if (simple && (!options.enabled || options.delivery !== "draft")) {
-        // Easy Mode always makes a preview first. Never auto-approve a final cut.
-        saved = await api<Project>(
-          `/projects/${project.id}/autopilot`,
-          json(
-            {
-              enabled: true,
-              mode: options.mode,
-              pace: options.pace,
-              delivery: "draft",
-              base_revision: saved.revision,
-            },
-            "PUT",
-          ),
-        );
-        accept(saved);
+      // The normal workflow is one click, not a separate enable toggle.
+      const saved = await api<Project>(`/projects/${project.id}`);
+      const current = {
+        ...defaultAutopilot,
+        pace: saved.settings?.edit_pace ?? defaultAutopilot.pace,
+        ...saved.autopilot,
+      };
+      const ready =
+        current.enabled && !(simple && current.delivery !== "draft")
+          ? saved
+          : await api<Project>(
+              `/projects/${project.id}/autopilot`,
+              json(
+                {
+                  ...current,
+                  enabled: true,
+                  delivery: simple ? "draft" : current.delivery,
+                  base_revision: saved.revision,
+                },
+                "PUT",
+              ),
+            );
+      if (ready !== saved) {
+        accept(ready);
         onChanged();
       }
-      const job = await handToVerdict(saved);
-      if (job) setJobs((previous) => [job, ...previous]);
+      const job = await handToVerdict(ready);
+      if (job) setJobs((existing) => [job, ...existing]);
     });
   }
   useEffect(() => {
     if (!simple || autoRunRequest <= lastAutomaticStart.current) return;
     lastAutomaticStart.current = autoRunRequest;
-    if (!running && readyForVerdict(project)) {
-      if (options.mode === "vision" && !connection?.configured) {
-        onError(
-          "Vision AI is not connected. Choose offline editing or open the full editor to connect a model.",
-        );
-        return;
-      }
-      void run();
-    }
-    // This effect runs once per explicit click of the guided Generate button.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRunRequest, simple]);
-
+    if (
+      busy ||
+      dirty ||
+      running ||
+      !readyForVerdict(project) ||
+      (options.mode === "vision" && !connection?.configured)
+    )
+      return;
+    void run();
+  }, [autoRunRequest]);
   async function saveProvider() {
     setProviderBusy(true);
     setProviderMessage("");
@@ -244,153 +342,129 @@ export default function VerdictAutopilot({
         <Bot size={30} />
         <div>
           <span className="eyebrow">VERDICT TAKES THE CHAIR</span>
-          <h2>
-            {simple
-              ? "Let Verdict make your first cut."
-              : "Upload. Hand it over. Watch."}
-          </h2>
+          <h2>Make your video draft</h2>
           <p>
-            Add your panels and one voice recording. I’ll build the vertical
-            edit.
+            Add comic pages and your ElevenLabs voice recording. Verdict builds
+            a first edit; you review it and fix only what needs fixing.
           </p>
         </div>
-        {!simple && (
-          <label className="autopilot-toggle">
-            <input
-              type="checkbox"
-              checked={options.enabled}
-              disabled={!!running}
-              onChange={(e) =>
-                void changeOptions({ enabled: e.target.checked })
-              }
-            />
-            Verdict Autopilot
-          </label>
+      </div>
+      <div className="toolbar autopilot-primary-action">
+        <button
+          type="button"
+          className="button primary"
+          disabled={
+            !!running ||
+            busy ||
+            dirty ||
+            !readyForVerdict(project) ||
+            (options.mode === "vision" && !connection?.configured)
+          }
+          onClick={() => void run()}
+        >
+          <Sparkles size={17} />
+          {running
+            ? "Verdict is building your video…"
+            : options.delivery === "final"
+              ? "Let Verdict finish the video"
+              : "Make my video draft"}
+        </button>
+        {!readyForVerdict(project) && (
+          <span className="muted">
+            Start by adding comic pages and one ElevenLabs narration file in Add
+            files.
+          </span>
+        )}
+        {dirty && (
+          <span className="muted">
+            Finish saving your current edits before starting Verdict.
+          </span>
+        )}
+        {options.mode === "vision" && !connection?.configured && (
+          <span className="muted">
+            Vision AI needs a connection. Choose Basic in optional settings to
+            run locally.
+          </span>
+        )}
+        {latest && ["queued", "working"].includes(latest.status) && (
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() =>
+              void perform(async () => {
+                await api(
+                  `/projects/${project.id}/director/${latest.id}/cancel`,
+                  json({}),
+                );
+              })
+            }
+          >
+            Stop planning
+          </button>
         )}
       </div>
-      {(options.enabled || simple) && (
-        <>
-          {!simple && (
-            <div className="form-grid autopilot-options">
-              <label>
-                How Verdict decides
-                <select
-                  disabled={!!running}
-                  value={options.mode}
-                  onChange={(e) =>
-                    void changeOptions({
-                      mode: e.target.value as AutopilotOptions["mode"],
-                    })
-                  }
-                >
-                  <option value="basic">Basic · upload order + tags</option>
-                  <option value="vision">Vision AI · understands panels</option>
-                </select>
-              </label>
-              <label>
-                Pacing
-                <select
-                  disabled={!!running}
-                  value={options.pace}
-                  onChange={(e) =>
-                    void changeOptions({
-                      pace: e.target.value as AutopilotOptions["pace"],
-                    })
-                  }
-                >
-                  <option value="fast">Fast · punchy Shorts camera</option>
-                  <option value="slow">Slow · longer readable shots</option>
-                </select>
-              </label>
-              <label>
-                Delivery
-                <select
-                  disabled={!!running}
-                  value={options.delivery}
-                  onChange={(e) =>
-                    void changeOptions({
-                      delivery: e.target.value as AutopilotOptions["delivery"],
-                    })
-                  }
-                >
-                  <option value="draft">
-                    Preview first · I approve the final
-                  </option>
-                  <option value="final">
-                    Finish for me · automatic 1080p MP4
-                  </option>
-                </select>
-              </label>
-            </div>
-          )}
-          {!simple && (
-            <p className="muted">
-              {options.mode === "basic"
-                ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
-                : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
-              Your full selected recording is kept. No automatic publishing.
-            </p>
-          )}
-          {!simple && options.delivery === "final" && (
-            <p className="notice">
-              You’re authorizing Verdict to approve this edit and render the
-              final MP4 without another review.
-            </p>
-          )}
-          <div className="toolbar">
-            <button
-              className="button primary"
-              disabled={
-                !!running ||
-                !readyForVerdict(project) ||
-                (options.mode === "vision" && !connection?.configured)
+      <details className="autopilot-simple-options">
+        <summary>Optional · change editing style or AI settings</summary>
+        <div className="form-grid autopilot-options">
+          <label>
+            How Verdict decides
+            <select
+              disabled={!!running}
+              value={options.mode}
+              onChange={(e) =>
+                void changeOptions({
+                  mode: e.target.value as AutopilotOptions["mode"],
+                })
               }
-              onClick={() => void run()}
             >
-              <Sparkles size={17} />
-              {running
-                ? "Verdict is working…"
-                : simple
-                  ? "Generate my video preview"
-                  : "Let Verdict handle it"}
-            </button>
-            {simple && options.mode === "basic" && readyForVerdict(project) && (
-              <span className="muted">
-                Offline first cut · uses panel order and tags, not visual AI.
-                You review before export.
-              </span>
-            )}
-            {!readyForVerdict(project) && (
-              <span className="muted">
-                First add panels and narration in Add files below.
-              </span>
-            )}
-            {simple && options.mode === "vision" && !connection?.configured && (
-              <button
-                className="button secondary"
-                onClick={() => void changeOptions({ mode: "basic" })}
-              >
-                Use offline editing instead
-              </button>
-            )}
-            {latest && ["queued", "working"].includes(latest.status) && (
-              <button
-                className="button secondary"
-                onClick={() =>
-                  void perform(async () => {
-                    await api(
-                      `/projects/${project.id}/director/${latest.id}/cancel`,
-                      json({}),
-                    );
-                  })
-                }
-              >
-                Stop planning
-              </button>
-            )}
-          </div>
-        </>
-      )}
+              <option value="basic">Basic · upload order + tags</option>
+              <option value="vision">Vision AI · understands panels</option>
+            </select>
+          </label>
+          <label>
+            Pacing
+            <select
+              disabled={!!running}
+              value={options.pace}
+              onChange={(e) =>
+                void changeOptions({
+                  pace: e.target.value as AutopilotOptions["pace"],
+                })
+              }
+            >
+              <option value="fast">Fast · punchy Shorts camera</option>
+              <option value="slow">Slow · longer readable shots</option>
+            </select>
+          </label>
+          <label>
+            Delivery
+            <select
+              disabled={!!running}
+              value={options.delivery}
+              onChange={(e) =>
+                void changeOptions({
+                  delivery: e.target.value as AutopilotOptions["delivery"],
+                })
+              }
+            >
+              <option value="draft">Preview first · I approve the final</option>
+              <option value="final">Finish for me · automatic 1080p MP4</option>
+            </select>
+          </label>
+        </div>
+        <p className="muted">
+          {options.mode === "basic"
+            ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
+            : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
+          Your full selected recording is kept. No automatic publishing.
+        </p>
+        {options.delivery === "final" && (
+          <p className="notice">
+            You’re authorizing Verdict to approve this edit and render the final
+            MP4 without another review.
+          </p>
+        )}
+      </details>
       {latest && (
         <div className="autopilot-progress" role="status">
           <strong>{latest.message}</strong>
@@ -402,11 +476,48 @@ export default function VerdictAutopilot({
             />
           )}
           <p>{latest.report.summary}</p>
+          {latest.status === "completed" && (
+            <button
+              type="button"
+              className="button secondary"
+              onClick={onFixPage ?? onReview}
+            >
+              Check or fix my shots (optional)
+            </button>
+          )}
+          {latest.report.page_reading?.expanded && (
+            <div className="notice">
+              <p>
+                Verdict found{" "}
+                {latest.report.page_reading.pages.reduce(
+                  (count, page) => count + page.panel_count,
+                  0,
+                )}{" "}
+                page regions. The original screenshots are safe. You can move,
+                merge, split, reorder or replace any choice before final export.
+              </p>
+              <button
+                type="button"
+                className="button secondary small-button"
+                onClick={onFixPage ?? onReview}
+              >
+                Fix panel crops and order
+              </button>
+            </div>
+          )}
           {latest.report.warnings?.map((warning) => (
             <p className="muted" key={warning}>
               {warning}
             </p>
           ))}
+          {latest.report.smart_crops &&
+            latest.report.smart_crops.length > 0 && (
+              <SmartCropReview
+                crops={latest.report.smart_crops}
+                panels={panels}
+                onReview={onReview}
+              />
+            )}
           {latest.render?.status === "completed" && (
             <>
               {!currentResult && (
@@ -475,108 +586,103 @@ export default function VerdictAutopilot({
           Verdict status unavailable: {pollError}. Retrying…
         </p>
       )}
-      {!simple && (
-        <details className="autopilot-connection">
-          <summary>Optional: connect Verdict’s vision AI</summary>
-          <p className="muted">
-            Use an OpenAI-compatible vision model, including a local server such
-            as Ollama. Your key is stored privately in this studio’s data folder
-            and is never returned to the browser. Choose Vision AI above to send
-            files.
-          </p>
-          <div className="form-grid">
-            <label>
-              API base URL
-              <input
-                type="url"
-                value={connectionForm.base_url}
-                onChange={(e) =>
-                  setConnectionForm({
-                    ...connectionForm,
-                    base_url: e.target.value,
-                  })
-                }
-                placeholder="http://localhost:11434/v1"
-              />
-            </label>
-            <label>
-              Vision model
-              <input
-                value={connectionForm.model}
-                onChange={(e) =>
-                  setConnectionForm({
-                    ...connectionForm,
-                    model: e.target.value,
-                  })
-                }
-                placeholder="Your provider’s image-capable model"
-              />
-            </label>
-            <label>
-              API key {connection?.has_key && "(saved; leave blank to keep)"}
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={connectionForm.api_key}
-                onChange={(e) =>
-                  setConnectionForm({
-                    ...connectionForm,
-                    api_key: e.target.value,
-                  })
-                }
-                placeholder="Optional for local servers"
-              />
-            </label>
-            <label>
-              Speech model (optional)
-              <input
-                value={connectionForm.transcription_model}
-                onChange={(e) =>
-                  setConnectionForm({
-                    ...connectionForm,
-                    transcription_model: e.target.value,
-                  })
-                }
-                placeholder="Blank = offline English captions"
-              />
-            </label>
-          </div>
-          <p className="muted">
-            Speech models must support verbose_json segment timestamps. Import
-            SRT captions for exact wording.
-          </p>
-          <div className="toolbar">
+      <details className="autopilot-connection">
+        <summary>Optional: connect Verdict’s vision AI</summary>
+        <p className="muted">
+          Use an OpenAI-compatible vision model, including a local server such
+          as Ollama. Your key is stored privately in this studio’s data folder
+          and is never returned to the browser. Choose Vision AI above to send
+          files.
+        </p>
+        <div className="form-grid">
+          <label>
+            API base URL
+            <input
+              type="url"
+              value={connectionForm.base_url}
+              onChange={(e) =>
+                setConnectionForm({
+                  ...connectionForm,
+                  base_url: e.target.value,
+                })
+              }
+              placeholder="http://localhost:11434/v1"
+            />
+          </label>
+          <label>
+            Vision model
+            <input
+              value={connectionForm.model}
+              onChange={(e) =>
+                setConnectionForm({ ...connectionForm, model: e.target.value })
+              }
+              placeholder="Your provider’s image-capable model"
+            />
+          </label>
+          <label>
+            API key {connection?.has_key && "(saved; leave blank to keep)"}
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={connectionForm.api_key}
+              onChange={(e) =>
+                setConnectionForm({
+                  ...connectionForm,
+                  api_key: e.target.value,
+                })
+              }
+              placeholder="Optional for local servers"
+            />
+          </label>
+          <label>
+            Speech model (optional)
+            <input
+              value={connectionForm.transcription_model}
+              onChange={(e) =>
+                setConnectionForm({
+                  ...connectionForm,
+                  transcription_model: e.target.value,
+                })
+              }
+              placeholder="Blank = offline English captions"
+            />
+          </label>
+        </div>
+        <p className="muted">
+          Speech models must support verbose_json segment timestamps. Import SRT
+          captions for exact wording.
+        </p>
+        <div className="toolbar">
+          <button
+            className="button secondary"
+            disabled={providerBusy || !!running}
+            onClick={() => void saveProvider()}
+          >
+            Save AI connection
+          </button>
+          {connection?.configured && (
             <button
-              className="button secondary"
+              className="text-button"
               disabled={providerBusy || !!running}
-              onClick={() => void saveProvider()}
-            >
-              Save AI connection
-            </button>
-            {connection?.configured && (
-              <button
-                className="text-button"
-                disabled={providerBusy || !!running}
-                onClick={() => {
-                  setProviderBusy(true);
-                  void api<VisionConnection>("/verdict/connection", {
-                    method: "DELETE",
+              onClick={() => {
+                setProviderBusy(true);
+                void api<VisionConnection>("/verdict/connection", {
+                  method: "DELETE",
+                })
+                  .then((value) => {
+                    setConnection(value);
+                    setProviderMessage("Connection removed.");
                   })
-                    .then((value) => {
-                      setConnection(value);
-                      setProviderMessage("Connection removed.");
-                    })
-                    .catch((error) => onError(errorMessage(error)))
-                    .finally(() => setProviderBusy(false));
-                }}
-              >
-                Remove connection & key
-              </button>
-            )}
-          </div>
-          {providerMessage && <p role="status">{providerMessage}</p>}
-        </details>
-      )}
+                  .catch((error) => onError(errorMessage(error)))
+                  .finally(() => setProviderBusy(false));
+              }}
+            >
+              Remove connection & key
+            </button>
+          )}
+        </div>
+        {providerMessage && <p role="status">{providerMessage}</p>}
+      </details>
     </section>
   );
 }

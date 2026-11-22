@@ -157,3 +157,44 @@ final mix. This is a sequential comic-shot editor, not arbitrary stacked video
 layers, free-floating audio clips, or a complete CapCut replacement. All these
 controls write existing workspace schemas and preserve review/export gates.
 See PR #13 for verified commit, CI and executable provenance.
+
+
+## November 22 creator-assistant integration (in validation)
+
+Branch `feature/creator-assistant-workflow` integrates PR #13's desktop/timeline
+and the current PR #15 full-page camera work (including stacked PR #4), plus
+latest main documentation. No draft PR has been merged into main. Preserve
+Issue #14's P0 owner-acceptance gate: conservative page detection is still
+incomplete for irregular/gutterless pages, and actual Windows 10/11 owner
+acceptance is not established by CI.
+
+The current owner request excludes the installer and adds targeted fixes,
+exception-only review, preferred recipes, a simpler default workspace, and
+reviewable learning. The instruction box supports bounded local commands and
+versioned JSON plans pasted from ChatGPT. Copy editing brief supplies exact
+project/scene IDs and current revision. Optional connected writing AI requires
+explicit per-request opt-in and sends text/settings/labels, never artwork or
+credentials. It can interpret prose and propose rewritten script text; it does
+not generate ElevenLabs audio or establish semantic/visual correctness.
+
+Every proposal is persisted locally, previewable without mutating a project,
+shows before/after fields, and needs explicit Apply. Unknown fields/code,
+foreign IDs, locked shots, stale revisions, duplicate apply and rejected plans
+are declined. Applied edits use existing atomic workspace save, Undo/Redo and
+approval invalidation. Single-shot duration changes roll an unlocked neighbor
+to retain narration timing; this extra field is visible in the proposal.
+
+Review reuses existing preflight and current Director flags, adds missing asset
+and failed-render checks, and supports timecode jumps, revision-scoped skip
+reasons and previewable safe geometry/timing fixes. Review does not claim to
+verify comedy, speech-balloon contents, causality or audio peaks. Preferred
+recipes reuse templates, apply automatically to new episodes, and yield to an
+explicitly chosen template. Repeated allowlisted settings corrections in three
+different episodes can propose Creative DNA rules; those remain inert until
+approved and can be disabled. Observation opt-out and erasure are provided.
+This is transparent settings memory, not autonomous semantic taste learning.
+
+Validation and executable provenance will be recorded in the feature PR. Do
+not describe this combined branch as installed or production-complete merely
+because it compiles. Whole-page sources, imported files and camera paths remain
+in the existing models/history; no second renderer or editor is introduced.
