@@ -22,13 +22,13 @@ The shared straight-gutter detector checks proposed splits at full image resolut
 
 Rerunning the Director preserves existing custom numbered routes and their shot duration, even if the shot is unlocked. The API regression saves a route, reloads it, undoes and redoes it, and reruns Basic Auto-Director. Existing virtual crops also stay attached to their source page during storyboard matching.
 
-The New Project dialog can read an explicitly selected episode folder, queue pages in natural filename order, and skip unsupported files. TXT/Markdown uses the shared import route, with undo, identical-script retry, and an explicit error if a different script is already present. Directory drag/drop and file-level resumability after reload remain open.
+The New Project dialog can read an explicitly selected or dropped episode folder, queue pages in natural filename order, and skip unsupported files. TXT/Markdown uses the shared import route, with undo, identical-script retry, and an explicit error if a different script is already present. Folder intake waits for the explicit draft action and surfaces missing narration. File-level resumability after reload remains open.
 
 ### Workflow backlog audit
 
 | Item | Existing groundwork and remaining work |
 | --- | --- |
-| 1. Smart Episode Folder | Shared uploader and watched inbox existed. The folder picker and script import extend the uploader. Directory drop, durable per-file retry, and the missing-input summary remain open. |
+| 1. Smart Episode Folder | Shared uploader and watched inbox existed. Folder selection and drop, script import, duplicate narration validation, and the missing narration notice extend the uploader. Durable per-file retry and a full missing-input summary remain open. |
 | 2. Narration alignment | Existing SRT import, pause analysis, and explicit caption alignment proposal. Automatic beat/word alignment with durable confidence, offset and correction remains open. |
 | 3. Exception-only review | Technical preflight has timecode links. Geometry review still needs shot-specific routing, prioritization and revision-safe keep/skip. |
 | 4. Camera presets | Existing camera controls, numbered paths and heuristic beat presets. Creator-facing contextual presets remain open. |

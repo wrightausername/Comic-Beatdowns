@@ -726,3 +726,47 @@ test("episode folder queues pages in order and imports script and voice", async 
   expect(project.workflow.panel_ids).toHaveLength(2);
   expect(project.narration_url).toBeTruthy();
 });
+
+test("dropping an episode folder reads all batches and nested files", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  const dropzone = page.locator(".project-dropzone");
+  await dropzone.evaluate((element) => {
+    const fileEntry = (fullPath: string) => ({
+      isFile: true,
+      fullPath,
+      file: (done: (file: File) => void) =>
+        done(new File(["image fixture"], fullPath.split("/").at(-1)!)),
+    });
+    const directory = (batches: object[][]) => ({
+      isDirectory: true,
+      createReader: () => ({
+        readEntries: (done: (entries: object[]) => void) =>
+          done(batches.shift() ?? []),
+      }),
+    });
+    const root = directory([
+      [directory([[fileEntry("/Dropped episode/Pages/page-10.png")]])],
+      [directory([[fileEntry("/Dropped episode/Pages/page-2.png")]])],
+    ]);
+    const dataTransfer = new DataTransfer();
+    Object.defineProperty(dataTransfer, "items", {
+      value: [{ webkitGetAsEntry: () => root }],
+    });
+    element.dispatchEvent(
+      new DragEvent("drop", { bubbles: true, dataTransfer }),
+    );
+  });
+  const pages = page.getByRole("combobox", {
+    name: /New project role for page/,
+  });
+  await expect(pages).toHaveCount(2);
+  await expect(pages.first()).toHaveAccessibleName(
+    "New project role for page-2.png",
+  );
+  await expect(page.getByLabel("Project title", { exact: true })).toHaveValue(
+    "Dropped episode",
+  );
+  await expect(page.getByText(/Add an ElevenLabs MP3 or WAV/)).toBeVisible();
+});
