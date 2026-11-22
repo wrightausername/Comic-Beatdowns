@@ -100,12 +100,14 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  closeDisabled = false,
 }: {
   title: string;
   eyebrow?: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  closeDisabled?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -117,9 +119,12 @@ export function Modal({
     <dialog
       ref={dialog}
       className={`modal ${wide ? "wide" : ""}`}
-      onCancel={onClose}
+      onCancel={(event) => {
+        if (closeDisabled) event.preventDefault();
+        else onClose();
+      }}
       onClick={(e) => {
-        if (e.target === dialog.current) onClose();
+        if (e.target === dialog.current && !closeDisabled) onClose();
       }}
     >
       <div className="modal-heading">
@@ -130,6 +135,7 @@ export function Modal({
         <button
           className="icon-button"
           aria-label="Close dialog"
+          disabled={closeDisabled}
           onClick={onClose}
         >
           <X size={20} />

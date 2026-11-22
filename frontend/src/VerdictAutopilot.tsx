@@ -8,6 +8,7 @@ import type {
   VisionConnection,
 } from "./types";
 import { errorMessage } from "./utils";
+import VisionConnectionForm from "./VisionConnectionForm";
 
 export const defaultAutopilot: AutopilotOptions = {
   enabled: false,
@@ -32,11 +33,17 @@ export function orderForProduction<T extends { kind: string }>(
     (a, b) => Number(a.kind === "captions") - Number(b.kind === "captions"),
   );
 }
-export async function handToVerdict(project: Project) {
+export async function handToVerdict(
+  project: Project,
+  visionConnection?: string,
+) {
   if (project.autopilot?.enabled && readyForVerdict(project)) {
     return api<DirectorJob>(
       `/projects/${project.id}/director`,
-      json({ base_revision: project.revision }),
+      json({
+        base_revision: project.revision,
+        ...(visionConnection ? { vision_connection: visionConnection } : {}),
+      }),
     );
   }
   return null;
@@ -63,14 +70,6 @@ export default function VerdictAutopilot({
 }) {
   const [jobs, setJobs] = useState<DirectorJob[]>([]);
   const [connection, setConnection] = useState<VisionConnection | null>(null);
-  const [connectionForm, setConnectionForm] = useState({
-    base_url: "https://api.openai.com/v1",
-    model: "",
-    transcription_model: "",
-    api_key: "",
-  });
-  const [providerBusy, setProviderBusy] = useState(false);
-  const [providerMessage, setProviderMessage] = useState("");
   const [pollError, setPollError] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const gate = useRef({ dirty, busy, revision: project.revision });
@@ -91,16 +90,9 @@ export default function VerdictAutopilot({
       .then((value) => {
         if (!alive) return;
         setConnection(value);
-        if (value.configured)
-          setConnectionForm({
-            base_url: value.base_url,
-            model: value.model,
-            transcription_model: value.transcription_model,
-            api_key: "",
-          });
       })
       .catch((error) => {
-        if (alive) setProviderMessage(errorMessage(error));
+        if (alive) onError(errorMessage(error));
       });
     return () => {
       alive = false;
@@ -176,28 +168,6 @@ export default function VerdictAutopilot({
       const job = await handToVerdict(saved);
       if (job) setJobs([job, ...jobs]);
     });
-  }
-  async function saveProvider() {
-    setProviderBusy(true);
-    setProviderMessage("");
-    try {
-      const saved = await api<VisionConnection>(
-        "/verdict/connection",
-        json(
-          { ...connectionForm, api_key: connectionForm.api_key || null },
-          "PUT",
-        ),
-      );
-      setConnection(saved);
-      setConnectionForm((old) => ({ ...old, api_key: "" }));
-      setProviderMessage(
-        "Connection saved. Choose Vision AI above to use it. The model is checked when Verdict runs.",
-      );
-    } catch (error) {
-      setProviderMessage(errorMessage(error));
-    } finally {
-      setProviderBusy(false);
-    }
   }
   return (
     <section className="autopilot-card" aria-label="Verdict Autopilot">
@@ -406,103 +376,11 @@ export default function VerdictAutopilot({
           Verdict status unavailable: {pollError}. Retrying…
         </p>
       )}
-      <details className="autopilot-connection">
-        <summary>Optional: connect Verdict’s vision AI</summary>
-        <p className="muted">
-          Use an OpenAI-compatible vision model, including a local server such
-          as Ollama. Your key is stored privately in this studio’s data folder
-          and is never returned to the browser. Choose Vision AI above to send
-          files.
-        </p>
-        <div className="form-grid">
-          <label>
-            API base URL
-            <input
-              type="url"
-              value={connectionForm.base_url}
-              onChange={(e) =>
-                setConnectionForm({
-                  ...connectionForm,
-                  base_url: e.target.value,
-                })
-              }
-              placeholder="http://localhost:11434/v1"
-            />
-          </label>
-          <label>
-            Vision model
-            <input
-              value={connectionForm.model}
-              onChange={(e) =>
-                setConnectionForm({ ...connectionForm, model: e.target.value })
-              }
-              placeholder="Your provider’s image-capable model"
-            />
-          </label>
-          <label>
-            API key {connection?.has_key && "(saved; leave blank to keep)"}
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={connectionForm.api_key}
-              onChange={(e) =>
-                setConnectionForm({
-                  ...connectionForm,
-                  api_key: e.target.value,
-                })
-              }
-              placeholder="Optional for local servers"
-            />
-          </label>
-          <label>
-            Speech model (optional)
-            <input
-              value={connectionForm.transcription_model}
-              onChange={(e) =>
-                setConnectionForm({
-                  ...connectionForm,
-                  transcription_model: e.target.value,
-                })
-              }
-              placeholder="Blank = offline English captions"
-            />
-          </label>
-        </div>
-        <p className="muted">
-          Speech models must support verbose_json segment timestamps. Import SRT
-          captions for exact wording.
-        </p>
-        <div className="toolbar">
-          <button
-            className="button secondary"
-            disabled={providerBusy || !!running}
-            onClick={() => void saveProvider()}
-          >
-            Save AI connection
-          </button>
-          {connection?.configured && (
-            <button
-              className="text-button"
-              disabled={providerBusy || !!running}
-              onClick={() => {
-                setProviderBusy(true);
-                void api<VisionConnection>("/verdict/connection", {
-                  method: "DELETE",
-                })
-                  .then((value) => {
-                    setConnection(value);
-                    setProviderMessage("Connection removed.");
-                  })
-                  .catch((error) => onError(errorMessage(error)))
-                  .finally(() => setProviderBusy(false));
-              }}
-            >
-              Remove connection & key
-            </button>
-          )}
-        </div>
-        {providerMessage && <p role="status">{providerMessage}</p>}
-      </details>
+      <VisionConnectionForm
+        connection={connection}
+        onSaved={setConnection}
+        disabled={!!running}
+      />
     </section>
   );
 }
