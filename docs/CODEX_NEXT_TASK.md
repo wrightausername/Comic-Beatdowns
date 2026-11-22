@@ -1,0 +1,73 @@
+# Codex: Next implementation task for Comic Beatdowns Studio
+
+**Owner direction confirmed November 21, 2026:** Make video creation feel automatic and effortless, while letting the creator correct individual comic shots visually in seconds. **This is the primary creator workflow, not an optional subfeature.**
+
+## Repository and working branches
+
+- Repository: https://github.com/wrightausername/Comic-Beatdowns
+- **Canonical context:** [CODEX_HANDOFF.md](CODEX_HANDOFF.md), [AGENTS.md](../AGENTS.md)
+- **Active full-page workflow branch:** `feature/whole-page-director-p0` in [draft PR #15](https://github.com/wrightausername/Comic-Beatdowns/pull/15), **stacked on unmerged smart-crop PR #4**. Latest verified PR head: `22369eb9f1c7508d37339a6cb67f87abd8734517`.
+- Latest verified green CI on that head: [run 44955553693](https://github.com/wrightausername/Comic-Beatdowns/actions/runs/44955553693). Linux build/tests and Windows startup/FFmpeg media checks succeeded. Prior additional tests: 128 backend, 55 frontend, five Playwright browser workflows.
+- Other open drafts: [PR #12](https://github.com/wrightausername/Comic-Beatdowns/pull/12) beginner Easy Mode stacked on [#11](https://github.com/wrightausername/Comic-Beatdowns/pull/11); [PR #13](https://github.com/wrightausername/Comic-Beatdowns/pull/13) packaged Windows desktop timeline on a separate branch; [PR #6](https://github.com/wrightausername/Comic-Beatdowns/pull/6) older Auto-Director overlap. **Do not assume the drafts have been merged or are installed. Do not merge without user approval.**
+
+## Already coded in PR #15 (do not duplicate)
+
+- Full-page screenshots can become source-preserving *virtual* ordered panel shots from conservative light-gutter detection; original files remain intact. Long/wide/tall panels can stay one panel with a narration-paced in-panel glide; ambiguous layouts have safe fallback.
+- Numbered manual camera route: click 1 start → click 2 end → optionally append points 3–8; drag or keyboard-nudge markers; set movement fraction and zoom; reverse or clear; final point holds while ElevenLabs narration continues. Backend API/SQLite history, React preview, and FFmpeg rendering support the route.
+- Visual corrections: crop/redraw, show more/less art, hold/pan, reorder, split/join safeguards, transitions, shot duration, preview and undo.
+- **November 21 UX simplification now coded:** `VerdictAutopilot.tsx` has a single **Make my video draft** primary button, auto-enabling Autopilot when required, with optional settings collapsed. `PageShotReview.tsx` shows **1. Pick a shot → 2. Fix camera only if needed → 3. Preview or Next shot**. It surfaces the two-click path and speed slider, moves detailed tools under More controls, and has a Review full video action. `Editor.tsx` collapses the detailed timeline into an optional section. Additional CSS and tests are present. Latest CI was green.
+
+## Locked intended creator experience
+
+1. **Import** full comic page screenshots/PDF/CBZ and the already-generated ElevenLabs Verdict MP3/WAV. No mandatory manual screenshot cropping or coding settings.
+2. **Make my video draft** should be the primary action. The normal path should not ask the creator to separately enable Autopilot, pick obscure settings, or configure a TTS engine. Show precise missing-input errors.
+3. **Review** the result. Creator sees a simple ordered shot strip and the original whole page. If it looks right, move on without fiddling. If not, select the shot and **click 1 → 2 on the comic** to choose camera start/end; optionally tweak speed, more stops, and crop. No manual numeric coordinates.
+4. **Preview** the shot or full draft. Keep edits reversible, never rewrite source pages, protect imported audio and captions. Creator chooses final MP4 export; **no automatic publishing**.
+5. **Advanced** must remain accessible for precise timeline, split/merge, audio, captions, shot transitions, and camera tuning, but not compete with the main actions.
+
+## Immediate engineering priorities, in order
+
+1. **Audit and polish the simplified PR #15 journey in real Chromium tests** from fresh project through import → draft → shot correction → preview → final review. Verify a new user can find primary actions without advanced-mode navigation. Check keyboard, pointer/mouse and mobile width, save and undo, and that changing a shot does not silently replace approved edits. Avoid repeating a setting in multiple visible places.
+2. **Resolve branch integration safely.** Reuse PR #4 crop engine and PR #15 route/editor; coordinate with PR #12 beginner flow and PR #13 desktop packaging instead of creating competing beginner/home screens or timelines. Preserve file/SQLite migration and dependencies. Do not mark any draft as released without packaging owner-facing build.
+3. **Complete P0 Auto-Director [Issue #14](https://github.com/wrightausername/Comic-Beatdowns/issues/14).** Irregular/gutterless/inset/overlapping panel detection, reading-order correction, source panel vs shot vs narrative scene distinction, narration/script evidence for story-aware cuts, and safe pans *between* separate panels remain unfinished. Never hallucinate AI comprehension; conservative fallback with review when uncertain.
+4. **Owner acceptance:** use creator-supplied full-page *Wonder Woman Vol. 2 #210* screenshots + script + ElevenLabs narration, generate actual 9:16 MP4. Measure manual corrections and time to first satisfactory preview; test on actual Windows PC after integrating with the separate packaged desktop work.
+
+## Engineering quality and communication
+
+- Do not reimplement existing import/DirectorService/FFmpeg/SQLite/editor. Confirm branch heads and actual tests first; use small focused commits.
+- UI must be progressively disclosed: minimal default path, explicit optional corrections, advanced escape hatch. All buttons must work; avoid fake previews.
+- Run `make check`, `make e2e` and Windows workflow as available; inspect green checks on the *latest tested SHA*.
+- Update [CODEX_HANDOFF.md](CODEX_HANDOFF.md) and relevant PR/issue at each material milestone. **GitHub files/comments are not an automatic Codex conversation sync**; Codex must connect/select this repo and read this brief before coding.
+- If no repo is visible to Codex, do not declare Comic Beatdowns absent. Connect/open this GitHub repo and inspect PR #15.
+
+**Start instruction to Codex:** Open `wrightausername/Comic-Beatdowns`, read `AGENTS.md`, `docs/CODEX_HANDOFF.md`, and `docs/CODEX_NEXT_TASK.md`. Inspect draft PR #15 and its stacked base PR #4. Report what is already implemented and the smallest remaining blocker before creating new code. Preserve the simple workflow and the user's explicit final-approval requirement.
+
+
+---
+
+## Owner-approved workflow simplification backlog: ALL TEN (November 21, 2026)
+
+**Owner instruction: "push all."** These are implementation requests for Codex, not evidence they have been coded. Incorporate them into the existing project without duplicating currently implemented features. The actual top-level creator flow stays **drop inputs → Make my video draft → review only flagged problems → approve/export**. Audit existing implementations and open PRs before adding routes, screens or services. **Issue #14's whole-page Auto-Director release gate remains the first dependency**, not something to skip for extras.
+
+### P0: eliminate setup, synchronization and review busywork
+1. **Smart Episode Folder**. Allow drag/drop of a single folder containing creator-authorized full-page JPG/PNG/PDF/CBZ, script TXT/MD, optional SRT, and ElevenLabs MP3/WAV. Identify file roles, preserve source order/originals, and show a concise ambiguity resolver for missing/duplicate voice tracks or unknown types. Reuse existing import pipeline and file safety limits, not a hidden disk crawler. No mandatory manual sorting or individual file-picker operations. Test folder duplicates, mixed media, unsupported files, cancellation and retry with no reimport duplication.
+2. **Automatic script-to-narration alignment**. Align imported script text and ElevenLabs recorded audio at word/phrase/beat level, using transcript/SRT or opt-in/local alignment when needed. Persist explicit timing confidence and offset; allow manual correction. Align panel entrance, voice pauses/punchlines, motion and captions without changing audio duration. No artificial TTS dependency and no fabricated transcript confidence. Tests include pauses, misread words, script revisions, SRT replacement, and unchanged narration synchronization.
+3. **Exception-only review**. After automatically generating a preview, show a prioritized list of only actionable issues: uncertain panel boundaries/order, risky crops or illegible balloons/captions, suspicious scene changes, poorly timed holds, technical render/audio problems or loop seam warnings. Each warning links to actual shot/timecode, offers quick correction/skip with reason, and does not falsely claim subjective comedy accuracy. All-auto-accepted scenes remain editable in existing timeline; preserve locks and Undo. Test jump-to-warning, cleared warning, false positives, and revision-safe rerun.
+
+### P1: make correction and finishing nearly frictionless
+4. **One-click contextual camera presets**. Add *Follow the punch*, *Show entire panel*, *Hold for punchline*, *Quick reveal*, *Follow reading order* to existing shot edit controls. Use safe deterministic defaults and available script/shot evidence; never invent action semantics in Basic geometry-only mode. A preset is previewable, adjustable, reversible, and must not overwrite a creator's locked/custom numbered waypoint route silently.
+5. **Automatic captions and optional sound-design suggestions**. Reuse current captions/SRT and mixing; generate editable synchronized captions in consistent Verdict branding with safe-area checks. Suggest impact/whoosh/silence only from user-provided/licensed assets and only where comic action/narration evidence supports it, with an off switch, volume levels and preview. Never bundle or scrape unlicensed audio. Tests: caption boundaries, dialogue legibility, audio peaks, muted/disabled sounds and saved edits.
+6. **Instant individual-shot preview**. On crop, waypoint, travel fraction, zoom, hold, transition or caption edit, enable a fast representative preview of the selected shot without requiring a whole-episode render; be explicit when a real FFmpeg re-render is required. Preview and exported motion must agree on waypoint order, last-point hold, bounding boxes and timing. Cache invalidation should account for scene revision. Test edits, cache staleness and rendered MP4 comparison.
+7. **Verdict editing preference memory**. Reuse Creative DNA PR #11 rather than creating a parallel preference engine. Save *approved* defaults for pacing, pan limits, zoom, text style, sound volumes, crop safety and favorite transitions, scoped by user/format/project. New global defaults require explicit approval and can be inspected, reverted, disabled, or applied to just one video. No silent learning of unapproved changes.
+9. **One-click episode finishing**. Offer one **Check and export** action with real automated preflight for black/silent intervals, clipping, caption safe areas, missing art, bad aspect ratio, obvious loop discontinuities and project revision/renders; show warnings that cannot be proven deterministically. Keep explicit **Approve and export** as final gate, producing a 1080×1920 master and optionally other user-selected variants via existing FFmpeg queue. Tests should verify actual FFprobe streams and guard against stale approvals.
+
+### P2: convenience after core reliability
+8. **Plain-English editing assistant**. Optional command input with examples like "Follow the punch more slowly", "Show the whole panel", "Hold the last shot until Verdict finishes." Interpret into a *previewable edit proposal* against a specified shot and project revision, not direct unchecked file mutations; explain which exact camera/timing/caption fields would change, let user accept/reject/Undo. Remain local or opt-in for remote providers, with no silent paid API calls and conservative refusals when action/character cannot be resolved.
+10. **Ready-to-post package**. After an approved export, generate editable title options, thumbnail concepts, descriptions, platform captions and optional hashtags. Reuse publishing desk and actual final metadata; don't assert unverifiable virality or engagement. Never auto-publish: existing Buffer/Cloudinary account connection and separate explicit approval remain mandatory. Use rights-safe visuals/assets.
+
+### Implementation and measurable acceptance
+- **Do not start by building ten screens**. Treat P0 #1–3 as an incremental improvement to NewProject/VerdictAutopilot/Director/ProductionWorkflow and PR #15 existing shot review, integrating #14, then P1, then P2. Plan small stacked PRs with tests and avoid conflicts with draft PRs #4, #6, #11, #12, #13, #15.
+- Track useful local per-episode, opt-out-able measurements: time from folder drop to first playable draft; number of individual uploads/clicks; uncertain shots; manual corrections; time from first preview to approved export; render retries; percent of previews needing repairs. Do not fabricate outcome metrics.
+- Happy-path acceptance: creator-authorized folder of full comic pages + script + imported ElevenLabs narration → **one primary draft button** → actual 9:16 playable preview with aligned cuts/captions → exceptions only → optional visual 1→2 camera repair → one explicit approved MP4 export. No pre-snipping required, no extra Autopilot switch, no mandatory advanced timeline, no duplicate asset ingestion, no unsolicited publishing.
+- Cover missing audio, duplicate narration, ambiguous/long/splash/inset panels, disconnected provider, Basic-only zero-network behavior, manual locks, Undo/redo, repeat-click, refresh/retry, Windows packaged runner, browser controls and real FFmpeg tests. CI green at current HEAD and real owner test required before claiming production-ready.
+- **Next Codex execution**: Audit each of these ten against current main and PR heads (implemented/partial/missing), preserve #14 P0 priorities, create a small implementation plan/checklist and code the earliest missing dependency. Update this handoff, relevant issues/PRs, and validation results. Do not mark any backlog item shipped merely because it appears in this specification.
