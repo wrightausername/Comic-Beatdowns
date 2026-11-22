@@ -703,15 +703,25 @@ test("episode folder queues pages in order and imports script and voice", async 
     "New project role for page-2.png",
   );
 
-  const narration = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/import-file") &&
-      response.request().postData()?.includes('filename="voice.wav"') === true,
-  );
+  const imported: { status: number; body: Record<string, unknown> }[] = [];
+  page.on("response", async (response) => {
+    if (response.url().endsWith("/import-file")) {
+      imported.push({ status: response.status(), body: await response.json() });
+    }
+  });
   await page.getByRole("button", { name: "Create project" }).click();
-  const response = await narration;
-  expect(response.status()).toBe(201);
-  const { project } = await response.json();
+  await expect
+    .poll(() => imported.map((item) => item.status))
+    .toEqual([201, 201, 201, 201]);
+  const { project } = imported.find(
+    (item) => item.body.message === "Added narration",
+  )!.body as {
+    project: {
+      script: string;
+      workflow: { panel_ids: string[] };
+      narration_url: string;
+    };
+  };
   expect(project.script).toBe("Verdict explains the first punch.");
   expect(project.workflow.panel_ids).toHaveLength(2);
   expect(project.narration_url).toBeTruthy();
