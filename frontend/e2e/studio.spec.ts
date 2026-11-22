@@ -695,7 +695,9 @@ test("episode folder queues pages in order and imports script and voice", async 
   await expect(
     page.getByLabel("New project role for unrelated.json"),
   ).toHaveValue("skip");
-  const pages = page.getByRole("combobox", { name: /New project role for page/ });
+  const pages = page.getByRole("combobox", {
+    name: /New project role for page/,
+  });
   await expect(pages).toHaveCount(2);
   await expect(pages.first()).toHaveAccessibleName(
     "New project role for page-2.png",

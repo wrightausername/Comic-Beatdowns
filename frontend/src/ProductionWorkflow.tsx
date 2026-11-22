@@ -439,8 +439,8 @@ export default function ProductionWorkflow(props: Props) {
         <section className="surface">
           <h2>1. Add your files</h2>
           <p>
-            Drop panels, narration, scripts, music, effects, and captions together.
-            Check each file’s role, then import.
+            Drop panels, narration, scripts, music, effects, and captions
+            together. Check each file’s role, then import.
           </p>
           <div
             className="project-dropzone"
