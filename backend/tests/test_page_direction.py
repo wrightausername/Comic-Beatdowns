@@ -104,6 +104,28 @@ def test_tall_spanning_panel_is_not_split(tmp_path):
     assert result[0].glide_axis == "vertical"
 
 
+@pytest.mark.parametrize("axis", ["horizontal", "vertical"])
+def test_narrow_balloon_outline_crossing_gutter_keeps_page_intact(tmp_path, axis):
+    page = Image.new("RGB", (1600, 1600), "white")
+    draw = ImageDraw.Draw(page)
+    draw.rectangle((15, 15, 1584, 735), fill="#152f45")
+    draw.rectangle((15, 865, 1584, 1584), fill="#5b252b")
+    assert len(suggest_panels(page)) == 2
+
+    # A thin balloon tail occupies much less than 2.5% of each scan line.
+    draw.polygon([(793, 700), (806, 700), (800, 901)], fill="white", outline="#222222")
+    if axis == "vertical":
+        page = page.transpose(Image.Transpose.TRANSPOSE)
+    panel = item("crossing", page, tmp_path)
+    shots, report = page_sources([], [panel], Storage(tmp_path))
+
+    assert len(shots) == 1
+    assert shots[0].panel_id == panel.id
+    assert shots[0].source_crop is None
+    assert not report["expanded"]
+    assert report["pages"][0]["review_required"]
+
+
 def test_splash_and_locked_user_edit_are_preserved(tmp_path):
     splash = item("splash", Image.new("RGB", (800, 800), "#123746"), tmp_path)
     kept, report = page_sources([], [splash], Storage(tmp_path))
