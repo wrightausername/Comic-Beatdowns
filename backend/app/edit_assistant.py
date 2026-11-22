@@ -80,7 +80,7 @@ class Plan(StrictModel):
     version: Literal[1] = 1
     project_id: str
     base_revision: int = Field(ge=1)
-    edits: list[Change] = Field(default_factory=list, max_length=50)
+    edits: list[Change] = Field(default_factory=list, max_length=240)
     settings: dict = Field(default_factory=dict, max_length=20)
     caption_edits: list[CaptionChange] = Field(default_factory=list, max_length=50)
     script: str | None = Field(default=None, max_length=20000)

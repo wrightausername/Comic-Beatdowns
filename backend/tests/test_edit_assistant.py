@@ -398,3 +398,28 @@ def test_caption_plan_changes_actual_timed_words_and_preserves_narration(client,
     p = client.put(url + "/workspace", json=payload).json()
     plan["base_revision"] = p["revision"]
     assert propose(client, url, p, json.dumps(plan)).status_code == 422
+
+
+def test_safe_fix_supports_a_full_episode_with_more_than_fifty_shots(client, image_bytes):
+    panel = add_panel(client, image_bytes)
+    p = add_project(client)
+    url = f"/api/projects/{p['id']}"
+    response = client.put(
+        url + "/scenes",
+        json={
+            "scenes": [
+                {"panel_id": panel["id"], "duration": 0.5, "motion": "hold"} for _ in range(60)
+            ]
+        },
+    )
+    assert response.status_code == 200
+    p = client.post(
+        url + "/narration", files={"file": ("voice.wav", wav_bytes(45), "audio/wav")}
+    ).json()
+    response = client.post(url + "/review-queue/fix", json={"base_revision": p["revision"]})
+    assert response.status_code == 201, response.text
+    row = response.json()
+    assert len(row["plan"]["edits"]) == 60
+    candidate = client.get(url + f"/assistant/proposals/{row['id']}/preview").json()
+    assert sum(s["duration"] for s in candidate["scenes"]) == 45
+    assert client.get(url).json()["revision"] == p["revision"]
