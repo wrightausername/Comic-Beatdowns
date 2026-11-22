@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import {
   applyStoryboard,
   fitScenes,
+  mergePageShots,
   selectExcerpt,
   splitScene,
 } from "./editing";
@@ -47,6 +48,28 @@ it("splits a shot without duplicating its uploaded sound", () => {
   expect(result[1].sfx_source_id).toBeNull();
   expect(result[1].clear_sfx).toBe(true);
   expect(result[0].duration + result[1].duration).toBe(2);
+});
+it("splits one numbered camera route without restarting it at point 1", () => {
+  const source = {
+    ...scene("route", 4),
+    camera_path: [
+      { x: 0.1, y: 0.2 },
+      { x: 0.9, y: 0.8 },
+    ],
+    path_move_fraction: 0.55,
+    path_zoom: 1.6,
+    glide_start: 0,
+    glide_end: 1,
+    motion: "panel_glide" as const,
+  };
+  const pieces = splitScene([source], 0, 24);
+  expect(pieces).toHaveLength(2);
+  expect(pieces[0].glide_end).toBeCloseTo(0.5);
+  expect(pieces[1].glide_start).toBeCloseTo(0.5);
+  expect(pieces[0].camera_path).toEqual(source.camera_path);
+  expect(pieces[1].camera_path).toEqual(source.camera_path);
+  expect(pieces[0].path_move_fraction).toBe(0.55);
+  expect(pieces[1].path_zoom).toBe(1.6);
 });
 it("moves a later sound to the second half of a split", () => {
   const result = splitScene(
@@ -99,4 +122,71 @@ it("selects an excerpt and preserves original-source caption time", () => {
       3,
     ),
   ).toThrow("Unlock");
+});
+
+it("joins two proposed page regions into one long panel without shifting speech timing", () => {
+  const page = { id: "page", width: 800, height: 800 } as Scene["panel"];
+  const first = {
+    ...scene("a", 1.5),
+    panel_id: "page",
+    panel: page,
+    note: "Left",
+    source_crop: { x: 0.1, y: 0.1, width: 0.35, height: 0.25 },
+    sfx_url: "/impact.wav",
+  };
+  const second = {
+    ...scene("b", 2),
+    panel_id: "page",
+    panel: page,
+    note: "Right",
+    source_crop: { x: 0.5, y: 0.1, width: 0.38, height: 0.25 },
+  };
+  const third = scene("untouched", 1);
+  const merged = mergePageShots([first, second, third], 0);
+  expect(merged).toHaveLength(2);
+  expect(merged[0].id).toBe("a");
+  expect(merged[0].duration).toBe(3.5);
+  expect(merged[0].source_crop).toEqual({
+    x: 0.1,
+    y: 0.1,
+    width: 0.78,
+    height: 0.25,
+  });
+  expect(merged[0].motion).toBe("panel_glide");
+  expect(merged[0].glide_axis).toBe("horizontal");
+  expect(merged[0].sfx_url).toBe("/impact.wav");
+  expect(merged[0].note).toContain("Right");
+  expect(merged[1]).toBe(third);
+  expect(merged.reduce((sum, shot) => sum + shot.duration, 0)).toBe(4.5);
+});
+
+it("refuses unsafe joins that would discard voice captions or scene effects", () => {
+  const page = { id: "page", width: 800, height: 800 } as Scene["panel"];
+  const first = {
+    ...scene("a"),
+    panel_id: "page",
+    panel: page,
+    source_crop: { x: 0, y: 0, width: 0.5, height: 0.5 },
+  };
+  const second = {
+    ...scene("b"),
+    panel_id: "page",
+    panel: page,
+    source_crop: { x: 0.5, y: 0, width: 0.5, height: 0.5 },
+  };
+  expect(() => mergePageShots([first, { ...second, locked: true }], 0)).toThrow(
+    "unlocked",
+  );
+  expect(() =>
+    mergePageShots([first, { ...second, caption: "Don't drop me" }], 0),
+  ).toThrow("dialogue or audio");
+  expect(() =>
+    mergePageShots([first, { ...second, sfx_url: "/hit.wav" }], 0),
+  ).toThrow("dialogue or audio");
+  expect(() =>
+    mergePageShots([first, { ...second, panel_id: "another" }], 0),
+  ).toThrow("same original");
+  expect(() => mergePageShots([first, { ...second, duration: 30 }], 0)).toThrow(
+    "at most 30",
+  );
 });

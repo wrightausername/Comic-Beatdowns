@@ -19,6 +19,7 @@ from .autoedit import audio_range, auto_edit
 from .database import Panel, Project, RenderJob, Scene, Template, now, uid
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
+from .page_direction import glide_zoom
 from .panel_detection import suggest_panels
 from .preflight import check_episode
 from .renderer import normalize_audio, timeline_duration, tools_available
@@ -97,6 +98,13 @@ def scene_dict(scene, db):
         "note": scene.note,
         "beat": scene.beat,
         "framing": scene.framing,
+        "source_crop": scene.source_crop,
+        "glide_axis": scene.glide_axis,
+        "glide_start": scene.glide_start,
+        "glide_end": scene.glide_end,
+        "camera_path": scene.camera_path,
+        "path_move_fraction": scene.path_move_fraction,
+        "path_zoom": scene.path_zoom,
         "sfx_source_id": scene.id if scene.sfx_key else None,
         "panel": panel_dict(db.get(Panel, scene.panel_id)),
     }
@@ -601,6 +609,35 @@ def queue_render_for_state(
             "sfx_key": s.sfx_key,
             "sfx_offset": s.sfx_offset,
             "framing": s.framing,
+            "source_crop": s.source_crop,
+            "glide_axis": s.glide_axis,
+            "glide_start": s.glide_start,
+            "glide_end": s.glide_end,
+            "camera_path": s.camera_path,
+            "path_move_fraction": s.path_move_fraction,
+            "path_zoom": s.path_zoom,
+            "source_aspect": (
+                db.get(Panel, s.panel_id).width
+                * (s.source_crop["width"] if s.source_crop else 1)
+                / (
+                    db.get(Panel, s.panel_id).height
+                    * (s.source_crop["height"] if s.source_crop else 1)
+                )
+            ),
+            "glide_zoom": (
+                glide_zoom(
+                    {
+                        "motion": s.motion,
+                        "source_crop": s.source_crop,
+                        "camera_path": s.camera_path,
+                        "path_zoom": s.path_zoom,
+                    },
+                    db.get(Panel, s.panel_id).width,
+                    db.get(Panel, s.panel_id).height,
+                )
+                if s.motion == "panel_glide"
+                else 1.0
+            ),
         }
         for s in scenes
     ]

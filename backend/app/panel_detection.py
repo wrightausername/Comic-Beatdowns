@@ -6,6 +6,11 @@ Irregular/inset, dark and gutterless pages intentionally require manual review.
 
 from PIL import ImageOps
 
+# A single dark interruption in a proposed gutter can be a balloon outline or
+# artwork crossing between panels. Check the full-resolution strip too, since
+# downsampling can wash out thin lines.
+MIN_GUTTER_LUMINANCE = 210
+
 
 def _bands(flags, minimum):
     runs = []
@@ -47,9 +52,14 @@ def _splits(image, axis):
     ]
     if not candidates:
         return []
+    strips = [(round(a * span / scan), round(b * span / scan)) for a, b in candidates]
+    for start, end in strips:
+        box = (0, start, width, end) if axis == "horizontal" else (start, 0, end, height)
+        if image.crop(box).convert("L").getextrema()[0] < MIN_GUTTER_LUMINANCE:
+            return []
     edges = [0]
-    for a, b in candidates:
-        edges += [round(a * span / scan), round(b * span / scan)]
+    for start, end in strips:
+        edges += [start, end]
     edges.append(span)
     segments = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2)]
     minimum_size = max(75, round(span * 0.12))

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { deflateSync } from "node:zlib";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 function crc32(buffer: Buffer) {
   let crc = -1;
@@ -120,6 +121,7 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     page.getByRole("heading", { name: "An original browser beatdown" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.getByRole("button", { name: "Add panels", exact: true }).click();
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
@@ -163,6 +165,8 @@ test("import, crop, sequence, approve, upload narration, render, and download", 
     .locator(".project-card")
     .filter({ hasText: "An original browser beatdown" })
     .click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await expect(page.getByLabel("Scene 1 motion", { exact: true })).toHaveValue(
     "drift_up_right",
   );
@@ -236,6 +240,8 @@ test("mobile navigation remains usable without horizontal overflow", async ({
     .getByRole("button", { name: "Production desk", exact: true })
     .click();
   await page.locator(".project-card").first().click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.locator(".camera-details summary").first().click();
   await expect(
     page.getByLabel("Scene 1 easing", { exact: true }),
@@ -262,6 +268,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
   await page.getByLabel("Project title").fill("Effortless editing");
   await page.getByRole("button", { name: "Create project" }).click();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.getByRole("button", { name: "Add panels", exact: true }).click();
   await page.locator(".picker-card").first().click();
   await page.locator(".picker-card").last().click();
@@ -292,6 +299,8 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
     .locator(".project-card")
     .filter({ hasText: "Effortless editing" })
     .click();
+  await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await expect(page.locator(".scene-card")).toHaveCount(5);
   await page.getByLabel("Select all scenes", { exact: true }).check();
   await page.getByLabel("Bulk camera motion").selectOption("pan_up");
@@ -400,6 +409,7 @@ test("autosave, fast and slow cuts, bulk undo, waveform timing, captions, brand 
     page.getByText("Brand template saved.", { exact: false }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
+  await page.locator(".timeline-advanced > summary").click();
   await page.screenshot({
     timeout: 60_000,
     path: testInfo.outputPath("streamlined-editor.png"),
@@ -501,6 +511,7 @@ test("guided draft builder, storyboard, locked shots, versions, review notes, an
   await page
     .getByRole("button", { name: "Accept selected suggestions", exact: true })
     .click();
+  await page.locator(".timeline-advanced > summary").click();
   await expect(page.locator(".scene-card")).toHaveCount(5);
   await expect(page.getByLabel("Autosave status")).toHaveText(
     "All changes saved",
@@ -622,6 +633,21 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   );
   await expect(approve).toBeDisabled();
   await expect(card.getByText(/No timed speech found/)).toBeVisible();
+  // Creator-first route: generated video -> one button to quick shot corrections.
+  await card
+    .getByRole("button", { name: "Check or fix my shots (optional)" })
+    .click();
+  const quick = page.getByRole("region", { name: "Quick shot editor" });
+  await expect(quick).toBeVisible();
+  await expect(
+    quick.getByRole("button", { name: "Draw 1 → 2 camera route" }),
+  ).toBeVisible();
+  await expect(
+    quick.getByRole("button", { name: "Preview this shot" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Full timeline editor · optional fine-tuning"),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("verdict-autopilot.png"),
     timeout: 60_000,
@@ -642,4 +668,105 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   const file = await fileEvent;
   expect(file.suggestedFilename()).toContain("Verdict_upload_handoff_Final");
   expect(errors).toEqual([]);
+});
+
+test("episode folder queues pages in order and imports script and voice", async ({
+  page,
+}, testInfo) => {
+  const folder = testInfo.outputPath("Episode intake");
+  await mkdir(folder, { recursive: true });
+  await Promise.all([
+    writeFile(join(folder, "page-10.png"), originalPng()),
+    writeFile(join(folder, "page-2.png"), originalPng()),
+    writeFile(join(folder, "episode.md"), "Verdict explains the first punch."),
+    writeFile(join(folder, "voice.wav"), silentWav(2)),
+    writeFile(join(folder, "unrelated.json"), "{}"),
+  ]);
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  const chooser = page.getByLabel("Episode folder", { exact: true });
+  await chooser.setInputFiles(folder);
+  await chooser.setInputFiles(folder);
+  await expect(page.getByLabel("Project title", { exact: true })).toHaveValue(
+    "Episode intake",
+  );
+  await expect(page.getByLabel("New project role for voice.wav")).toHaveValue(
+    "narration",
+  );
+  await expect(
+    page.getByLabel("New project role for unrelated.json"),
+  ).toHaveValue("skip");
+  const pages = page.getByRole("combobox", {
+    name: /New project role for page/,
+  });
+  await expect(pages).toHaveCount(2);
+  await expect(pages.first()).toHaveAccessibleName(
+    "New project role for page-2.png",
+  );
+
+  const imported: { status: number; body: Record<string, unknown> }[] = [];
+  page.on("response", async (response) => {
+    if (response.url().endsWith("/import-file")) {
+      imported.push({ status: response.status(), body: await response.json() });
+    }
+  });
+  await page.getByRole("button", { name: "Create project" }).click();
+  await expect
+    .poll(() => imported.map((item) => item.status))
+    .toEqual([201, 201, 201, 201]);
+  const { project } = imported.find(
+    (item) => item.body.message === "Added narration",
+  )!.body as {
+    project: {
+      script: string;
+      workflow: { panel_ids: string[] };
+      narration_url: string;
+    };
+  };
+  expect(project.script).toBe("Verdict explains the first punch.");
+  expect(project.workflow.panel_ids).toHaveLength(2);
+  expect(project.narration_url).toBeTruthy();
+});
+
+test("dropping an episode folder reads all batches and nested files", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  const dropzone = page.locator(".project-dropzone");
+  await dropzone.evaluate((element) => {
+    const fileEntry = (fullPath: string) => ({
+      isFile: true,
+      fullPath,
+      file: (done: (file: File) => void) =>
+        done(new File(["image fixture"], fullPath.split("/").at(-1)!)),
+    });
+    const directory = (batches: object[][]) => ({
+      isDirectory: true,
+      createReader: () => ({
+        readEntries: (done: (entries: object[]) => void) =>
+          done(batches.shift() ?? []),
+      }),
+    });
+    const root = directory([
+      [directory([[fileEntry("/Dropped episode/Pages/page-10.png")]])],
+      [directory([[fileEntry("/Dropped episode/Pages/page-2.png")]])],
+    ]);
+    const dataTransfer = new DataTransfer();
+    Object.defineProperty(dataTransfer, "items", {
+      value: [{ webkitGetAsEntry: () => root }],
+    });
+    element.dispatchEvent(
+      new DragEvent("drop", { bubbles: true, dataTransfer }),
+    );
+  });
+  const pages = page.getByRole("combobox", {
+    name: /New project role for page/,
+  });
+  await expect(pages).toHaveCount(2);
+  await expect(pages.first()).toHaveAccessibleName(
+    "New project role for page-2.png",
+  );
+  await expect(page.getByLabel("Project title", { exact: true })).toHaveValue(
+    "Dropped episode",
+  );
+  await expect(page.getByText(/Add an ElevenLabs MP3 or WAV/)).toBeVisible();
 });
