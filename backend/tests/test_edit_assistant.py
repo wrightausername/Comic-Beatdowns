@@ -347,3 +347,54 @@ def test_json_cannot_request_files_publication_unlock_or_unscoped_edits(client, 
         payload = {"project_id": p["id"], "base_revision": p["revision"], **fields}
         assert propose(client, url, p, json.dumps(payload)).status_code == 422
     assert client.get(url).json() == p
+
+
+def test_caption_plan_changes_actual_timed_words_and_preserves_narration(client, image_bytes):
+    from app.schemas import SceneInput
+
+    url, p = episode(client, image_bytes)
+    cues = [
+        {"start": 0, "end": 2, "text": "Original subtitle."},
+        {"start": 2, "end": 4, "text": "Second subtitle."},
+    ]
+    payload = {
+        "base_revision": p["revision"],
+        "title": p["title"],
+        "settings": p["settings"],
+        "cues": cues,
+        "scenes": [
+            {k: v for k, v in s.items() if k in SceneInput.model_fields} for s in p["scenes"]
+        ],
+    }
+    response = client.put(url + "/workspace", json=payload)
+    assert response.status_code == 200, response.text
+    p = response.json()
+    plan = {
+        "project_id": p["id"],
+        "base_revision": p["revision"],
+        "caption_edits": [{"index": 0, "changes": {"text": "Corrected displayed words."}}],
+    }
+    response = propose(client, url, p, json.dumps(plan))
+    assert response.status_code == 201, response.text
+    row = response.json()
+    candidate = client.get(url + f"/assistant/proposals/{row['id']}/preview").json()
+    assert candidate["caption_cues"][0]["text"] == "Corrected displayed words."
+    assert client.get(url).json()["caption_cues"] == cues
+    applied = client.post(
+        url + f"/assistant/proposals/{row['id']}/apply", json={"base_revision": p["revision"]}
+    ).json()
+    assert applied["caption_cues"][0]["text"] == "Corrected displayed words."
+    assert applied["narration_url"] == p["narration_url"]
+    assert applied["scenes"] == p["scenes"]
+    p = client.post(url + "/history/undo", json={"base_revision": applied["revision"]}).json()
+    bad = {
+        "project_id": p["id"],
+        "base_revision": p["revision"],
+        "caption_edits": [{"index": 1, "changes": {"start": 1}}],
+    }
+    assert propose(client, url, p, json.dumps(bad)).status_code == 422
+    payload.update(base_revision=p["revision"])
+    payload["scenes"][0]["locked"] = True
+    p = client.put(url + "/workspace", json=payload).json()
+    plan["base_revision"] = p["revision"]
+    assert propose(client, url, p, json.dumps(plan)).status_code == 422

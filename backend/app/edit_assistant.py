@@ -29,7 +29,7 @@ from .database import (
     now,
 )
 from .preflight import check_episode
-from .schemas import SceneInput, StrictModel, WorkspaceInput
+from .schemas import CaptionCue, SceneInput, StrictModel, WorkspaceInput
 from .workspace import locked_project, project_scenes
 
 router = APIRouter(prefix="/api", tags=["Creator assistant"])
@@ -71,12 +71,18 @@ class Change(StrictModel):
     changes: dict = Field(max_length=20)
 
 
+class CaptionChange(StrictModel):
+    index: int = Field(ge=0, le=599)
+    changes: dict = Field(min_length=1, max_length=3)
+
+
 class Plan(StrictModel):
     version: Literal[1] = 1
     project_id: str
     base_revision: int = Field(ge=1)
     edits: list[Change] = Field(default_factory=list, max_length=50)
     settings: dict = Field(default_factory=dict, max_length=20)
+    caption_edits: list[CaptionChange] = Field(default_factory=list, max_length=50)
     script: str | None = Field(default=None, max_length=20000)
     timing: Literal["preserve", "fit_narration"] = "preserve"
 
@@ -109,6 +115,7 @@ def context_for(project, db):
         "base_revision": project.revision,
         "script": project.script,
         "approved_style_rules": approved_instructions(db, "short"),
+        "caption_cues": [{"index": i, **cue} for i, cue in enumerate(project.caption_cues)],
         "settings": project.settings,
         "shots": [
             {
@@ -135,7 +142,7 @@ def context_for(project, db):
         + ", ".join(sorted(EDIT_FIELDS))
         + ". Optional settings use these fields: "
         + ", ".join(sorted(DEFAULT_FIELDS))
-        + ". Optional script replaces the written script only, not the imported ElevenLabs recording. Timing must remain unchanged unless timing=fit_narration. Do not invent panel evidence. No code, URLs, uploads, exports or publication commands.",
+        + ". Optional caption_edits is a list of {index, changes:{text,start,end}} targeting caption_cues indices. Use caption_edits when timed captions exist; shot caption text is ignored by that renderer path. Optional script replaces the written script only, not the imported ElevenLabs recording. Timing must remain unchanged unless timing=fit_narration. Do not invent panel evidence. No code, URLs, uploads, exports or publication commands.",
     }
 
 
@@ -238,6 +245,26 @@ def local_plan(text, project, db, selected_id=None):
         raw,
         re.IGNORECASE | re.DOTALL,
     ):
+        if project.caption_cues:
+            start = project.settings.get("narration_start", 0) + sum(
+                round(s.duration * project.settings["fps"]) / project.settings["fps"]
+                for s in scenes[: scenes.index(scene)]
+            )
+            end = start + scene.duration
+            overlaps = [
+                i
+                for i, c in enumerate(project.caption_cues)
+                if c["end"] > start and c["start"] < end
+            ]
+            if len(overlaps) != 1:
+                raise ValueError(
+                    "This shot spans multiple timed captions. Use Caption editor or copy the editing brief to target exact caption indices."
+                )
+            return Plan(
+                project_id=project.id,
+                base_revision=project.revision,
+                caption_edits=[CaptionChange(index=overlaps[0], changes={"text": caption[2]})],
+            )
         patch = {"caption": caption[2]}
     elif hold := re.fullmatch(
         prefix + r"(?:set (?:duration|length) to|hold for) (\d+(?:\.\d+)?) (?:s|seconds?)" + suffix,
@@ -315,6 +342,10 @@ def compile_plan(plan, project, db):
             raise ValueError("That shot is locked. Unlock it yourself before proposing changes")
         if not edit.changes or set(edit.changes) - EDIT_FIELDS:
             raise ValueError("The plan includes unsupported shot fields")
+        if "caption" in edit.changes and project.caption_cues:
+            raise ValueError(
+                "This video uses timed captions. Use caption_edits from the editing brief to change the displayed words."
+            )
         for key, value in edit.changes.items():
             if key == "panel_id" and db.get(Panel, value) is None:
                 raise ValueError("The replacement panel is not in the library")
@@ -380,6 +411,44 @@ def compile_plan(plan, project, db):
             raise ValueError("This edit would move a locked shot in time")
         before_time += round(before["duration"] * fps)
         after_time += round(after["duration"] * fps)
+    if plan.settings and any(s["locked"] for s in old_scenes):
+        raise ValueError(
+            "Global settings could alter locked shots. Unlock them before applying global assistant settings, or adjust those settings manually."
+        )
+    seen_captions = set()
+    cues = [dict(c) for c in project.caption_cues]
+    for edit in plan.caption_edits:
+        if (
+            edit.index in seen_captions
+            or edit.index >= len(cues)
+            or set(edit.changes) - {"text", "start", "end"}
+        ):
+            raise ValueError(
+                "Caption edits must target unique existing indices and text/start/end only"
+            )
+        seen_captions.add(edit.index)
+        original_cue = cues[edit.index]
+        revised_cue = CaptionCue.model_validate({**original_cue, **edit.changes}).model_dump()
+        position = project.settings.get("narration_start", 0)
+        for shot in old_scenes:
+            end = position + round(shot["duration"] * fps) / fps
+            if shot["locked"] and any(
+                c["end"] > position and c["start"] < end for c in (original_cue, revised_cue)
+            ):
+                raise ValueError(
+                    "This caption overlaps a locked shot. Unlock it before using an assistant caption edit"
+                )
+            position = end
+        for key, value in revised_cue.items():
+            if original_cue.get(key) != value:
+                changes.append(
+                    {
+                        "field": f"caption.{edit.index + 1}.{key}",
+                        "before": original_cue.get(key),
+                        "after": value,
+                    }
+                )
+        cues[edit.index] = revised_cue
     for key, value in plan.settings.items():
         if state["settings"].get(key) != value:
             changes.append(
@@ -397,7 +466,7 @@ def compile_plan(plan, project, db):
             "script": state["script"],
             "settings": state["settings"],
             "workflow": project.workflow,
-            "cues": project.caption_cues,
+            "cues": cues,
             "scenes": [
                 {k: v for k, v in s.items() if k in SceneInput.model_fields}
                 for s in state["scenes"]
@@ -532,6 +601,7 @@ def preview(project_id: str, proposal_id: str, db=Depends(session)):
 
             scene["panel"] = panel_dict(db.get(Panel, scene["panel_id"]))
     result["settings"], result["script"] = workspace.settings.model_dump(), workspace.script
+    result["caption_cues"] = [cue.model_dump() for cue in workspace.cues]
     return result
 
 

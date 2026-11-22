@@ -1071,6 +1071,13 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
   await page.getByLabel("New project files").setInputFiles([
     { name: "assistant-art.png", mimeType: "image/png", buffer: originalPng() },
     { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(4) },
+    {
+      name: "words.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:02,000\nOriginal subtitle.\n\n2\n00:00:02,000 --> 00:00:04,000\nSecond subtitle.\n",
+      ),
+    },
   ]);
   await page
     .getByLabel("Project title", { exact: true })
@@ -1099,6 +1106,9 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
     version: 1,
     project_id: id,
     base_revision: before.revision,
+    caption_edits: [
+      { index: 0, changes: { text: "Owner corrected subtitle." } },
+    ],
     edits: [
       {
         scene_id: before.scenes[0].id,
@@ -1130,6 +1140,7 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
   await expect(box.getByText("Changes applied", { exact: true })).toBeVisible();
   const edited = await read();
   expect(edited.scenes[0].framing).toBe("fit");
+  expect(edited.caption_cues[0].text).toBe("Owner corrected subtitle.");
   expect(edited.narration_url).toBe(before.narration_url);
   await page.getByRole("button", { name: "Undo", exact: true }).first().click();
   await expect
