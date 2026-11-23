@@ -860,6 +860,12 @@ test("direct timeline dragging, trim handles, playback, caption editing and mixe
     .toBeGreaterThan(0);
   await timeline.getByRole("button", { name: "Pause timeline" }).click();
   await timeline.getByRole("button", { name: "Snap on", exact: true }).click();
+  // Director readiness can precede the render-history poll by one interval.
+  // Wait for actual native dragging to be enabled before exercising the gesture.
+  await expect(timeline.locator(".video-clip").first()).toHaveAttribute(
+    "draggable",
+    "true",
+  );
   const before = await read();
   await timeline
     .locator(".video-clip")
