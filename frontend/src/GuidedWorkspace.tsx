@@ -260,8 +260,8 @@ export default function GuidedWorkspace({
         </p>
       )}
       <p className="guided-footnote">
-        No auto-posting. AI writing, artwork understanding, and voice generation
-        require separate configuration or future integrations.
+        Use your ElevenLabs recording. Advanced timeline editing and optional AI
+        connections remain available; publishing requires your own approval.
       </p>
     </section>
   );

@@ -72,6 +72,13 @@ export interface Scene {
   sfx_id?: string | null;
   sfx_offset?: number;
   framing?: "fill" | "fit";
+  source_crop?: { x: number; y: number; width: number; height: number } | null;
+  glide_axis?: "horizontal" | "vertical" | null;
+  glide_start?: number;
+  glide_end?: number;
+  camera_path?: { x: number; y: number }[] | null;
+  path_move_fraction?: number;
+  path_zoom?: number;
   sfx_source_id?: string | null;
   clear_sfx?: boolean;
 }
@@ -167,6 +174,20 @@ export interface AutopilotOptions {
   delivery: "draft" | "final";
   voice_approved?: boolean;
 }
+export interface SmartCropSuggestion {
+  scene_id: string;
+  panel_id: string;
+  start: number;
+  text: string;
+  target_x: number;
+  target_y: number;
+  framing: "fit" | "fill";
+  reason: string;
+  confidence: number | null;
+  review_required: boolean;
+  applied: boolean;
+}
+
 export interface DirectorJob {
   id: string;
   project_id: string;
@@ -183,6 +204,18 @@ export interface DirectorJob {
     warnings?: string[];
     scene_count?: number;
     caption_count?: number;
+    smart_crops?: SmartCropSuggestion[];
+    page_reading?: {
+      expanded: boolean;
+      reason: string;
+      pages: {
+        page_id: string;
+        panel_count: number;
+        reason: string;
+        review_required: boolean;
+        regions?: { x: number; y: number; width: number; height: number }[];
+      }[];
+    };
   };
   render: RenderJob | null;
 }

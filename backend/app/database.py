@@ -92,6 +92,13 @@ class Scene(Base):
     note: Mapped[str] = mapped_column(Text, default="", server_default="")
     beat: Mapped[str] = mapped_column(String, default="custom", server_default="custom")
     framing: Mapped[str] = mapped_column(String, default="fill", server_default="fill")
+    source_crop: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    glide_axis: Mapped[str | None] = mapped_column(String, nullable=True)
+    glide_start: Mapped[float] = mapped_column(Float, default=0, server_default="0")
+    glide_end: Mapped[float] = mapped_column(Float, default=1, server_default="1")
+    camera_path: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    path_move_fraction: Mapped[float] = mapped_column(Float, default=1, server_default="1")
+    path_zoom: Mapped[float] = mapped_column(Float, default=1.4, server_default="1.4")
 
 
 class SoundEffect(Base):
@@ -259,9 +266,44 @@ def migrate_scene_options(engine):
         "note": "TEXT NOT NULL DEFAULT ''",
         "beat": "VARCHAR NOT NULL DEFAULT 'custom'",
         "framing": "VARCHAR NOT NULL DEFAULT 'fill'",
+        "source_crop": "JSON",
+        "glide_axis": "VARCHAR",
+        "glide_start": "FLOAT NOT NULL DEFAULT 0",
+        "glide_end": "FLOAT NOT NULL DEFAULT 1",
+        "camera_path": "JSON",
+        "path_move_fraction": "FLOAT NOT NULL DEFAULT 1",
+        "path_zoom": "FLOAT NOT NULL DEFAULT 1.4",
     }
     with engine.begin() as connection:
         existing = {c["name"] for c in inspect(connection).get_columns("scenes")}
         for name, definition in additions.items():
             if name not in existing:
                 connection.exec_driver_sql(f'ALTER TABLE scenes ADD COLUMN "{name}" {definition}')
+
+
+class CreatorPreferences(Base):
+    __tablename__ = "creator_preferences"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default="owner")
+    template_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    observe_edits: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[str] = mapped_column(String, default=now)
+
+
+class EditProposal(Base):
+    __tablename__ = "edit_proposals"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    base_revision: Mapped[int] = mapped_column(Integer)
+    plan: Mapped[dict] = mapped_column(JSON)
+    changes: Mapped[list] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String, default="proposed")
+    created_at: Mapped[str] = mapped_column(String, default=now)
+
+
+class ReviewDismissal(Base):
+    __tablename__ = "review_dismissals"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    revision: Mapped[int] = mapped_column(Integer)
+    finding_id: Mapped[str] = mapped_column(String)
+    reason: Mapped[str] = mapped_column(String)

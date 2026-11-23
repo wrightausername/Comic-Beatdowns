@@ -2,7 +2,89 @@ import { useEffect, useRef, useState } from "react";
 import { Maximize, Pause, Play, RotateCcw, ScanLine } from "lucide-react";
 import type { Project, Scene } from "./types";
 import { timecode, timelineSeconds } from "./utils";
-import { blendFrames, cameraStyle, transitionStyles } from "./effects";
+import {
+  blendFrames,
+  cameraPosition,
+  cameraStyle,
+  transitionStyles,
+} from "./effects";
+
+function ShotImage({
+  scene,
+  progress,
+  decorative = false,
+}: {
+  scene: Scene;
+  progress: number;
+  decorative?: boolean;
+}) {
+  const region = scene.source_crop;
+  if (!region) {
+    return (
+      <img
+        src={scene.panel.image_url}
+        alt={decorative ? "" : scene.panel.title}
+        style={{
+          ...cameraStyle(scene, progress),
+          objectFit: scene.framing === "fit" ? "contain" : "cover",
+        }}
+      />
+    );
+  }
+
+  // Preserve the original page as the single image. Position that full image
+  // behind a virtual source window instead of creating a cropped media file.
+  const aspect =
+    (scene.panel.width * region.width) / (scene.panel.height * region.height);
+  const view = 9 / 16;
+  const width = aspect > view ? 100 : (aspect / view) * 100;
+  const height = aspect > view ? (view / aspect) * 100 : 100;
+  const { zoom, x, y } = cameraPosition(scene, progress);
+  return (
+    <div
+      aria-label={
+        decorative ? undefined : "Cropped panel from complete comic page"
+      }
+      style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+    >
+      {/* Match the FFmpeg zoompan filter: move the full fitted stage under a
+          stationary 9:16 viewport, not the center of the cropped artwork. */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          transformOrigin: "top left",
+          transform: `translate(${-x * (zoom - 1) * 100}%, ${-y * (zoom - 1) * 100}%) scale(${zoom})`,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            overflow: "hidden",
+            left: `${(100 - width) / 2}%`,
+            top: `${(100 - height) / 2}%`,
+            width: `${width}%`,
+            height: `${height}%`,
+          }}
+        >
+          <img
+            src={scene.panel.image_url}
+            alt={decorative ? "" : scene.panel.title}
+            style={{
+              position: "absolute",
+              display: "block",
+              maxWidth: "none",
+              width: `${100 / region.width}%`,
+              height: `${100 / region.height}%`,
+              left: `${(-region.x / region.width) * 100}%`,
+              top: `${(-region.y / region.height) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Preview({
   scenes,
@@ -398,29 +480,14 @@ export default function Preview({
                   style={layers.previous}
                   aria-hidden="true"
                 >
-                  <img
-                    src={previous.panel.image_url}
-                    alt=""
-                    style={{
-                      ...cameraStyle(previous, 1),
-                      objectFit:
-                        previous.framing === "fit" ? "contain" : "cover",
-                    }}
-                  />
+                  <ShotImage scene={previous} progress={1} decorative />
                 </div>
               )}
               <div
                 className="preview-layer"
                 style={blending ? layers.current : undefined}
               >
-                <img
-                  src={current.panel.image_url}
-                  alt={current.panel.title}
-                  style={{
-                    ...cameraStyle(current, progress),
-                    objectFit: current.framing === "fit" ? "contain" : "cover",
-                  }}
-                />
+                <ShotImage scene={current} progress={progress} />
               </div>
               {project.logo_url && (
                 <img

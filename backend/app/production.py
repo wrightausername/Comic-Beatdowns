@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from PIL import Image
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
@@ -458,7 +458,9 @@ def classify_file(filename):
         )
     if path.suffix.lower() == ".srt":
         return "captions"
-    raise ValueError("Choose images, PDF, CBZ, audio, or SRT captions")
+    if path.suffix.lower() in {".txt", ".md"}:
+        return "script"
+    raise ValueError("Choose images, PDF, CBZ, audio, TXT/MD scripts, or SRT captions")
 
 
 def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
@@ -467,6 +469,18 @@ def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
         raise ValueError("File exceeds 64 MB")
     if kind == "auto":
         kind = classify_file(filename)
+    if kind == "script":
+        if Path(filename).suffix.lower() not in {".txt", ".md"}:
+            raise ValueError("Choose a TXT or Markdown script")
+        script = raw.decode("utf-8-sig")
+        if not script.strip() or len(script) > 20_000 or "\x00" in script:
+            raise ValueError("Choose a UTF-8 script with 1 to 20,000 characters")
+        if project.script == script:
+            if commit:
+                db.commit()
+            return "Script is already imported"
+        if project.script.strip():
+            raise ValueError("This project already has a script. Edit it in Verdict script.")
     remember(db, project)
     if kind == "panels":
         panels = []
@@ -516,6 +530,10 @@ def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
             setattr(project, f"{kind}_key", key)
             setattr(project, f"{kind}_duration", duration)
         message = f"Added {kind}"
+    elif kind == "script":
+        project.script = script
+        project.workflow = {**(project.workflow or {}), "storyboard": []}
+        message = "Imported episode script"
     elif kind == "captions":
         from .audio import parse_srt
         from .schemas import CaptionList
@@ -525,7 +543,7 @@ def ingest_file(db, project, raw, filename, kind, storage, config, commit=True):
         ]
         message = "Imported timed captions"
     else:
-        raise ValueError("Choose panels, narration, music, sound effect, or captions")
+        raise ValueError("Choose panels, narration, music, sound effect, script, or captions")
     touch(project, invalidate_approval=True)
     if commit:
         db.commit()
@@ -540,15 +558,18 @@ async def import_project_file(
     kind: str = Form("auto"),
     db: Session = Depends(session),
 ):
-    project = get_or_404(db, Project, project_id)
+    filename = Path(file.filename or "file.png").name[:240]
     raw = await upload_bytes(file, request.app.state.settings.max_upload_bytes)
+    if kind == "script" or (kind == "auto" and Path(filename).suffix.lower() in {".txt", ".md"}):
+        db.execute(text("BEGIN IMMEDIATE"))
+    project = get_or_404(db, Project, project_id)
     try:
         message = await run_in_threadpool(
             ingest_file,
             db,
             project,
             raw,
-            Path(file.filename or "file.png").name[:240],
+            filename,
             kind,
             request.app.state.storage,
             request.app.state.settings,

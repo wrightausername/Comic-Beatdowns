@@ -222,12 +222,16 @@ def build_draft(project, scenes, panels, options, pauses, effects):
             reasons.append("Locked shot preserved")
             cursor += scene["duration"]
             continue
+        if scene.get("camera_path"):
+            reasons.append("Custom camera route preserved")
+            cursor += scene["duration"]
+            continue
         middle = start + cursor + scene["duration"] / 2
         card = next((c for c in cards if c["start"] <= middle < c["end"]), None)
         if card is None and cards:
             card = min(cards, key=lambda c: abs(c["start"] - middle))
         why = ["Paced to narration"]
-        if options.match_panels and card:
+        if options.match_panels and card and not scene.get("source_crop"):
             scene["panel_id"] = card["panel_id"]
             why.append(card["reason"])
         beat = card.get("beat", "custom") if card else "custom"
@@ -243,7 +247,7 @@ def build_draft(project, scenes, panels, options, pauses, effects):
                     scene[key] = getattr(old, key)
             else:
                 scene.update(motion="hold", transition="cut")
-        elif beat in BEATS:
+        elif beat in BEATS and scene.get("motion") != "panel_glide":
             scene.update(BEATS[beat], beat=beat, framing="fit" if beat == "read" else "fill")
             if beat == "hit" and index % 2:
                 scene["motion"] = "impact_shake"

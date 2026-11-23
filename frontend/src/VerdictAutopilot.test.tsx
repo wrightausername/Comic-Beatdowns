@@ -58,20 +58,80 @@ test("the guided GUI exposes Basic, Vision, pacing, and preview-first delivery",
     />,
   );
   expect(
-    screen.getByRole("checkbox", { name: "Verdict Autopilot" }),
-  ).toBeChecked();
+    screen.getByRole("button", { name: "Make my video draft" }),
+  ).toBeEnabled();
+  expect(
+    screen.getByText("Optional · change editing style or AI settings"),
+  ).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByText("Optional · change editing style or AI settings"),
+  );
   expect(screen.getByLabelText("Delivery")).toHaveValue("draft");
   expect(screen.getByLabelText("Pacing")).toHaveValue("fast");
   expect(
     screen.getByText(/Basic cannot inspect the artwork/),
   ).toBeInTheDocument();
   expect(
-    screen.getByRole("button", { name: "Let Verdict handle it" }),
+    screen.getByRole("button", { name: "Make my video draft" }),
   ).toBeEnabled();
   await waitFor(() =>
     expect(mocked).toHaveBeenCalledWith("/verdict/connection"),
   );
 });
+test("one click enables a disabled Autopilot safely and generates a draft", async () => {
+  const off = {
+    ...project,
+    autopilot: { ...project.autopilot!, enabled: false },
+  };
+  const enabled = {
+    ...off,
+    revision: 5,
+    autopilot: { ...off.autopilot!, enabled: true },
+  };
+  mocked.mockImplementation(async (path, options) => {
+    if (path === "/verdict/connection") return { configured: false } as never;
+    if (path === "/projects/test") return off as never;
+    if (path === "/projects/test/autopilot") return enabled as never;
+    if (path === "/projects/test/director")
+      return options?.method === "POST"
+        ? ({ id: "new-director", status: "queued", report: {} } as never)
+        : ([] as never);
+    return [] as never;
+  });
+  render(
+    <VerdictAutopilot
+      project={off as Project}
+      dirty={false}
+      busy={false}
+      accept={vi.fn()}
+      perform={async (action) => action()}
+      onChanged={vi.fn()}
+      onReview={vi.fn()}
+      onFixPage={vi.fn()}
+      onError={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Make my video draft" }));
+  await waitFor(() =>
+    expect(mocked).toHaveBeenCalledWith(
+      "/projects/test/autopilot",
+      expect.objectContaining({
+        method: "PUT",
+        body: expect.stringContaining('"enabled":true'),
+      }),
+    ),
+  );
+  await waitFor(() =>
+    expect(mocked).toHaveBeenCalledWith(
+      "/projects/test/director",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ base_revision: 5 }),
+      }),
+    ),
+  );
+});
+
 test("an unsaved editor is not replaced by background results", async () => {
   const accept = vi.fn();
   mocked.mockImplementation(async (path) =>
@@ -149,6 +209,67 @@ test("preview approval requires the review checkbox and the current saved revisi
     ),
   );
   expect(approve).toBeEnabled();
+});
+
+test("Smart Crop review shows source image, focal point, and uncertainty", async () => {
+  mocked.mockImplementation(async (path) =>
+    path === "/verdict/connection"
+      ? { configured: false }
+      : [
+          {
+            id: "crop-run",
+            status: "completed",
+            message: "Preview ready",
+            output_revision: 4,
+            report: {
+              mode: "vision",
+              smart_crops: [
+                {
+                  scene_id: "scene-one",
+                  panel_id: "panel",
+                  start: 1.5,
+                  text: "Batman gets punched.",
+                  target_x: 0.7,
+                  target_y: 0.3,
+                  framing: "fill",
+                  reason: "Fist at the right edge",
+                  confidence: null,
+                  review_required: true,
+                  applied: true,
+                },
+              ],
+            },
+            render: null,
+          },
+        ],
+  );
+  render(
+    <VerdictAutopilot
+      project={project}
+      panels={[
+        {
+          id: "panel",
+          title: "Impact panel",
+          thumbnail_url: "/impact.jpg",
+          image_url: "/impact.jpg",
+        } as never,
+      ]}
+      dirty={false}
+      busy={false}
+      accept={vi.fn()}
+      perform={async (action) => action()}
+      onChanged={vi.fn()}
+      onReview={vi.fn()}
+      onError={vi.fn()}
+    />,
+  );
+  expect(await screen.findByText("Fist at the right edge")).toBeInTheDocument();
+  expect(screen.getByAltText("Impact panel")).toHaveAttribute(
+    "src",
+    "/impact.jpg",
+  );
+  expect(screen.getByText(/Confidence not supplied/)).toBeInTheDocument();
+  expect(screen.getByText(/Smart Crop review/)).toBeInTheDocument();
 });
 
 test("batch import keeps SRT after narration and rejects ambiguous voice tracks", () => {

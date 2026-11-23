@@ -23,6 +23,7 @@ import { PanelPicker, VideoOptions } from "./dialogs";
 import { MotionOptions } from "./EffectOptions";
 import CameraControls from "./CameraControls";
 import Preview from "./Preview";
+import FinishVideo from "./FinishVideo";
 import VerdictAutopilot from "./VerdictAutopilot";
 import GuidedWorkspace from "./GuidedWorkspace";
 import ProductionWorkflow, {
@@ -31,12 +32,14 @@ import ProductionWorkflow, {
   stages,
 } from "./ProductionWorkflow";
 import SceneQuickTools from "./SceneQuickTools";
+import PageShotReview from "./PageShotReview";
 import SceneFeedback from "./SceneFeedback";
-import { fitScenes, splitScene } from "./editing";
+import { fitScenes, splitScene, mergePageShots } from "./editing";
 import useStudioDraft from "./useStudioDraft";
 import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
 import VideoTimeline from "./VideoTimeline";
+import CreatorAssistant from "./CreatorAssistant";
 import EmotionTimeline from "./EmotionTimeline";
 import { parsePerformanceScript } from "./emotion";
 import type {
@@ -571,7 +574,7 @@ export default function Editor({
           {notice}
         </div>
       )}
-      {easyMode ? (
+      {easyMode && !scenes.length ? (
         <GuidedWorkspace
           project={project}
           scenes={scenes}
@@ -609,17 +612,22 @@ export default function Editor({
         />
       ) : (
         <div className="advanced-switch">
-          <span>Full editor: every tool and timeline control is visible.</span>
+          <span>
+            {easyMode
+              ? "Review your shots. Open the timeline for precise edits."
+              : "Full editor: every tool and timeline control is visible."}
+          </span>
           <button
             className="button secondary small-button"
-            onClick={() => changeMode(true)}
+            onClick={() => changeMode(!easyMode)}
           >
-            Return to Easy Mode
+            {easyMode ? "Open full editor" : "Return to Easy Mode"}
           </button>
         </div>
       )}
       <div id="studio-autopilot">
         <VerdictAutopilot
+          panels={panels}
           simple={easyMode}
           autoRunRequest={autoRunRequest}
           project={project}
@@ -651,30 +659,133 @@ export default function Editor({
       )}
       <div className="editor-layout">
         <div className="editor-workspace">
-          <VideoTimeline
+          <CreatorAssistant
             key={projectId}
             project={view}
-            scenes={scenes}
-            effects={effects}
-            cursor={timelineCursor}
-            disabled={busy || Boolean(activeJob)}
-            onChange={(next) => update({ scenes: next })}
-            onProjectChange={update}
-            playing={timelinePlaying}
-            onTogglePlay={() => {
-              setPreviewOverride(null);
-              setTimelinePlayRequest((value) => value + 1);
-            }}
-            onUndo={() => void perform(() => studio.history("undo"), false)}
-            onRedo={() => void perform(() => studio.history("redo"), false)}
-            canUndo={dirty || project.can_undo}
-            canRedo={!dirty && project.can_redo}
+            dirty={dirty}
+            busy={busy || Boolean(activeJob)}
+            perform={perform}
+            accept={accept}
+            onChanged={onChanged}
+            onPreview={setPreviewOverride}
             onSeek={(seconds) => {
-              setTimelineCursor(seconds);
               setPreviewOverride(null);
               setPreviewRequest({ seconds, nonce: Date.now() });
             }}
+            onRenderShot={(start, end) => void render("draft", start, end)}
           />
+          {scenes.length > 0 && (
+            <FinishVideo
+              key={`finish-${projectId}`}
+              project={view}
+              dirty={dirty}
+              busy={busy || Boolean(activeJob)}
+              perform={perform}
+              onQueued={(saved, job) => {
+                accept(saved);
+                setJobs((previous) => [job, ...previous]);
+                setStage("export");
+                onChanged();
+              }}
+              onReviewCopy={() => void render("draft")}
+              onSeek={(seconds) => {
+                setPreviewOverride(null);
+                setPreviewRequest({ seconds, nonce: Date.now() });
+              }}
+            />
+          )}
+          {scenes.length > 0 && (
+            <PageShotReview
+              scenes={scenes}
+              busy={busy}
+              canUndo={dirty || project.can_undo}
+              onPatch={editScene}
+              onMove={(from, to) => {
+                if (!scenes[from]?.locked && !scenes[to]?.locked)
+                  reorder(from, to);
+              }}
+              onRemove={(index) => {
+                if (
+                  !scenes[index].locked &&
+                  window.confirm(
+                    `Remove shot ${index + 1} from the timeline? The original page is safe, and Undo will restore the shot.`,
+                  )
+                )
+                  update({
+                    scenes: scenes.filter((_, i) => i !== index),
+                  });
+              }}
+              onSplit={(index) => {
+                update({
+                  scenes: splitScene(scenes, index, settings.fps),
+                });
+              }}
+              onJoin={(index) => {
+                try {
+                  update({ scenes: mergePageShots(scenes, index) });
+                  setNotice(
+                    "Joined those crops. Total narration timing was preserved.",
+                  );
+                } catch (error) {
+                  onError(errorMessage(error));
+                }
+              }}
+              onDuplicate={(index) => {
+                const source = scenes[index];
+                if (duration + source.duration > 180) return;
+                update({
+                  scenes: [
+                    ...scenes.slice(0, index + 1),
+                    {
+                      ...source,
+                      id: newId(),
+                      locked: false,
+                      sfx_source_id: source.sfx_source_id ?? source.id,
+                    },
+                    ...scenes.slice(index + 1),
+                  ],
+                });
+              }}
+              onReviewVideo={() => setStage("review")}
+              onPreview={(index) => {
+                setPreviewOverride(null);
+                setPreviewRequest({ index, nonce: Date.now() });
+                document.querySelector(".preview-section")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                });
+              }}
+              onUndo={() => void perform(() => studio.history("undo"), false)}
+            />
+          )}
+
+          <details className="creator-advanced-timeline" open={!easyMode}>
+            <summary>Video timeline · advanced editing</summary>
+            <VideoTimeline
+              key={projectId}
+              project={view}
+              scenes={scenes}
+              effects={effects}
+              cursor={timelineCursor}
+              disabled={busy || Boolean(activeJob)}
+              onChange={(next) => update({ scenes: next })}
+              onProjectChange={update}
+              playing={timelinePlaying}
+              onTogglePlay={() => {
+                setPreviewOverride(null);
+                setTimelinePlayRequest((value) => value + 1);
+              }}
+              onUndo={() => void perform(() => studio.history("undo"), false)}
+              onRedo={() => void perform(() => studio.history("redo"), false)}
+              canUndo={dirty || project.can_undo}
+              canRedo={!dirty && project.can_redo}
+              onSeek={(seconds) => {
+                setTimelineCursor(seconds);
+                setPreviewOverride(null);
+                setPreviewRequest({ seconds, nonce: Date.now() });
+              }}
+            />
+          </details>
 
           <div id="studio-workflow">
             <ProductionWorkflow

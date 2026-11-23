@@ -16,28 +16,33 @@ def audio_range(settings, duration):
 def auto_edit(scenes, settings, duration, options, pauses=()):
     if not scenes:
         raise ValueError("Add panels before creating an automatic edit")
-    if any(getattr(scene, "locked", False) for scene in scenes):
-        # Locked shots retain all their settings; distribute remaining time only
-        # across existing unlocked shots instead of replacing their identities.
+    fixed_shots = [
+        bool(getattr(scene, "locked", False) or getattr(scene, "camera_path", None))
+        for scene in scenes
+    ]
+    if any(fixed_shots):
+        # Preserve a creator's route and its duration just like a locked shot.
+        # Fit the remaining narration over the other shots without reordering.
         start, end = audio_range(settings, duration)
         if options.length == "short":
             end = min(end, start + 30)
         fps = settings["fps"]
         total = math.ceil((end - start) * fps - 1e-6)
-        fixed = sum(round(s.duration * fps) for s in scenes if s.locked)
-        unlocked = [s for s in scenes if not s.locked]
+        fixed = sum(round(s.duration * fps) for s, keep in zip(scenes, fixed_shots) if keep)
+        adjustable = fixed_shots.count(False)
         remaining = total - fixed
         minimum = math.ceil(0.25 * fps)
         if (
-            (not unlocked and remaining)
-            or remaining < len(unlocked) * minimum
-            or remaining > len(unlocked) * 30 * fps
+            (not adjustable and remaining)
+            or remaining < adjustable * minimum
+            or remaining > adjustable * 30 * fps
         ):
             raise ValueError(
-                "Locked scenes leave too little or too much time. Unlock a scene or change the narration range."
+                "Locked shots and custom camera routes leave too little or too much time. "
+                "Adjust the shot durations or narration range."
             )
-        result, used_frames = [], 0
-        for scene in scenes:
+        result, adjusted = [], 0
+        for scene, keep in zip(scenes, fixed_shots):
             values = {
                 key: getattr(scene, key, default)
                 for key, default in {
@@ -58,12 +63,19 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                     "sfx_id": None,
                     "sfx_offset": 0,
                     "framing": "fill",
+                    "source_crop": None,
+                    "glide_axis": None,
+                    "glide_start": 0,
+                    "glide_end": 1,
+                    "camera_path": None,
+                    "path_move_fraction": 1,
+                    "path_zoom": 1.4,
                 }.items()
             }
-            if not scene.locked:
-                i = unlocked.index(scene)
-                frames = remaining // len(unlocked) + (i < remaining % len(unlocked))
-                used_frames += frames
+            if not keep:
+                i = adjusted
+                adjusted += 1
+                frames = remaining // adjustable + (i < remaining % adjustable)
                 values.update(
                     duration=frames / fps,
                     motion=("punch_in" if i % 2 == 0 else "pan_right")
@@ -90,6 +102,7 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         if (
             groups
             and groups[-1].panel_id == scene.panel_id
+            and getattr(groups[-1], "source_crop", None) == getattr(scene, "source_crop", None)
             and not scene.caption.strip()
             and not scene.sfx_key
         ):
@@ -142,6 +155,13 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         values = {
             key: getattr(source, key) for key in ("panel_id", "focus_x", "focus_y", "caption")
         }
+        values["source_crop"] = getattr(source, "source_crop", None)
+        values["glide_axis"] = getattr(source, "glide_axis", None)
+        values["glide_start"] = getattr(source, "glide_start", 0)
+        values["glide_end"] = getattr(source, "glide_end", 1)
+        values["camera_path"] = getattr(source, "camera_path", None)
+        values["path_move_fraction"] = getattr(source, "path_move_fraction", 1)
+        values["path_zoom"] = getattr(source, "path_zoom", 1.4)
         result.append(
             {
                 **values,
@@ -154,9 +174,13 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                 "sfx_offset": getattr(source, "sfx_offset", 0) if keep else 0,
                 "caption": source.caption if keep else "",
                 "duration": (boundaries[i + 1] - boundaries[i]) / fps,
-                "motion": (fast_moves if options.pace == "fast" else slow_moves)[
-                    i % (6 if options.pace == "fast" else 5)
-                ],
+                "motion": (
+                    "panel_glide"
+                    if getattr(source, "motion", "") == "panel_glide"
+                    else (fast_moves if options.pace == "fast" else slow_moves)[
+                        i % (6 if options.pace == "fast" else 5)
+                    ]
+                ),
                 "motion_strength": (0.18 + (i % 3) * 0.04) if options.pace == "fast" else 0.08,
                 "easing": "ease_out" if options.pace == "fast" else "smooth",
                 "transition": "slide_left"
@@ -165,6 +189,35 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                 "transition_duration": 0.12 if options.pace == "fast" else 0.25,
             }
         )
+    # Repeated shots from one long panel form ONE continuous guided pan.
+    # The full glide is divided proportional to the exact audio-framed durations.
+    i = 0
+    while i < len(result):
+        first = result[i]
+        if first["motion"] != "panel_glide":
+            i += 1
+            continue
+        j = i + 1
+        while (
+            j < len(result)
+            and result[j]["motion"] == "panel_glide"
+            and result[j]["panel_id"] == first["panel_id"]
+            and result[j].get("source_crop") == first.get("source_crop")
+        ):
+            j += 1
+        total = sum(shot["duration"] for shot in result[i:j])
+        cursor = 0.0
+        for shot in result[i:j]:
+            shot["glide_start"] = round(cursor / total, 6)
+            cursor += shot["duration"]
+            shot["glide_end"] = round(cursor / total, 6)
+            shot["transition"] = "cut"
+        i = j
+    # Ordinary adjacent panels do not warrant arbitrary wipe/slide effects.
+    # Let explicit script-driven beats and manual choices decide transitions.
+    for shot in result:
+        if shot.get("source_crop") is not None:
+            shot["transition"] = "cut"
     updated = {
         **settings,
         "edit_pace": options.pace,

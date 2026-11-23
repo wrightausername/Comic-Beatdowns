@@ -4,6 +4,7 @@ An edit is evidence of change, not evidence that the original AI decision was ba
 Do not feed these observations into generation without creator approval.
 """
 
+from .creator_preferences import DEFAULT_FIELDS
 from .workspace import PROJECT_FIELDS, SCENE_FIELDS
 
 OBSERVED_PROJECT_FIELDS = tuple(key for key in PROJECT_FIELDS if key != "title")
@@ -12,7 +13,7 @@ MAX_CHANGE_ITEMS = 120
 
 
 def summarize_workspace_change(before: dict, after: dict) -> list[dict]:
-    """Return bounded changed field *names* only, with no personal text or media paths."""
+    """Return changed field names and allowlisted setting values, never script text or paths."""
     changes = []
     changed_project = [
         key
@@ -20,7 +21,17 @@ def summarize_workspace_change(before: dict, after: dict) -> list[dict]:
         if before["project"].get(key) != after["project"].get(key)
     ]
     if changed_project:
-        changes.append({"target": "project", "fields": changed_project})
+        item = {"target": "project", "fields": changed_project}
+        old_settings = before["project"].get("settings") or {}
+        new_settings = after["project"].get("settings") or {}
+        defaults = {
+            k: new_settings[k]
+            for k in DEFAULT_FIELDS
+            if k in new_settings and old_settings.get(k) != new_settings[k]
+        }
+        if defaults:
+            item["suggested_defaults"] = defaults
+        changes.append(item)
 
     old = {scene["id"]: scene for scene in before["scenes"]}
     new = {scene["id"]: scene for scene in after["scenes"]}

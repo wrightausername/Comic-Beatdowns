@@ -101,11 +101,26 @@ def scene_frames(duration: float, fps: int) -> int:
 
 
 def prepare_scene_image(
-    source: Path, target: Path, focus_x=0.5, focus_y=0.5, size=(1080, 1920), framing="fill"
+    source: Path,
+    target: Path,
+    focus_x=0.5,
+    focus_y=0.5,
+    size=(1080, 1920),
+    framing="fill",
+    source_crop=None,
 ):
     # Fit before FFmpeg scaling so extreme source aspect ratios cannot allocate
     # an enormous intermediate frame. Pillow crops before resizing.
-    with Image.open(source) as image:
+    with Image.open(source) as opened:
+        image = ImageOps.exif_transpose(opened).convert("RGB")
+        if source_crop:
+            x1 = round(source_crop["x"] * image.width)
+            y1 = round(source_crop["y"] * image.height)
+            x2 = round((source_crop["x"] + source_crop["width"]) * image.width)
+            y2 = round((source_crop["y"] + source_crop["height"]) * image.height)
+            if x2 - x1 < 2 or y2 - y1 < 2:
+                raise ValueError("Source panel crop is too small to render")
+            image = image.crop((x1, y1, x2, y2))
         frame = ImageOps.fit(
             image, size, method=Image.Resampling.LANCZOS, centering=(focus_x, focus_y)
         )
@@ -286,7 +301,12 @@ def mix_audio(snapshot, storage, total, command):
     trim = f"atrim=start={start}" + (f":end={end}" if end is not None else "")
     voice = f"[1:a]{trim},asetpts=PTS-STARTPTS,aresample=48000"
     if settings.get("normalize_voice", False):
-        voice += ",loudnorm=I=-16:TP=-1.5:LRA=11"
+        # loudnorm upsamples to 192 kHz; restore the project's 48 kHz mix rate.
+        voice += ",loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000"
+        # FFmpeg 7.1 loudnorm emits NaN samples for completely silent input.
+        # Remove nonfinite samples before they reach volume/limiter/AAC; keep
+        # every finite sample unchanged, including intentional pauses.
+        voice += r",aeval=if(isnan(val(ch))+isinf(val(ch))\,0\,val(ch)):c=same"
     voice += f",volume={settings.get('voice_volume', 1)},apad,atrim=duration={total}[voice]"
     filters, beds, index = [voice], [], 2
     if snapshot.get("music_key"):
@@ -382,7 +402,10 @@ class RenderService:
                         scene.get("focus_x", 0.5),
                         scene.get("focus_y", 0.5),
                         size,
-                        scene.get("framing", "fill"),
+                        "fit"
+                        if scene.get("motion") == "panel_glide"
+                        else scene.get("framing", "fill"),
+                        scene.get("source_crop"),
                     )
                     render_scene(
                         scene,
@@ -460,6 +483,8 @@ class RenderService:
                     "2",
                     "-c:a",
                     "aac",
+                    "-ar",
+                    "48000",
                     "-b:a",
                     "192k",
                     "-t",

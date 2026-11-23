@@ -1,6 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 function crc32(buffer: Buffer) {
   let crc = -1;
@@ -57,6 +58,13 @@ function silentWav(seconds = 1) {
   audio.write("data", 36);
   audio.writeUInt32LE(audio.length - 44, 40);
   return audio;
+}
+
+async function openTimeline(page: Page) {
+  const section = page.locator("details.creator-advanced-timeline");
+  await expect(section).toBeVisible();
+  if (!(await section.evaluate((el) => el.hasAttribute("open"))))
+    await section.locator(":scope > summary").click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -653,6 +661,7 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
   );
   await expect(approve).toBeDisabled();
   await expect(card.getByText(/No timed speech found/)).toBeVisible();
+  await openTimeline(page);
   const timeline = page.getByRole("region", { name: "Video edit timeline" });
   await expect(timeline).toBeVisible();
   await expect(
@@ -705,7 +714,7 @@ test("Easy Mode walks a first-time creator through missing inputs without preten
   await expect(page.getByText("Drop project files here")).toBeVisible();
   const autopilot = page.getByRole("region", { name: "Verdict Autopilot" });
   await expect(
-    autopilot.getByRole("button", { name: "Generate my video preview" }),
+    autopilot.getByRole("button", { name: "Make my video draft" }),
   ).toBeDisabled();
   await guide.getByRole("button", { name: "Open full editor" }).click();
   await expect(
@@ -734,6 +743,7 @@ test("AI timeline edits persist after reload", async ({ page }) => {
   await expect(
     card.getByRole("button", { name: "Approve & export 1080p" }),
   ).toBeVisible({ timeout: 120_000 });
+  await openTimeline(page);
   const timeline = page.getByRole("region", { name: "Video edit timeline" });
   await timeline.getByRole("button", { name: /Timeline shot 1:/ }).click();
   await timeline
@@ -747,6 +757,7 @@ test("AI timeline edits persist after reload", async ({ page }) => {
     .locator(".project-card")
     .filter({ hasText: "Editable AI timeline" })
     .click();
+  await openTimeline(page);
   await expect(timeline.getByLabel("Timeline shot camera")).toHaveValue(
     "impact_shake",
   );
@@ -765,6 +776,7 @@ test("AI timeline edits persist after reload", async ({ page }) => {
     .locator(".project-card")
     .filter({ hasText: "Editable AI timeline" })
     .click();
+  await openTimeline(page);
   await expect(
     timeline.getByRole("button", { name: /Timeline shot/ }),
   ).toHaveCount(count + 1);
@@ -827,6 +839,7 @@ test("direct timeline dragging, trim handles, playback, caption editing and mixe
       .getByRole("region", { name: "Verdict Autopilot", exact: true })
       .getByRole("button", { name: "Approve & export 1080p" }),
   ).toBeVisible({ timeout: 120_000 });
+  await openTimeline(page);
   const timeline = page.getByRole("region", { name: "Video edit timeline" });
   const saved = () =>
     expect(page.getByLabel("Autosave status")).toHaveText("All changes saved");
@@ -847,6 +860,12 @@ test("direct timeline dragging, trim handles, playback, caption editing and mixe
     .toBeGreaterThan(0);
   await timeline.getByRole("button", { name: "Pause timeline" }).click();
   await timeline.getByRole("button", { name: "Snap on", exact: true }).click();
+  // Director readiness can precede the render-history poll by one interval.
+  // Wait for actual native dragging to be enabled before exercising the gesture.
+  await expect(timeline.locator(".video-clip").first()).toHaveAttribute(
+    "draggable",
+    "true",
+  );
   const before = await read();
   await timeline
     .locator(".video-clip")
@@ -927,6 +946,7 @@ test("direct timeline dragging, trim handles, playback, caption editing and mixe
     .locator(".project-card")
     .filter({ hasText: "Direct timeline editing" })
     .click();
+  await openTimeline(page);
   await timeline.getByRole("tab", { name: "Caption editor" }).click();
   await expect(timeline.getByLabel("Timeline caption words")).toHaveValue(
     "Owner revised this beat.",
@@ -944,4 +964,317 @@ test("direct timeline dragging, trim handles, playback, caption editing and mixe
       { timeout: 120_000 },
     )
     .toBe("completed");
+});
+
+test("episode folder queues pages in order and imports script and voice", async ({
+  page,
+}, testInfo) => {
+  const folder = testInfo.outputPath("Episode intake");
+  await mkdir(folder, { recursive: true });
+  await Promise.all([
+    writeFile(join(folder, "page-10.png"), originalPng()),
+    writeFile(join(folder, "page-2.png"), originalPng()),
+    writeFile(join(folder, "episode.md"), "Verdict explains the first punch."),
+    writeFile(join(folder, "voice.wav"), silentWav(2)),
+    writeFile(join(folder, "unrelated.json"), "{}"),
+  ]);
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  const chooser = page.getByLabel("Episode folder", { exact: true });
+  await chooser.setInputFiles(folder);
+  await chooser.setInputFiles(folder);
+  await expect(page.getByLabel("Project title", { exact: true })).toHaveValue(
+    "Episode intake",
+  );
+  await expect(page.getByLabel("New project role for voice.wav")).toHaveValue(
+    "narration",
+  );
+  await expect(
+    page.getByLabel("New project role for unrelated.json"),
+  ).toHaveValue("skip");
+  const pages = page.getByRole("combobox", {
+    name: /New project role for page/,
+  });
+  await expect(pages).toHaveCount(2);
+  await expect(pages.first()).toHaveAccessibleName(
+    "New project role for page-2.png",
+  );
+
+  const imported: { status: number; body: Record<string, unknown> }[] = [];
+  page.on("response", async (response) => {
+    if (response.url().endsWith("/import-file")) {
+      imported.push({ status: response.status(), body: await response.json() });
+    }
+  });
+  await page.getByRole("button", { name: "Create project" }).click();
+  await expect
+    .poll(() => imported.map((item) => item.status))
+    .toEqual([201, 201, 201, 201]);
+  const { project } = imported.find(
+    (item) => item.body.message === "Added narration",
+  )!.body as {
+    project: {
+      script: string;
+      workflow: { panel_ids: string[] };
+      narration_url: string;
+    };
+  };
+  expect(project.script).toBe("Verdict explains the first punch.");
+  expect(project.workflow.panel_ids).toHaveLength(2);
+  expect(project.narration_url).toBeTruthy();
+});
+
+test("dropping an episode folder reads all batches and nested files", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  const dropzone = page.locator(".project-dropzone");
+  await dropzone.evaluate((element) => {
+    const fileEntry = (fullPath: string) => ({
+      isFile: true,
+      fullPath,
+      file: (done: (file: File) => void) =>
+        done(new File(["image fixture"], fullPath.split("/").at(-1)!)),
+    });
+    const directory = (batches: object[][]) => ({
+      isDirectory: true,
+      createReader: () => ({
+        readEntries: (done: (entries: object[]) => void) =>
+          done(batches.shift() ?? []),
+      }),
+    });
+    const root = directory([
+      [directory([[fileEntry("/Dropped episode/Pages/page-10.png")]])],
+      [directory([[fileEntry("/Dropped episode/Pages/page-2.png")]])],
+    ]);
+    const dataTransfer = new DataTransfer();
+    Object.defineProperty(dataTransfer, "items", {
+      value: [{ webkitGetAsEntry: () => root }],
+    });
+    element.dispatchEvent(
+      new DragEvent("drop", { bubbles: true, dataTransfer }),
+    );
+  });
+  const pages = page.getByRole("combobox", {
+    name: /New project role for page/,
+  });
+  await expect(pages).toHaveCount(2);
+  await expect(pages.first()).toHaveAccessibleName(
+    "New project role for page-2.png",
+  );
+  await expect(page.getByLabel("Project title", { exact: true })).toHaveValue(
+    "Dropped episode",
+  );
+  await expect(page.getByText(/Add an ElevenLabs MP3 or WAV/)).toBeVisible();
+});
+
+test("pasted AI editing plan previews, applies, undoes and seeds the preferred recipe", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "assistant-art.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(4) },
+    {
+      name: "words.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:02,000\nOriginal subtitle.\n\n2\n00:00:02,000 --> 00:00:04,000\nSecond subtitle.\n",
+      ),
+    },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Assistant proposal workflow");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Verdict Autopilot", exact: true })
+      .getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const box = page.getByRole("region", { name: "Creator editing assistant" });
+  await box
+    .getByText(
+      "Fix just this · paste an instruction or a ChatGPT editing plan",
+      { exact: true },
+    )
+    .click();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Assistant proposal workflow",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  const before = await read();
+  const plan = {
+    version: 1,
+    project_id: id,
+    base_revision: before.revision,
+    caption_edits: [
+      { index: 0, changes: { text: "Owner corrected subtitle." } },
+    ],
+    edits: [
+      {
+        scene_id: before.scenes[0].id,
+        changes: { framing: "fit", motion: "hold", camera_path: null },
+      },
+    ],
+  };
+  await box
+    .getByLabel("Paste an editing instruction")
+    .fill(
+      "ChatGPT suggested this:\n```json\n" + JSON.stringify(plan) + "\n```",
+    );
+  await box
+    .getByRole("button", { name: "Preview proposed changes", exact: true })
+    .click();
+  const proposed = box.getByLabel("Proposed editing changes");
+  await expect(
+    proposed.getByRole("button", { name: "Apply reviewed changes" }),
+  ).toBeVisible();
+  expect((await read()).revision).toBe(before.revision);
+  await proposed.getByRole("button", { name: "Watch proposed edit" }).click();
+  await expect(
+    page.getByText("Previewing proposed / saved edit", { exact: false }),
+  ).toBeVisible();
+  expect((await read()).revision).toBe(before.revision);
+  await proposed
+    .getByRole("button", { name: "Apply reviewed changes" })
+    .click();
+  await expect(box.getByText("Changes applied", { exact: true })).toBeVisible();
+  const edited = await read();
+  expect(edited.scenes[0].framing).toBe("fit");
+  expect(edited.caption_cues[0].text).toBe("Owner corrected subtitle.");
+  expect(edited.narration_url).toBe(before.narration_url);
+  await page.getByRole("button", { name: "Undo", exact: true }).first().click();
+  await expect
+    .poll(async () => (await read()).scenes[0].framing)
+    .toBe(before.scenes[0].framing);
+  await box
+    .getByText("My recipe and learning · optional", { exact: true })
+    .click();
+  await box.getByLabel("Preferred recipe name").fill("Creator workflow recipe");
+  await box
+    .getByRole("button", { name: "Use this video as my preferred recipe" })
+    .click();
+  await expect(box.getByText(/Preferred recipe saved/)).toBeVisible();
+  const prefs = await (
+    await page.request.get("/api/creator-preferences")
+  ).json();
+  expect(prefs.template_id).toBeTruthy();
+  const created = await (
+    await page.request.post("/api/projects", {
+      data: { title: "Recipe inherits automatically" },
+    })
+  ).json();
+  expect(created.settings.caption_style).toBe(
+    (await read()).settings.caption_style,
+  );
+  await box.screenshot({ path: testInfo.outputPath("pasted-edit-plan.png") });
+  await page.request.put("/api/creator-preferences", {
+    data: { template_id: null, observe_edits: true },
+  });
+});
+
+test("check and export scans the current render and requires creator approval", async ({
+  page,
+}) => {
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "finish-art.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(2) },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Check and export workflow");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Verdict Autopilot", exact: true })
+      .getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const project = (await (await page.request.get("/api/projects")).json()).find(
+    (p: { title: string }) => p.title === "Check and export workflow",
+  );
+  const read = async () =>
+    (await page.request.get(`/api/projects/${project.id}`)).json();
+  const before = await read();
+  expect(before.script_approved).toBe(false);
+  const finish = page.getByRole("region", {
+    name: "Finish video",
+    exact: true,
+  });
+  await finish
+    .getByRole("button", { name: "Check and export", exact: true })
+    .click();
+  await expect(
+    finish
+      .getByText("The mix is nearly silent", { exact: false })
+      .or(finish.getByText("Nearly silent mix", { exact: false })),
+  ).toBeVisible();
+  const approve = finish.getByRole("button", {
+    name: "Approve and export · 1080p",
+  });
+  await expect(approve).toBeDisabled();
+  expect((await read()).script_approved).toBe(false);
+  await finish
+    .getByLabel("I reviewed this video and accept the warnings", {
+      exact: true,
+    })
+    .check();
+  await expect(approve).toBeEnabled();
+  // A second-window change invalidates this checked revision even before the UI reloads.
+  await page.request.patch(`/api/projects/${project.id}`, {
+    data: { title: "Changed finishing workflow" },
+  });
+  await approve.click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "changed in another window" }),
+  ).toBeVisible();
+  expect((await read()).script_approved).toBe(false);
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Changed finishing workflow" })
+    .click();
+  await expect(
+    finish.getByRole("button", { name: "Check and export", exact: true }),
+  ).toBeVisible();
+  await finish
+    .getByRole("button", { name: "Check and export", exact: true })
+    .click();
+  await expect(finish.getByLabel("Export checks")).toBeVisible();
+  await finish
+    .getByLabel("I reviewed this video and accept the warnings", {
+      exact: true,
+    })
+    .check();
+  const queued = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/projects/${project.id}/finish-export`) &&
+      response.status() === 202,
+  );
+  await finish
+    .getByRole("button", { name: "Approve and export · 1080p" })
+    .click();
+  const result = await (await queued).json();
+  expect(result.job.quality).toBe("final");
+  expect(result.project.script_approved).toBe(true);
+  expect(result.project.narration_url).toBe(before.narration_url);
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/renders/${result.job.id}`)).json())
+          .status,
+      { timeout: 120_000 },
+    )
+    .toBe("completed");
+  const final = await (
+    await page.request.get(`/api/renders/${result.job.id}`)
+  ).json();
+  expect((await page.request.get(final.download_url)).status()).toBe(200);
 });
