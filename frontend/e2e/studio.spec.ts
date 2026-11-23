@@ -1171,3 +1171,104 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
     data: { template_id: null, observe_edits: true },
   });
 });
+
+test("check and export scans the current render and requires creator approval", async ({
+  page,
+}) => {
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "finish-art.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(2) },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Check and export workflow");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Verdict Autopilot", exact: true })
+      .getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const project = (await (await page.request.get("/api/projects")).json()).find(
+    (p: { title: string }) => p.title === "Check and export workflow",
+  );
+  const read = async () =>
+    (await page.request.get(`/api/projects/${project.id}`)).json();
+  const before = await read();
+  expect(before.script_approved).toBe(false);
+  const finish = page.getByRole("region", {
+    name: "Finish video",
+    exact: true,
+  });
+  await finish
+    .getByRole("button", { name: "Check and export", exact: true })
+    .click();
+  await expect(
+    finish
+      .getByText("The mix is nearly silent", { exact: false })
+      .or(finish.getByText("Nearly silent mix", { exact: false })),
+  ).toBeVisible();
+  const approve = finish.getByRole("button", {
+    name: "Approve and export · 1080p",
+  });
+  await expect(approve).toBeDisabled();
+  expect((await read()).script_approved).toBe(false);
+  await finish
+    .getByLabel("I reviewed this video and accept the warnings", {
+      exact: true,
+    })
+    .check();
+  await expect(approve).toBeEnabled();
+  // A second-window change invalidates this checked revision even before the UI reloads.
+  await page.request.patch(`/api/projects/${project.id}`, {
+    data: { title: "Changed finishing workflow" },
+  });
+  await approve.click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "changed in another window" }),
+  ).toBeVisible();
+  expect((await read()).script_approved).toBe(false);
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Changed finishing workflow" })
+    .click();
+  await expect(
+    finish.getByRole("button", { name: "Check and export", exact: true }),
+  ).toBeVisible();
+  await finish
+    .getByRole("button", { name: "Check and export", exact: true })
+    .click();
+  await expect(finish.getByLabel("Export checks")).toBeVisible();
+  await finish
+    .getByLabel("I reviewed this video and accept the warnings", {
+      exact: true,
+    })
+    .check();
+  const queued = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/projects/${project.id}/finish-export`) &&
+      response.status() === 202,
+  );
+  await finish
+    .getByRole("button", { name: "Approve and export · 1080p" })
+    .click();
+  const result = await (await queued).json();
+  expect(result.job.quality).toBe("final");
+  expect(result.project.script_approved).toBe(true);
+  expect(result.project.narration_url).toBe(before.narration_url);
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get(`/api/renders/${result.job.id}`)).json())
+          .status,
+      { timeout: 120_000 },
+    )
+    .toBe("completed");
+  const final = await (
+    await page.request.get(`/api/renders/${result.job.id}`)
+  ).json();
+  expect((await page.request.get(final.download_url)).status()).toBe(200);
+});

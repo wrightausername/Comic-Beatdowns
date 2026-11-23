@@ -83,6 +83,17 @@ episodes. Repeated settings corrections across three distinct episodes propose
 Creative DNA defaults for explicit approval, with disable/opt-out/erase controls.
 No installer changes or automatic publication are included.
 
+Choose **Check and export** when the edit looks right. It checks the saved
+revision and, when a full render of that same revision exists, decodes that MP4
+locally to check its streams, vertical dimensions, duration, black intervals,
+silence and near-zero audio peaks. Old renders and section previews do not count
+as a full-video scan. Use **Render full review copy** when needed. Black or
+silent sections can be intentional, so they are review warnings rather than
+automatic edits. After reviewing the video and warnings, check the review box
+and choose **Approve and export · 1080p**. A later edit invalidates the check;
+the server rechecks the revision and blocking source problems before queuing
+the existing renderer. Nothing is published.
+
 ## Video timeline
 
 Easy Mode and the full editor show the current edit on a shared video timeline.

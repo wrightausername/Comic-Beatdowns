@@ -18,8 +18,9 @@ Do not create another unrelated flow/editor, claim Codex chat is automatically s
 
 ## Active PRs and implementation reality
 
-| Area | Reference | Status as verified Nov 15, 2026 |
+| Area | Reference | Status with verification dates below |
 | --- | --- | --- |
+| Combined desktop, page review and creator assistant | [PR #17](https://github.com/wrightausername/Comic-Beatdowns/pull/17), `feature/creator-assistant-workflow`, stacked on #13 | **Open DRAFT; unmerged.** Integrates #13 and current #15/#4. Pasted edit plans, timed-caption edits, review queue, approved defaults and preferred recipes. Nov 22 source `b173b69`: 155 backend / 70 frontend / 11 browser tests and Windows packaged download/native-window checks passed. Nov 23 finishing/media-quality follow-up adds revision-safe explicit approve/export and fixes silent-audio NaNs; exact latest validation/build evidence is maintained in PR #17. P0 irregular pages and actual Windows 10/11 owner acceptance remain open. |
 | Creative DNA learning foundation | [PR #11](https://github.com/wrightausername/Comic-Beatdowns/pull/11), branch `feature/creative-dna-foundation` | **Open DRAFT; not merged into `main`.** Adds private SQLite learning rules, explicit owner approvals, revision-linked Keep/Fix/One-off scene feedback, observations of changed field names, view/pagination, and approved prompt rules. Does not yet autonomously learn semantic style patterns. |
 | Easy Mode and novice-friendly video making | [PR #12](https://github.com/wrightausername/Comic-Beatdowns/pull/12), branch `feature/guided-studio-ux` | **Open DRAFT; stacked on PR #11 (not `main`).** Prominent Make a video entry, beginner guide, missing-material checks, less configuration, direct one-click Autopilot **preview** generation, explicit review, optional advanced editor, preference per video, recoverable existing workflows. |
 | Full-page panel reading + camera traversal | [Issue #14](https://github.com/wrightausername/Comic-Beatdowns/issues/14), extending [draft PR #4](https://github.com/wrightausername/Comic-Beatdowns/pull/4) | **P0 core release requirement, first slice implemented only in [draft PR #15](https://github.com/wrightausername/Comic-Beatdowns/pull/15)**, stacked on unmerged #4. Source-preserving virtual panel shots, per-scene normalized crop, narration-paced elongated-panel glides, FFmpeg export, and manual crop edit controls are committed. **Validated at commit `249600234022d500143408430f037d8791f8c4ad`** via [Linux/browser + Windows CI](https://github.com/wrightausername/Comic-Beatdowns/actions/runs/44935662433): 124 backend, 34 frontend, 5 browser tests, Windows media render, Ruff/Prettier/build all green.
@@ -159,7 +160,7 @@ controls write existing workspace schemas and preserve review/export gates.
 See PR #13 for verified commit, CI and executable provenance.
 
 
-## November 22 creator-assistant integration (in validation)
+## November 22–23 creator-assistant integration — draft PR #17
 
 Branch `feature/creator-assistant-workflow` integrates PR #13's desktop/timeline
 and the current PR #15 full-page camera work (including stacked PR #4), plus
@@ -198,3 +199,42 @@ Validation and executable provenance will be recorded in the feature PR. Do
 not describe this combined branch as installed or production-complete merely
 because it compiles. Whole-page sources, imported files and camera paths remain
 in the existing models/history; no second renderer or editor is introduced.
+
+Verified combined source `b173b698fd317444f9b82ec2a9be69c213a5b2bb`: 155
+backend tests, 70 frontend tests and 11 browser workflows passed in
+[validation run 45084939713](https://github.com/wrightausername/Comic-Beatdowns/actions/runs/45084939713).
+Windows startup/real vertical rendering passed. The single EXE from
+[package run 45084939757](https://github.com/wrightausername/Comic-Beatdowns/actions/runs/45084939757)
+also passed actual downloaded-artifact SHA256, isolated startup and authenticated
+native-window checks on separate Windows Server 2022/2025 runners. Artifact ID
+14779360742 belongs to that exact source, not later changes. This is CI evidence,
+not Windows 10/11 owner acceptance.
+
+The owner's **keep pushing anything left** follow-up adds a finishing pass to
+the same branch/PR, excluding installer work. `Check and export` reuses the
+review queue, checks source assets and (when available) the actual full MP4 for
+the exact saved revision using local FFprobe/FFmpeg. It checks dimensions,
+duration, audio stream, black intervals, silence and near-zero mix peaks.
+It excludes old and section renders, exposes unavailable scans and warnings,
+requires explicit creator review and `Approve and export`, and queues the
+existing 1080×1920 renderer atomically against the reviewed revision. Failed
+queueing rolls back approval; edits require new checks. Black/silent content
+can be intentional and is never automatically removed. This does not establish
+artwork/caption legibility, semantic story alignment, or subjective quality.
+
+Actual silent-audio rendering exposed FFmpeg 7.1 `loudnorm` returning nonfinite
+samples, which volume/limiter/AAC could turn into a full-scale signal. The mix
+now restores 48 kHz after loudnorm and replaces only nonfinite samples with zero
+before subsequent mixing; finite audio is preserved. Final AAC is explicitly
+48 kHz. Regression coverage decodes a real silent vertical master and confirms
+silence stays silent, rather than merely asserting that FFmpeg exits zero.
+The editing brief now includes the selected shot and the user's described
+problem; proposals and learned defaults display readable field names. Final
+follow-up check/build evidence belongs in [PR #17](https://github.com/wrightausername/Comic-Beatdowns/pull/17).
+
+Remaining release work is not hidden by these additions: Issue #14 irregular,
+gutterless/inset/overlapping reading-order/story-aware camera acceptance; more
+reliable script/recording alignment with persisted evidence/confidence; approved
+full-episode ready-to-post packages; creator-episode visual/audio acceptance and
+actual Windows 10/11 trials. Existing offline alignment and publishing controls
+are partial foundations, not proof those backlog outcomes are complete.

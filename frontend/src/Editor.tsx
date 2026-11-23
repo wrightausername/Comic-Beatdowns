@@ -23,6 +23,7 @@ import { PanelPicker, VideoOptions } from "./dialogs";
 import { MotionOptions } from "./EffectOptions";
 import CameraControls from "./CameraControls";
 import Preview from "./Preview";
+import FinishVideo from "./FinishVideo";
 import VerdictAutopilot from "./VerdictAutopilot";
 import GuidedWorkspace from "./GuidedWorkspace";
 import ProductionWorkflow, {
@@ -673,6 +674,26 @@ export default function Editor({
             }}
             onRenderShot={(start, end) => void render("draft", start, end)}
           />
+          {scenes.length > 0 && (
+            <FinishVideo
+              key={`finish-${projectId}`}
+              project={view}
+              dirty={dirty}
+              busy={busy || Boolean(activeJob)}
+              perform={perform}
+              onQueued={(saved, job) => {
+                accept(saved);
+                setJobs((previous) => [job, ...previous]);
+                setStage("export");
+                onChanged();
+              }}
+              onReviewCopy={() => void render("draft")}
+              onSeek={(seconds) => {
+                setPreviewOverride(null);
+                setPreviewRequest({ seconds, nonce: Date.now() });
+              }}
+            />
+          )}
           {scenes.length > 0 && (
             <PageShotReview
               scenes={scenes}

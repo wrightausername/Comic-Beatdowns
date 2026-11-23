@@ -33,6 +33,83 @@ type Rule = {
   updated_at: string;
 };
 
+function fieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    path_move_fraction: "Camera travel time",
+    path_zoom: "Camera zoom",
+    camera_path: "Camera route",
+    source_crop: "Artwork crop",
+    duration: "Shot duration",
+    motion_strength: "Movement amount",
+    motion: "Camera movement",
+    framing: "Artwork framing",
+    easing: "Camera easing",
+    transition: "Cut transition",
+    transition_duration: "Transition duration",
+    focus_x: "Horizontal focus",
+    focus_y: "Vertical focus",
+    caption: "Shot caption",
+    script: "Written script",
+    voice_volume: "Narration volume",
+    sfx_volume: "Sound-effect volume",
+    music_volume: "Music volume",
+    edit_pace: "Editing pace",
+    captions: "Show captions",
+    caption_font_size: "Caption text size",
+    caption_style: "Caption style",
+    caption_position: "Caption position",
+    caption_color: "Caption color",
+    caption_accent: "Caption accent color",
+    duck_audio: "Lower music during speech",
+    normalize_voice: "Normalize narration",
+    default_duration: "Default shot duration",
+    default_motion: "Default camera movement",
+    default_motion_strength: "Default movement amount",
+    default_easing: "Default camera easing",
+  };
+  const cue = /^caption\.(\d+)\.(text|start|end)$/.exec(field);
+  if (cue)
+    return `Subtitle ${cue[1]} · ${cue[2] === "text" ? "Words" : cue[2] === "start" ? "Start time" : "End time"}`;
+  const key = field.replace(/^settings\./, "");
+  return labels[key] ?? key.replaceAll("_", " ");
+}
+
+function friendlyValue(value: unknown): string {
+  if (value === null || value === undefined) return "None";
+  if (typeof value === "boolean") return value ? "On" : "Off";
+  if (Array.isArray(value)) return `${value.length} route points`;
+  if (typeof value === "string") {
+    const names: Record<string, string> = {
+      zoom_in: "Zoom in",
+      zoom_out: "Zoom out",
+      pan_left: "Pan left",
+      pan_right: "Pan right",
+      pan_up: "Pan up",
+      pan_down: "Pan down",
+      panel_glide: "Panel glide",
+      impact_shake: "Impact shake",
+    };
+    return names[value] ?? value;
+  }
+  return JSON.stringify(value);
+}
+
+function preferenceLabel(instruction: string) {
+  const prefix = "Preferred defaults: ";
+  if (!instruction.startsWith(prefix)) return instruction;
+  try {
+    const values = JSON.parse(instruction.slice(prefix.length)) as Record<
+      string,
+      unknown
+    >;
+    return Object.entries(values)
+      .map(([key, value]) => `${fieldLabel(key)}: ${friendlyValue(value)}`)
+      .join(" · ");
+  } catch {
+    return instruction;
+  }
+}
+
 export default function CreatorAssistant({
   project,
   dirty,
@@ -155,6 +232,10 @@ export default function CreatorAssistant({
     );
     const value =
       "Help me fix this Comic Beatdowns video. Ask what I want changed if unclear. Return a single JSON edit plan following this brief, with these exact project/scene IDs and revision. I will paste your plan into the app and review before applying it.\n\n" +
+      (text.trim()
+        ? `My request or observed problem: ${text.trim()}\n\n`
+        : "") +
+      (target ? `Selected shot ID: ${target}\n\n` : "") +
       JSON.stringify(result.context, null, 2);
     setBrief(value);
     try {
@@ -175,10 +256,12 @@ export default function CreatorAssistant({
     setText(
       finding.code === "low_resolution"
         ? "Show the whole panel"
-        : finding.code === "long_static"
-          ? "Use crossfade"
-          : "Show the whole panel",
+        : `${finding.scene_index === null ? "" : `Shot ${finding.scene_index + 1}: `}${finding.message} Suggest a conservative fix I can preview.`,
     );
+    if (finding.code !== "low_resolution")
+      setNotice(
+        "Copy the editing brief for ChatGPT to get a plan for this problem, or use your connected writing AI.",
+      );
     requestAnimationFrame(() =>
       document.getElementById("editing-instruction-box")?.focus(),
     );
@@ -353,12 +436,12 @@ export default function CreatorAssistant({
               <li key={i}>
                 <strong>
                   {c.shot ? `Shot ${c.shot} · ` : ""}
-                  {c.field}
+                  {fieldLabel(c.field)}
                 </strong>
                 <details>
                   <summary>
-                    {describe(c.before)?.slice(0, 90)} →{" "}
-                    {describe(c.after)?.slice(0, 90)}
+                    {friendlyValue(c.before).slice(0, 90)} →{" "}
+                    {friendlyValue(c.after).slice(0, 90)}
                   </summary>
                   <pre>
                     {describe(c.before)}
@@ -686,7 +769,7 @@ export default function CreatorAssistant({
             .filter((r) => r.status !== "rejected")
             .map((rule) => (
               <li key={rule.id}>
-                <code>{rule.instruction}</code> · {rule.status}
+                <span>{preferenceLabel(rule.instruction)}</span> · {rule.status}
                 <button
                   className="text-button"
                   disabled={!ready}

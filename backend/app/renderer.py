@@ -301,7 +301,12 @@ def mix_audio(snapshot, storage, total, command):
     trim = f"atrim=start={start}" + (f":end={end}" if end is not None else "")
     voice = f"[1:a]{trim},asetpts=PTS-STARTPTS,aresample=48000"
     if settings.get("normalize_voice", False):
-        voice += ",loudnorm=I=-16:TP=-1.5:LRA=11"
+        # loudnorm upsamples to 192 kHz; restore the project's 48 kHz mix rate.
+        voice += ",loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000"
+        # FFmpeg 7.1 loudnorm emits NaN samples for completely silent input.
+        # Remove nonfinite samples before they reach volume/limiter/AAC; keep
+        # every finite sample unchanged, including intentional pauses.
+        voice += r",aeval=if(isnan(val(ch))+isinf(val(ch))\,0\,val(ch)):c=same"
     voice += f",volume={settings.get('voice_volume', 1)},apad,atrim=duration={total}[voice]"
     filters, beds, index = [voice], [], 2
     if snapshot.get("music_key"):
@@ -478,6 +483,8 @@ class RenderService:
                     "2",
                     "-c:a",
                     "aac",
+                    "-ar",
+                    "48000",
                     "-b:a",
                     "192k",
                     "-t",
