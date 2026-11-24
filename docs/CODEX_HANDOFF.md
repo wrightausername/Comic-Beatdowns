@@ -20,6 +20,7 @@ Do not create another unrelated flow/editor, claim Codex chat is automatically s
 
 | Area | Reference | Status with verification dates below |
 | --- | --- | --- |
+| Reference-video editing styles | `feature/reference-video-style`, stacked on PR #17 | Nov 24 implementation: local MP4/MOV/WebM reference analysis, private saved recipes, editable beat/effect controls and scoped style proposals through existing preview/apply/Undo and renderer. Verification and exact Windows artifact provenance are maintained in its feature PR. Approximate cut/blend/dip/motion cues; no claim of arbitrary plugin/semantic style reconstruction. |
 | Combined desktop, page review and creator assistant | [PR #17](https://github.com/wrightausername/Comic-Beatdowns/pull/17), `feature/creator-assistant-workflow`, stacked on #13 | **Open DRAFT; unmerged.** Integrates #13 and current #15/#4. Pasted edit plans, timed-caption edits, review queue, approved defaults and preferred recipes. Nov 22 source `b173b69`: 155 backend / 70 frontend / 11 browser tests and Windows packaged download/native-window checks passed. Nov 23 finishing/media-quality follow-up adds revision-safe explicit approve/export and fixes silent-audio NaNs; exact latest validation/build evidence is maintained in PR #17. P0 irregular pages and actual Windows 10/11 owner acceptance remain open. |
 | Creative DNA learning foundation | [PR #11](https://github.com/wrightausername/Comic-Beatdowns/pull/11), branch `feature/creative-dna-foundation` | **Open DRAFT; not merged into `main`.** Adds private SQLite learning rules, explicit owner approvals, revision-linked Keep/Fix/One-off scene feedback, observations of changed field names, view/pagination, and approved prompt rules. Does not yet autonomously learn semantic style patterns. |
 | Easy Mode and novice-friendly video making | [PR #12](https://github.com/wrightausername/Comic-Beatdowns/pull/12), branch `feature/guided-studio-ux` | **Open DRAFT; stacked on PR #11 (not `main`).** Prominent Make a video entry, beginner guide, missing-material checks, less configuration, direct one-click Autopilot **preview** generation, explicit review, optional advanced editor, preference per video, recoverable existing workflows. |
@@ -238,3 +239,47 @@ reliable script/recording alignment with persisted evidence/confidence; approved
 full-episode ready-to-post packages; creator-episode visual/audio acceptance and
 actual Windows 10/11 trials. Existing offline alignment and publishing controls
 are partial foundations, not proof those backlog outcomes are complete.
+
+## November 24 reference-video style workflow
+
+Owner asked to import a video they like, incorporate its effects/pacing into
+an episode, and keep the result tweakable. Branch `feature/reference-video-style`
+is stacked on the verified PR #17 head `8fbe4224050ae5eff5fbf699ad70f9641c9ff752`.
+No draft is merged into main. The whole-page Issue #14 release gate and actual
+Windows 10/11 owner acceptance remain open; installer work remains excluded.
+
+The new workflow reuses `EditProposal`, the assistant's Watch/Apply/Discard
+controls, atomic workspace writes, history, existing camera/transition fields,
+real timeline and FFmpeg renderer. It adds an additive `reference_styles` SQLite
+table and a private video route, not a second editor or compositor. Uploads are
+bounded at 64 MB, demuxers/protocols are restricted, analysis samples at 10 fps
+for 0.5–180 seconds, and local decoding has time/frame/dimension limits. No
+reference audio/artwork is placed in the episode or sent to a provider.
+
+Analysis measures hard visual changes, short light/dark dips, gradual blend
+candidates and coarse motion cues. These are approximate and inspectable;
+character/object motion can resemble camera motion. Text animation, masks,
+background separation, grading, sound design and third-party plugin effects are
+not reconstructed. A recipe can be edited beat by beat (hold, transition,
+camera), named, saved, selected across episodes and deleted with its source.
+Intensity, tempo, channel toggles and a shot range govern proposed application.
+
+Pacing can add consecutive reframings using stable generated IDs and existing
+source panels/crops, preserving source order and exact frame count. Locked
+shots, custom routes and long-panel glides remain unchanged at their original
+times; shot captions and sound placements retain timing. Narration, music,
+logo, script, timed captions and global settings are not changed. Slow reference
+rhythms cannot discard required artwork; fast rhythms respect 240 shots and
+minimum duration. Style and project revisions are checked again on preview/apply;
+recipe changes/deletion invalidate pending proposals. Applied edits remain
+ordinary editable shots and render after reference deletion.
+
+Validation includes synthetic original reference MP4s with actual cuts, flashes
+and crossfades, immutable preview, deterministic shot IDs, locks/routes/timing,
+caption/SFX preservation, stale scope/version rejection, offline privacy,
+authenticated byte ranges, malformed input and lock recovery, 30-fps rounding,
+240-shot capacity, exact Undo and real 1080×1920 FFmpeg rendering/decoding.
+Playwright exercises actual import, recipe tweaks/save/reload, intensity,
+proposal/watch/apply/Undo and reference playback. `make check`, `make e2e`,
+Windows reference/media tests and downloaded-EXE/native-window checks are required;
+exact final source/check/build evidence belongs in the feature PR.

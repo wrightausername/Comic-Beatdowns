@@ -307,3 +307,18 @@ class ReviewDismissal(Base):
     revision: Mapped[int] = mapped_column(Integer)
     finding_id: Mapped[str] = mapped_column(String)
     reason: Mapped[str] = mapped_column(String)
+
+
+class ReferenceStyle(Base):
+    __tablename__ = "reference_styles"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    name: Mapped[str] = mapped_column(String)
+    source_name: Mapped[str] = mapped_column(String)
+    storage_key: Mapped[str] = mapped_column(String)
+    media_type: Mapped[str] = mapped_column(String)
+    fingerprint: Mapped[str] = mapped_column(String, index=True)
+    duration: Mapped[float] = mapped_column(Float)
+    analysis: Mapped[dict] = mapped_column(JSON)
+    recipe: Mapped[dict] = mapped_column(JSON)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[str] = mapped_column(String, default=now)

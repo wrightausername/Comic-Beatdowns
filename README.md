@@ -94,6 +94,39 @@ and choose **Approve and export · 1080p**. A later edit invalidates the check;
 the server rechecks the revision and blocking source problems before queuing
 the existing renderer. Nothing is published.
 
+## Use a reference video's editing style
+
+Open **Use a video's editing style · reference and tweak** in the editing
+assistant. Import an MP4, MOV or WebM reference (up to 64 MB), optionally choose
+a range, and select **Analyze reference video**. A blank end analyzes up to
+60 seconds; a selected range can cover 0.5–180 seconds. Analysis and saved
+reference footage stay local and require no AI subscription.
+
+Review suggested cuts, brief light/dark dips, gradual blend candidates and
+camera-motion cues against the playable reference. These are approximate visual
+measurements; movement inside footage can resemble camera motion. The analyzer
+does not identify text animation, masks, isolated characters, grading, sound
+design or third-party effects. Reference pictures, music and voices are never
+inserted into an episode.
+
+Under **Tweak and save this style recipe**, edit each beat's duration, entry
+transition and camera effect, plus transition duration and movement amount.
+Save a named recipe to reuse it in other episodes. Choose intensity, pacing
+multiplier, which parts to transfer, and either the whole timeline or a shot
+range. **Propose this reference style** uses the existing before/after review,
+**Watch proposed edit**, **Apply reviewed changes**, Discard and Undo workflow.
+
+Pacing can add editable reframings and redistribute visual cuts while keeping
+the exact total frame count, recording and timed subtitles. Existing artwork
+stays in order. Locked shots, custom camera paths and long-panel glides keep
+their timing and fields; shot captions and sound placements retain their timing.
+The existing 240-shot limit and minimum shot duration constrain very fast
+references; preserving every source shot can constrain slower references.
+Review visual cuts against the narration before approving export. After Apply,
+all generated shots use the ordinary timeline and existing FFmpeg renderer.
+Changing a video or saved recipe invalidates pending proposals. Deleting a
+reference removes its local source/recipe and leaves already-applied edits intact.
+
 ## Video timeline
 
 Easy Mode and the full editor show the current edit on a shared video timeline.

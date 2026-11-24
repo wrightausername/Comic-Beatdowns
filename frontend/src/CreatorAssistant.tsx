@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { api, json } from "./api";
+import ReferenceStyle from "./ReferenceStyle";
 import type { Project, VideoSettings } from "./types";
 import { errorMessage, timelineSeconds, timecode } from "./utils";
 
-type Proposal = {
+export type Proposal = {
   id: string;
   base_revision: number;
   status: string;
   changes: { shot?: number; field: string; before: unknown; after: unknown }[];
-  plan: { script?: string | null };
+  plan: { script?: string | null; kind?: string };
 };
 type Finding = {
   id: string;
@@ -413,6 +414,16 @@ export default function CreatorAssistant({
           </details>
         )}
       </details>
+      <ReferenceStyle
+        project={project}
+        busy={!ready}
+        run={run}
+        onProposed={(value) => {
+          setProposal(value);
+          onPreview(null);
+        }}
+        onNotice={setNotice}
+      />
       {proposal && (
         <div
           className="assistant-proposal"
