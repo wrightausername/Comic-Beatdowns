@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MessageSquare } from "lucide-react";
 import { api, json } from "./api";
 import ReferenceStyle from "./ReferenceStyle";
 import type { Project, RenderJob, VideoSettings } from "./types";
@@ -337,12 +338,16 @@ export default function CreatorAssistant({
     >
       <div className="section-heading">
         <div>
-          <h3>Fix just what needs fixing</h3>
+          <span className="eyebrow">STYLE & EDITING</span>
+          <h3>Your editing toolkit</h3>
           <p>
-            Tell Verdict what to change, or paste a plan written by ChatGPT.
-            Preview first, apply when it looks right, and Undo any applied edit.
+            Borrow a reference style or ask for a change. Preview the result,
+            apply it when you're happy, and Undo whenever you need.
           </p>
         </div>
+        <a className="workspace-back-link" href="#studio-tools">
+          All tools ↑
+        </a>
       </div>
       {error && (
         <p role="alert" className="inline-error">
@@ -355,12 +360,17 @@ export default function CreatorAssistant({
         </p>
       )}
       <details
+        id="studio-editing-instructions"
         className="assistant-request"
         open={askOpen}
         onToggle={(e) => setAskOpen(e.currentTarget.open)}
       >
-        <summary>
-          Fix just this · paste an instruction or a ChatGPT editing plan
+        <summary className="tool-disclosure-heading">
+          <MessageSquare size={22} aria-hidden="true" />
+          <span>
+            <strong>AI editing assistant</strong>
+            <small>Describe a fix or paste an editing plan from ChatGPT.</small>
+          </span>
         </summary>
         <label>
           Shot to fix
@@ -693,7 +703,11 @@ export default function CreatorAssistant({
           )}
         </div>
       )}
-      <details className="assistant-review" open={active.length > 0}>
+      <details
+        id="studio-review-queue"
+        className="assistant-review"
+        open={active.length > 0}
+      >
         <summary>
           Review queue · {active.length} item{active.length === 1 ? "" : "s"}{" "}
           needing attention
@@ -810,7 +824,7 @@ export default function CreatorAssistant({
           ))}
         </ol>
       </details>
-      <details className="assistant-preferences">
+      <details id="studio-recipe-preferences" className="assistant-preferences">
         <summary>My recipe and learning · optional</summary>
         <p>
           Your preferred recipe starts new episodes with saved captions, pacing,

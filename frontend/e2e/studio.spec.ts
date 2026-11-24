@@ -79,6 +79,89 @@ test.beforeEach(async ({ page }) => {
   ).toBeVisible();
 });
 
+test("workspace tools are discoverable, keyboard accessible and usable on mobile", async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Find every editing tool");
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  const tools = page.getByRole("region", { name: "Workspace tools" });
+  await expect(tools).toBeVisible();
+  await page.getByRole("button", { name: "Return to Easy Mode" }).click();
+  await expect(tools.getByRole("button", { name: /^Open / })).toHaveCount(6);
+  await expect(
+    tools.getByRole("button", { name: "Open Review & export" }),
+  ).toBeDisabled();
+  await expect(
+    tools.getByText("Add or generate shots to unlock export."),
+  ).toBeVisible();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Find every editing tool",
+  ).id;
+  const initial = await (await page.request.get(`/api/projects/${id}`)).json();
+  await tools.screenshot({
+    path: testInfo.outputPath("workspace-tools-desktop.png"),
+  });
+  await tools.getByRole("button", { name: "Open Reference style" }).focus();
+  await page.keyboard.press("Enter");
+  const reference = page.locator("#studio-reference-style");
+  await expect(reference.getByLabel("Reference video file")).toBeVisible();
+  await expect(reference.locator(":scope > summary")).toBeFocused();
+  await tools
+    .getByRole("button", { name: "Open AI editing assistant" })
+    .click();
+  await expect(page.getByLabel("Paste an editing instruction")).toBeVisible();
+  await expect(
+    page.locator("#studio-editing-instructions > summary"),
+  ).toBeFocused();
+  await tools.getByRole("button", { name: "Open Video timeline" }).click();
+  await expect(
+    page.getByRole("region", { name: "Video edit timeline", exact: true }),
+  ).toBeVisible();
+  await tools.getByRole("button", { name: "Saved defaults" }).click();
+  await expect(page.getByLabel("Preferred recipe name")).toBeVisible();
+  await tools
+    .getByRole("button", { name: "Review queue", exact: true })
+    .click();
+  await expect(page.locator("#studio-review-queue > summary")).toBeFocused();
+  await tools.getByRole("button", { name: "Open Make a draft" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Make your video draft" }),
+  ).toBeFocused();
+  await tools.getByRole("button", { name: "Open Add files" }).click();
+  await expect(
+    page.getByRole("heading", { name: "1. Add your files" }),
+  ).toBeFocused();
+  expect(await (await page.request.get(`/api/projects/${id}`)).json()).toEqual(
+    initial,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await tools.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBeTruthy();
+  await tools.screenshot({
+    path: testInfo.outputPath("workspace-tools-mobile.png"),
+  });
+  await tools.getByRole("button", { name: "Open Reference style" }).click();
+  await expect(reference.getByLabel("Reference video file")).toBeInViewport();
+  await expect(
+    page.getByRole("button", { name: "Return to Easy Mode" }),
+  ).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("import, crop, sequence, approve, upload narration, render, and download", async ({
   page,
 }, testInfo) => {
@@ -1096,12 +1179,7 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
       .getByRole("button", { name: "Approve & export 1080p" }),
   ).toBeVisible({ timeout: 120_000 });
   const box = page.getByRole("region", { name: "Creator editing assistant" });
-  await box
-    .getByText(
-      "Fix just this · paste an instruction or a ChatGPT editing plan",
-      { exact: true },
-    )
-    .click();
+  await box.getByText("AI editing assistant", { exact: true }).click();
   const projects = await (await page.request.get("/api/projects")).json();
   const id = projects.find(
     (p: { title: string }) => p.title === "Assistant proposal workflow",
@@ -1123,6 +1201,21 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
       },
     ],
   };
+  const workspaceTools = page.getByRole("region", { name: "Workspace tools" });
+  await workspaceTools.getByRole("button", { name: "Camera & crops" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Review your video, shot by shot" }),
+  ).toBeFocused();
+  await workspaceTools
+    .getByRole("button", { name: "Open Review & export" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Ready to export?" }),
+  ).toBeFocused();
+  expect(await read()).toEqual(before);
+  await workspaceTools
+    .getByRole("button", { name: "Open AI editing assistant" })
+    .click();
   await box
     .getByLabel("Paste an editing instruction")
     .fill(
@@ -1362,7 +1455,10 @@ test("reference video style analyzes, saves tweaks and applies real editable sho
     .click();
   const before = await read();
   const styleBox = page.locator("details.reference-style");
-  await styleBox.locator(":scope > summary").click();
+  await page
+    .getByRole("region", { name: "Workspace tools" })
+    .getByRole("button", { name: "Open Reference style" })
+    .click();
   await styleBox.getByLabel("Reference video file").setInputFiles(reference);
   const imported = page.waitForResponse(
     (r) =>

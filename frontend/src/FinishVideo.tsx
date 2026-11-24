@@ -60,8 +60,20 @@ export default function FinishVideo({
     }
   }
   return (
-    <section className="surface finish-video" aria-label="Finish video">
-      <h3>Ready to export?</h3>
+    <section
+      id="studio-finish-video"
+      className="surface finish-video"
+      aria-label="Finish video"
+    >
+      <div className="finish-video-heading">
+        <div>
+          <span className="eyebrow">REVIEW & EXPORT</span>
+          <h3>Ready to export?</h3>
+        </div>
+        <a className="workspace-back-link" href="#studio-tools">
+          All tools ↑
+        </a>
+      </div>
       <p>
         Check this saved edit, review any warnings, then approve one 1080 × 1920
         master.

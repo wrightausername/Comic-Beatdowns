@@ -58,7 +58,14 @@ Stop other servers before running browser tests, which own ports 8000 and 5173. 
 
 ## Tell Verdict what to fix
 
-Open **Fix just this · paste an instruction or a ChatGPT editing plan** and select
+Every project now starts with a **Workspace tools** panel: **Add files**,
+**Make a draft**, **Reference style**, **AI editing assistant**, **Video timeline**
+and **Review & export**. Choose a card to open its section directly. Camera/crop
+review, the review queue and saved defaults have visible shortcuts underneath.
+Export stays visibly unavailable until shots exist. File setup appears before
+the draft builder; detailed timeline controls remain expandable.
+
+Open **AI editing assistant** from that panel and select
 a shot. Local examples include **Show the whole panel**, **Hold the shot**,
 **Make the camera slower**, **Use crossfade**, and **Hold for 2 seconds**.
 **Preview proposed changes** lists the exact fields before/after without saving
@@ -96,8 +103,8 @@ the existing renderer. Nothing is published.
 
 ## Use a reference video's editing style
 
-Open **Use a video's editing style · reference and tweak** in the editing
-assistant. Import an MP4, MOV or WebM reference (up to 64 MB), optionally choose
+Choose **Reference style** in Workspace tools to open **Reference video style**.
+Import an MP4, MOV or WebM reference (up to 64 MB), optionally choose
 a range, and select **Analyze reference video**. A blank end analyzes up to
 60 seconds; a selected range can cover 0.5–180 seconds. The default visual and
 audio-transient analysis runs locally and requires no AI subscription.

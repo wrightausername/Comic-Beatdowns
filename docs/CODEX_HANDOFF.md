@@ -340,3 +340,24 @@ It does not rebuild or change the tested source `e80ed05427b6ee564fe6e8a1c05dea1
 merge draft PRs, or claim production/owner-PC acceptance. Prefer the fixed
 GitHub release download over five-minute signed chat links. Confirm the
 workflow and anonymous download before handing off that URL.
+
+## November 24 workspace discoverability and presentation
+
+Owner reported that new features were too hidden and requested clearer
+organization and visual polish. Branch `feature/workspace-tool-discovery`
+is stacked on PR #18 at `ca1d298`. It preserves the existing editor and data.
+
+A visible Workspace tools panel exposes Add files, Make a draft, Reference
+style, AI editing assistant, Video timeline, and Review & export. Camera/crops,
+review queue and saved-default shortcuts are also visible. Cards open existing
+sections, expand the relevant disclosure, scroll and move keyboard focus without
+mutating the project. Export explains its requirement for shots before enabling.
+Files come before the draft builder; shot/timeline review comes before finishing.
+Reference/AI/timeline disclosures have clear titles, descriptions and icons;
+spacing, contrast and responsive cards give the workspace a consistent hierarchy.
+Detailed controls stay available without forcing a switch to the full editor.
+
+Validation and fresh Windows EXE provenance are recorded in the feature PR.
+The prior owner-preview EXE remains the earlier build until a new, verified
+workspace-preview link is explicitly provided. No installer or main merge;
+Issue #14 irregular pages and owner Windows 10/11 acceptance remain open.
