@@ -322,3 +322,15 @@ class ReferenceStyle(Base):
     recipe: Mapped[dict] = mapped_column(JSON)
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[str] = mapped_column(String, default=now)
+
+
+class ReferenceStyleVersion(Base):
+    __tablename__ = "reference_style_versions"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    reference_id: Mapped[str] = mapped_column(
+        ForeignKey("reference_styles.id", ondelete="CASCADE"), index=True
+    )
+    revision: Mapped[int] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(String)
+    recipe: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[str] = mapped_column(String, default=now)

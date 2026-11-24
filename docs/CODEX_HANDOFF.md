@@ -20,7 +20,7 @@ Do not create another unrelated flow/editor, claim Codex chat is automatically s
 
 | Area | Reference | Status with verification dates below |
 | --- | --- | --- |
-| Reference-video editing styles | `feature/reference-video-style`, stacked on PR #17 | Nov 24 implementation: local MP4/MOV/WebM reference analysis, private saved recipes, editable beat/effect controls and scoped style proposals through existing preview/apply/Undo and renderer. Verification and exact Windows artifact provenance are maintained in its feature PR. Approximate cut/blend/dip/motion cues; no claim of arbitrary plugin/semantic style reconstruction. |
+| Reference-video editing styles | [Draft PR #18](https://github.com/wrightausername/Comic-Beatdowns/pull/18), `feature/reference-video-style`, stacked on PR #17 | Nov 24: local reference analysis plus structure/tag mapping, pause/subtitle-aligned cuts, per-beat evidence and overrides, opt-in vision interpretation, immutable rendered proposals, versioned/portable recipes. Exact source/Windows artifact evidence is maintained in PR #18. Approximate supported effects, not arbitrary plugin reconstruction; actual owner Windows 10 acceptance remains open. |
 | Combined desktop, page review and creator assistant | [PR #17](https://github.com/wrightausername/Comic-Beatdowns/pull/17), `feature/creator-assistant-workflow`, stacked on #13 | **Open DRAFT; unmerged.** Integrates #13 and current #15/#4. Pasted edit plans, timed-caption edits, review queue, approved defaults and preferred recipes. Nov 22 source `b173b69`: 155 backend / 70 frontend / 11 browser tests and Windows packaged download/native-window checks passed. Nov 23 finishing/media-quality follow-up adds revision-safe explicit approve/export and fixes silent-audio NaNs; exact latest validation/build evidence is maintained in PR #17. P0 irregular pages and actual Windows 10/11 owner acceptance remain open. |
 | Creative DNA learning foundation | [PR #11](https://github.com/wrightausername/Comic-Beatdowns/pull/11), branch `feature/creative-dna-foundation` | **Open DRAFT; not merged into `main`.** Adds private SQLite learning rules, explicit owner approvals, revision-linked Keep/Fix/One-off scene feedback, observations of changed field names, view/pagination, and approved prompt rules. Does not yet autonomously learn semantic style patterns. |
 | Easy Mode and novice-friendly video making | [PR #12](https://github.com/wrightausername/Comic-Beatdowns/pull/12), branch `feature/guided-studio-ux` | **Open DRAFT; stacked on PR #11 (not `main`).** Prominent Make a video entry, beginner guide, missing-material checks, less configuration, direct one-click Autopilot **preview** generation, explicit review, optional advanced editor, preference per video, recoverable existing workflows. |
@@ -254,7 +254,8 @@ real timeline and FFmpeg renderer. It adds an additive `reference_styles` SQLite
 table and a private video route, not a second editor or compositor. Uploads are
 bounded at 64 MB, demuxers/protocols are restricted, analysis samples at 10 fps
 for 0.5–180 seconds, and local decoding has time/frame/dimension limits. No
-reference audio/artwork is placed in the episode or sent to a provider.
+reference audio/artwork is placed in the episode. Default analysis is local;
+the optional explicitly consented vision workflow below can share reference frames.
 
 Analysis measures hard visual changes, short light/dark dips, gradual blend
 candidates and coarse motion cues. These are approximate and inspectable;
@@ -283,3 +284,47 @@ Playwright exercises actual import, recipe tweaks/save/reload, intensity,
 proposal/watch/apply/Undo and reference playback. `make check`, `make e2e`,
 Windows reference/media tests and downloaded-EXE/native-window checks are required;
 exact final source/check/build evidence belongs in the feature PR.
+
+### November 24 smart-style refinement
+
+The owner's follow-up asks for a fully developed, intelligent adaptation rather
+than averaged/repeating pacing. PR #18 now maps the reference's relative opening,
+middle and ending positions by default, with optional loop mode and existing
+hit/reveal/reaction/read scene tags. Narration pauses are measured locally and
+subtitle boundaries can guide nearby cuts; these are not word-level alignment
+or proof of story comprehension. Anchors and algorithm version are frozen in
+the proposal, and old pending proposals retain their original compiler.
+
+Each beat has source time/evidence, reviewed-effect flags, per-beat blend,
+strength, easing, purpose and enabled controls. Unreviewed effects and white
+flashes default off. Intensity scales effect strength/frequency; minimum holds,
+reading protection and deterministic effect limits constrain dense references.
+Dense analysis samples across the full excerpt, keeping its ending. Slower
+recipes may consolidate adjacent equivalent artwork but never discard distinct
+source art. A proposal explains limits and traces mapped shots to reference beats.
+
+Optional style understanding uses the configured vision connection only after
+an explicit unchecked consent box. It sends up to 18 small sampled reference
+frames and the recipe, not reference audio or the creator's episode assets.
+Strict bounded suggestions cannot execute code or change timing/routes, are
+returned as an unsaved candidate and need acceptance/save. Evidence and
+uncertainty are qualitative; unsupported effects remain clearly listed. Model
+transport/validation is tested with a mock provider, not a live paid model.
+
+The assistant can render an actual 360p proposed draft through the existing
+FFmpeg queue without changing SQLite timeline state. Proposal renders are
+marked in history and excluded from current-video review/approval. Apply and
+Undo remain revision checked. Recipes can be copied, re-excerpted independently,
+restored from 20 prior versions, and exported/imported as JSON up to 1 MiB;
+backups contain neither media paths nor credentials. Shared reference video is
+deleted only after its final style; legacy unreviewed effects migrate safely.
+
+Verification adds real narration/SRT timing, editable effect rendering, exact
+Undo, imported-caption preservation, dense/short/low-intensity cases, history
+limits, backup roundtrip including Unicode, vision consent/rejection and the
+complete browser review/render/recovery flow. Local `make check` passed 188
+backend / 70 frontend tests, lint, formatting and production build; `make e2e`
+passed all 14 workflows. The final trace assertions also passed in all 17 focused
+intelligence tests. Final exact counts, source SHA
+and Windows build/download checks are recorded in PR #18. The Issue #14 P0 gate,
+actual owner Windows 10/11 acceptance and installer exclusion still apply.

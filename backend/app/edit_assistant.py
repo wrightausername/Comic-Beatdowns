@@ -486,6 +486,7 @@ def proposal_dict(row):
         "plan": row.plan,
         "changes": row.changes,
         "status": row.status,
+        "report": next((c["after"] for c in row.changes if c["field"] == "Style adaptation"), None),
     }
 
 
@@ -598,6 +599,31 @@ def preview(project_id: str, proposal_id: str, db=Depends(session)):
     return workspace_preview(project, workspace, db)
 
 
+@router.post("/projects/{project_id}/assistant/proposals/{proposal_id}/render", status_code=202)
+def render_proposal(
+    project_id: str, proposal_id: str, data: Revision, request: Request, db=Depends(session)
+):
+    from .api import queue_render_for_state
+
+    with request.app.state.render_lock:
+        project = locked_project(db, project_id, data.base_revision)
+        row = db.get(EditProposal, proposal_id)
+        if row is None or row.project_id != project_id or row.status != "proposed":
+            raise HTTPException(409, "Choose a pending proposal before rendering it")
+        try:
+            workspace, _ = compile_proposal(row.plan, project, db)
+        except (ValueError, TypeError) as error:
+            raise HTTPException(422, str(error)) from error
+        return queue_render_for_state(
+            project_id,
+            request.app.state,
+            db,
+            quality="draft",
+            workspace=workspace,
+            proposal_id=proposal_id,
+        )
+
+
 @router.get("/projects/{project_id}/review-queue")
 def review_queue(project_id: str, request: Request, db=Depends(session)):
     project = get_project(db, project_id)
@@ -662,7 +688,11 @@ def review_queue(project_id: str, request: Request, db=Depends(session)):
                 )
     render = db.scalar(
         select(RenderJob)
-        .where(RenderJob.project_id == project_id, RenderJob.project_revision == project.revision)
+        .where(
+            RenderJob.project_id == project_id,
+            RenderJob.project_revision == project.revision,
+            RenderJob.snapshot["proposal_id"].as_string().is_(None),
+        )
         .order_by(RenderJob.created_at.desc())
         .limit(1)
     )

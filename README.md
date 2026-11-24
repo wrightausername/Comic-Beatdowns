@@ -99,8 +99,8 @@ the existing renderer. Nothing is published.
 Open **Use a video's editing style · reference and tweak** in the editing
 assistant. Import an MP4, MOV or WebM reference (up to 64 MB), optionally choose
 a range, and select **Analyze reference video**. A blank end analyzes up to
-60 seconds; a selected range can cover 0.5–180 seconds. Analysis and saved
-reference footage stay local and require no AI subscription.
+60 seconds; a selected range can cover 0.5–180 seconds. The default visual and
+audio-transient analysis runs locally and requires no AI subscription.
 
 Review suggested cuts, brief light/dark dips, gradual blend candidates and
 camera-motion cues against the playable reference. These are approximate visual
@@ -109,12 +109,31 @@ does not identify text animation, masks, isolated characters, grading, sound
 design or third-party effects. Reference pictures, music and voices are never
 inserted into an episode.
 
-Under **Tweak and save this style recipe**, edit each beat's duration, entry
-transition and camera effect, plus transition duration and movement amount.
-Save a named recipe to reuse it in other episodes. Choose intensity, pacing
-multiplier, which parts to transfer, and either the whole timeline or a shot
-range. **Propose this reference style** uses the existing before/after review,
-**Watch proposed edit**, **Apply reviewed changes**, Discard and Undo workflow.
+The rhythm map seeks the reference and selects a beat. Under **Tweak and save
+this style recipe**, edit duration, entry transition, camera movement, blend
+length, strength, easing and purpose. Evidence distinguishes measured timing
+from suggested effects. Unreviewed suggestions and white flashes are off by
+default. Save a named recipe to reuse in other episodes.
+
+The optional **Ask a vision model to interpret this style** uses the model already configured
+in Verdict Autopilot. After explicit consent, it sends at most 18 small sampled
+reference frames and the recipe to that provider; reference audio, your episode
+artwork and narration are not sent. Review its evidence, uncertainty and effects
+the app cannot reproduce, accept suggestions into the draft, then save. This is
+optional interpretation of sparse frames, not guaranteed reconstruction.
+
+Choose intensity, pacing multiplier, channels and whole-timeline or shot-range
+scope. Smart controls map opening/middle/ending positions by default, match
+existing hit/reveal/reaction/read tags where available, and optionally snap cuts
+to nearby local narration pauses or subtitle boundaries. This does not infer
+word-level script alignment. Loop mapping, minimum readable holds, effect
+frequency, white flashes and unreviewed suggestions remain adjustable.
+
+**Propose this reference style** explains changes and traces mapped shots back
+to reference beats. **Watch proposed edit** shows the editable proposal; the
+render button creates a real 360p FFmpeg preview with its effects and soundtrack
+before applying. Proposal previews do not change the saved timeline or count as
+the current video for approval. Apply, Discard and Undo use the existing workflow.
 
 Pacing can add editable reframings and redistribute visual cuts while keeping
 the exact total frame count, recording and timed subtitles. Existing artwork
@@ -124,8 +143,11 @@ The existing 240-shot limit and minimum shot duration constrain very fast
 references; preserving every source shot can constrain slower references.
 Review visual cuts against the narration before approving export. After Apply,
 all generated shots use the ordinary timeline and existing FFmpeg renderer.
-Changing a video or saved recipe invalidates pending proposals. Deleting a
-reference removes its local source/recipe and leaves already-applied edits intact.
+Changing a video or saved recipe invalidates pending proposals. Copy a recipe,
+analyze another excerpt as a separate style, restore one of its last 20 saved
+versions, or export/import a JSON recipe backup (up to 1 MiB). JSON backups do
+not include video or credentials. Deleting a style leaves already-applied edits
+intact; shared reference footage is retained until its last style is deleted.
 
 ## Video timeline
 

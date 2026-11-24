@@ -90,7 +90,7 @@ def episode(client, image_bytes, protected=False):
     client.put(url + "/scenes", json={"scenes": shots})
     client.post(url + "/narration", files={"file": ("voice.wav", wav_bytes(6), "audio/wav")})
     client.post(
-        url + "/captions/import",
+        url + "/import-file",
         files={
             "file": (
                 "words.srt",
@@ -98,6 +98,7 @@ def episode(client, image_bytes, protected=False):
                 "text/plain",
             )
         },
+        data={"kind": "captions"},
     )
     return url, client.get(url).json()
 
@@ -109,7 +110,16 @@ def propose(client, url, project, style, **options):
             "base_revision": project["revision"],
             "reference_id": style["id"],
             "reference_revision": style["revision"],
-            "options": {"intensity": 1, **options},
+            "options": {
+                "intensity": 1,
+                "mapping": "loop",
+                "minimum_hold": 0.25,
+                "effects_per_minute": 120,
+                "allow_flashes": True,
+                "use_suggestions": True,
+                "align_narration": False,
+                **options,
+            },
         },
     )
 

@@ -3,26 +3,39 @@ import { api, json } from "./api";
 import type { Proposal } from "./CreatorAssistant";
 import { CAMERA_MOVES } from "./effects";
 import { TransitionOptions } from "./EffectOptions";
+import { EasingOptions } from "./EffectOptions";
+import ReferenceUnderstanding from "./ReferenceUnderstanding";
 import type { Project, Scene } from "./types";
 import { errorMessage, timecode } from "./utils";
 
-type Beat = {
+export type Beat = {
   seconds: number;
   transition: Scene["transition"];
   motion: Scene["motion"];
+  transition_duration?: number | null;
+  motion_strength?: number | null;
+  easing?: Scene["easing"];
+  purpose?: "any" | "hit" | "reveal" | "reaction" | "read";
+  source_start?: number | null;
+  evidence?: string;
+  transition_reviewed?: boolean;
+  motion_reviewed?: boolean;
+  enabled?: boolean;
 };
-type Recipe = {
+export type Recipe = {
   beats: Beat[];
   transition_duration: number;
   motion_strength: number;
+  summary?: string;
+  unsupported_effects?: string[];
 };
-type Style = {
+export type Style = {
   id: string;
   name: string;
   revision: number;
   duration: number;
   source_name: string;
-  video_url: string;
+  video_url: string | null;
   recipe: Recipe;
   analysis: {
     start: number;
@@ -30,22 +43,11 @@ type Style = {
     sample_fps: number;
     median_shot_seconds: number;
     limits: string;
+    method?: string;
+    audio?: { available: boolean; accents: number[]; reason: string };
     events: { source_time: number; transition: string; evidence: string }[];
   };
 };
-const supportedMoves = new Set([
-  "hold",
-  "zoom_in",
-  "zoom_out",
-  "pan_left",
-  "pan_right",
-  "pan_up",
-  "pan_down",
-  "punch_in",
-  "punch_out",
-  "breathe",
-  "impact_shake",
-]);
 
 export default function ReferenceStyle({
   project,
@@ -77,12 +79,47 @@ export default function ReferenceStyle({
     [last, setLast] = useState(0);
   const [error, setError] = useState(""),
     [videoError, setVideoError] = useState(false);
+  const [mapping, setMapping] = useState<"structure" | "loop">("structure");
+  const [align, setAlign] = useState(true),
+    [minimumHold, setMinimumHold] = useState(0.5);
+  const [effectLimit, setEffectLimit] = useState(24),
+    [flashes, setFlashes] = useState(false),
+    [suggestions, setSuggestions] = useState(false);
+  const [focusedBeat, setFocusedBeat] = useState(0),
+    [recipeFile, setRecipeFile] = useState<File | null>(null);
+  const recipeDetails = useRef<HTMLDetailsElement>(null);
+  const [versions, setVersions] = useState<
+    { revision: number; name: string; created_at: string }[]
+  >([]);
   const video = useRef<HTMLVideoElement>(null);
   const scenes = project.scenes ?? [];
   const changed = Boolean(
     selected &&
     (name !== selected.name ||
       JSON.stringify(recipe) !== JSON.stringify(selected.recipe)),
+  );
+  const validAmount = (
+    value: number | null | undefined,
+    low: number,
+    high: number,
+    optional = false,
+  ) =>
+    (optional && value == null) ||
+    (typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= low &&
+      value <= high);
+  const validRecipe = Boolean(
+    recipe &&
+    validAmount(recipe.transition_duration, 0.08, 0.8) &&
+    validAmount(recipe.motion_strength, 0.02, 0.3) &&
+    recipe.beats.length &&
+    recipe.beats.every(
+      (beat) =>
+        validAmount(beat.seconds, 0.25, 30) &&
+        validAmount(beat.transition_duration, 0.08, 0.8, true) &&
+        validAmount(beat.motion_strength, 0.02, 0.3, true),
+    ),
   );
   useEffect(() => {
     let alive = true;
@@ -101,6 +138,11 @@ export default function ReferenceStyle({
     setFirst((value) => Math.min(value, Math.max(0, scenes.length - 1)));
     setLast(Math.max(0, scenes.length - 1));
   }, [project.id, scenes.length]);
+  useEffect(() => {
+    setFocusedBeat((value) =>
+      Math.min(value, Math.max(0, (recipe?.beats.length ?? 1) - 1)),
+    );
+  }, [recipe?.beats.length]);
   function invalidate() {
     onProposed(null);
   }
@@ -109,6 +151,8 @@ export default function ReferenceStyle({
     setName(style?.name ?? "");
     setRecipe(style ? structuredClone(style.recipe) : null);
     setVideoError(false);
+    setFocusedBeat(0);
+    setVersions([]);
     invalidate();
   }
   function adopt(style: Style) {
@@ -116,6 +160,10 @@ export default function ReferenceStyle({
     choose(style);
   }
   function editBeat(index: number, change: Partial<Beat>) {
+    if ("motion" in change || "motion_strength" in change || "easing" in change)
+      change.motion_reviewed = true;
+    if ("transition" in change || "transition_duration" in change)
+      change.transition_reviewed = true;
     if (recipe)
       setRecipe({
         ...recipe,
@@ -231,21 +279,59 @@ export default function ReferenceStyle({
           {busy ? "Analyzing locally…" : "Analyze reference video"}
         </button>
       </details>
+      <details>
+        <summary>Import a saved recipe JSON</summary>
+        <input
+          aria-label="Import style recipe file"
+          type="file"
+          accept=".json"
+          disabled={busy}
+          onChange={(e) => setRecipeFile(e.target.files?.[0] ?? null)}
+        />
+        <button
+          className="button secondary"
+          disabled={busy || !recipeFile}
+          onClick={() =>
+            void run(async () => {
+              if (!recipeFile) return;
+              if (recipeFile.size > 1024 * 1024) {
+                setError("Style recipes must be under 1 MB.");
+                return;
+              }
+              const body = new FormData();
+              body.append("file", recipeFile);
+              adopt(
+                await api<Style>("/reference-styles/import-recipe", {
+                  method: "POST",
+                  body,
+                }),
+              );
+              onNotice(
+                "Style recipe imported. It works without retaining the reference video.",
+              );
+            }, false)
+          }
+        >
+          Import style recipe
+        </button>
+      </details>
       {selected && recipe && (
         <>
-          <video
-            ref={video}
-            key={selected.id}
-            aria-label="Reference video playback"
-            controls
-            preload="metadata"
-            src={selected.video_url}
-            onLoadedMetadata={() => {
-              if (video.current)
-                video.current.currentTime = selected.analysis.start;
-            }}
-            onError={() => setVideoError(true)}
-          />
+          {selected.video_url && (
+            <video
+              ref={video}
+              key={selected.id}
+              aria-label="Reference video playback"
+              controls
+              preload="metadata"
+              src={selected.video_url}
+              onLoadedMetadata={() => {
+                if (video.current)
+                  video.current.currentTime = selected.analysis.start;
+              }}
+              onError={() => setVideoError(true)}
+            />
+          )}
           {videoError && (
             <p className="help">
               This browser cannot play the reference file. The saved recipe is
@@ -253,7 +339,10 @@ export default function ReferenceStyle({
             </p>
           )}
           <p>
-            Measured range {timecode(selected.analysis.start)}–
+            {selected.analysis.method === "imported_recipe"
+              ? "Imported recipe range "
+              : "Measured range "}
+            {timecode(selected.analysis.start)}–
             {timecode(selected.analysis.end)} ·{" "}
             {selected.analysis.events.length} suggested boundaries · typical
             measured hold {selected.analysis.median_shot_seconds.toFixed(2)}s
@@ -266,6 +355,100 @@ export default function ReferenceStyle({
             <summary>Analysis details and supported effects</summary>
             <p className="help">{selected.analysis.limits}</p>
           </details>
+          <div className="reference-rhythm" aria-label="Reference rhythm map">
+            <p>
+              Opening → middle → ending · taller bars represent longer holds
+            </p>
+            <div className="reference-rhythm-bars">
+              {recipe.beats.map((beat, i) => (
+                <button
+                  key={i}
+                  className={focusedBeat === i ? "selected" : ""}
+                  aria-label={`Inspect reference beat ${i + 1}`}
+                  title={`Beat ${i + 1}: ${beat.seconds.toFixed(2)} seconds`}
+                  disabled={busy}
+                  onClick={() => {
+                    setFocusedBeat(i);
+                    if (video.current) {
+                      video.current.currentTime =
+                        beat.source_start ??
+                        selected.analysis.start +
+                          recipe.beats
+                            .slice(0, i)
+                            .reduce((n, b) => n + b.seconds, 0);
+                      video.current.pause();
+                    }
+                  }}
+                  style={{
+                    height: `${Math.max(12, Math.min(80, beat.seconds * 12))}px`,
+                    opacity: beat.enabled === false ? 0.3 : 1,
+                  }}
+                />
+              ))}
+            </div>
+            <p className="help">
+              Beat {Math.min(focusedBeat + 1, recipe.beats.length)}:{" "}
+              {recipe.beats[focusedBeat]?.evidence ??
+                "Creator-defined timing and effects"}
+            </p>
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() => {
+                if (recipeDetails.current) recipeDetails.current.open = true;
+                document
+                  .getElementById(`reference-beat-${focusedBeat}`)
+                  ?.scrollIntoView({ block: "nearest" });
+              }}
+            >
+              Tweak this beat
+            </button>
+          </div>
+          {selected.analysis.audio && (
+            <details>
+              <summary>
+                Reference audio accents ·{" "}
+                {selected.analysis.audio.accents.length} measured transients
+              </summary>
+              <p className="help">{selected.analysis.audio.reason}</p>
+              {selected.analysis.audio.accents.map((stamp, i) => (
+                <button
+                  key={i}
+                  className="text-button"
+                  onClick={() => {
+                    if (video.current)
+                      video.current.currentTime =
+                        selected.analysis.start + stamp;
+                  }}
+                >
+                  {timecode(selected.analysis.start + stamp)}
+                </button>
+              ))}
+            </details>
+          )}
+          {selected.video_url && (
+            <ReferenceUnderstanding
+              style={selected}
+              busy={busy}
+              run={run}
+              onRecipe={(value) => {
+                setRecipe(value);
+                invalidate();
+                if (recipeDetails.current) recipeDetails.current.open = true;
+              }}
+            />
+          )}
+          {recipe.summary && <p className="notice">{recipe.summary}</p>}
+          {!!recipe.unsupported_effects?.length && (
+            <details>
+              <summary>Effects requiring manual work</summary>
+              <ul>
+                {recipe.unsupported_effects.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </details>
+          )}
           <details>
             <summary>Inspect detected cues · approximate, review first</summary>
             <ul>
@@ -294,8 +477,14 @@ export default function ReferenceStyle({
               )}
             </ul>
           </details>
-          <details className="reference-recipe">
+          <details className="reference-recipe" ref={recipeDetails}>
             <summary>Tweak and save this style recipe</summary>
+            {!validRecipe && (
+              <p role="alert" className="inline-error">
+                Check recipe values: holds must be 0.25–30 seconds, blends
+                0.08–0.8 seconds, and movement amounts 0.02–0.3.
+              </p>
+            )}
             <label>
               Style name
               <input
@@ -349,7 +538,12 @@ export default function ReferenceStyle({
             </div>
             <div className="reference-beats">
               {recipe.beats.map((beat, i) => (
-                <div className="reference-beat" key={i}>
+                <div
+                  className="reference-beat"
+                  key={i}
+                  id={`reference-beat-${i}`}
+                  data-selected={focusedBeat === i}
+                >
                   <strong>Beat {i + 1}</strong>
                   <label>
                     Hold · seconds
@@ -393,8 +587,8 @@ export default function ReferenceStyle({
                         })
                       }
                     >
-                      {CAMERA_MOVES.filter((m) =>
-                        supportedMoves.has(m.value),
+                      {CAMERA_MOVES.filter(
+                        (m) => m.value !== "panel_glide",
                       ).map((m) => (
                         <option key={m.value} value={m.value}>
                           {m.label}
@@ -402,6 +596,123 @@ export default function ReferenceStyle({
                       ))}
                     </select>
                   </label>
+                  <details className="reference-beat-detail">
+                    <summary>Evidence, timing and transfer controls</summary>
+                    <p className="help">
+                      {beat.evidence ?? "Creator-defined beat"}
+                    </p>
+                    <div className="form-grid">
+                      <label>
+                        Transition blend · optional seconds
+                        <input
+                          aria-label={`Reference beat ${i + 1} blend`}
+                          type="number"
+                          min="0.08"
+                          max="0.8"
+                          step="0.01"
+                          value={beat.transition_duration ?? ""}
+                          placeholder="Recipe default"
+                          disabled={busy}
+                          onChange={(e) =>
+                            editBeat(i, {
+                              transition_duration: e.target.value
+                                ? +e.target.value
+                                : null,
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Movement amount · optional
+                        <input
+                          aria-label={`Reference beat ${i + 1} strength`}
+                          type="number"
+                          min="0.02"
+                          max="0.3"
+                          step="0.01"
+                          value={beat.motion_strength ?? ""}
+                          placeholder="Recipe default"
+                          disabled={busy}
+                          onChange={(e) =>
+                            editBeat(i, {
+                              motion_strength: e.target.value
+                                ? +e.target.value
+                                : null,
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Motion easing
+                        <select
+                          aria-label={`Reference beat ${i + 1} easing`}
+                          value={beat.easing ?? "smooth"}
+                          disabled={busy}
+                          onChange={(e) =>
+                            editBeat(i, {
+                              easing: e.target.value as Beat["easing"],
+                            })
+                          }
+                        >
+                          <EasingOptions />
+                        </select>
+                      </label>
+                      <label>
+                        Use for matching story beat
+                        <select
+                          aria-label={`Reference beat ${i + 1} purpose`}
+                          value={beat.purpose ?? "any"}
+                          disabled={busy}
+                          onChange={(e) =>
+                            editBeat(i, {
+                              purpose: e.target.value as Beat["purpose"],
+                            })
+                          }
+                        >
+                          {["any", "hit", "reveal", "reaction", "read"].map(
+                            (v) => (
+                              <option key={v} value={v}>
+                                {v}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={beat.enabled !== false}
+                        disabled={busy}
+                        onChange={(e) =>
+                          editBeat(i, { enabled: e.target.checked })
+                        }
+                      />{" "}
+                      Include this beat in style transfer
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={beat.transition_reviewed !== false}
+                        disabled={busy}
+                        onChange={(e) =>
+                          editBeat(i, { transition_reviewed: e.target.checked })
+                        }
+                      />{" "}
+                      I reviewed this transition suggestion
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={beat.motion_reviewed !== false}
+                        disabled={busy}
+                        onChange={(e) =>
+                          editBeat(i, { motion_reviewed: e.target.checked })
+                        }
+                      />{" "}
+                      I reviewed this camera suggestion
+                    </label>
+                  </details>
                   <button
                     className="text-button"
                     aria-label={`Remove reference beat ${i + 1}`}
@@ -438,7 +749,7 @@ export default function ReferenceStyle({
               </button>
               <button
                 className="button secondary"
-                disabled={busy || !changed || !name.trim()}
+                disabled={busy || !changed || !name.trim() || !validRecipe}
                 onClick={() =>
                   void run(async () => {
                     adopt(
@@ -458,6 +769,75 @@ export default function ReferenceStyle({
               >
                 Save tweaked style
               </button>
+              <button
+                className="button secondary"
+                disabled={busy || !name.trim() || !validRecipe}
+                onClick={() =>
+                  void run(async () => {
+                    adopt(
+                      await api<Style>(
+                        `/reference-styles/${selected.id}/copy`,
+                        json({
+                          base_revision: selected.revision,
+                          name: `${name.slice(0, 94)} copy`,
+                          recipe,
+                        }),
+                      ),
+                    );
+                    onNotice(
+                      "Saved as a separate style. The original recipe is intact.",
+                    );
+                  }, false)
+                }
+              >
+                Save as separate style
+              </button>
+              <a
+                className="button secondary"
+                href={`/api/reference-styles/${selected.id}/recipe`}
+                download
+              >
+                Export recipe JSON
+              </a>
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    setVersions(
+                      await api(`/reference-styles/${selected.id}/versions`),
+                    );
+                  }, false)
+                }
+              >
+                Show saved recipe versions
+              </button>
+              {versions.map((version) => (
+                <div key={version.revision}>
+                  <span>
+                    Revision {version.revision} · {version.name}
+                  </span>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        adopt(
+                          await api<Style>(
+                            `/reference-styles/${selected.id}/versions/${version.revision}/restore`,
+                            json({ base_revision: selected.revision }),
+                          ),
+                        );
+                        onNotice(
+                          "Recipe version restored. Existing episode edits remain intact; generate a fresh proposal to use it.",
+                        );
+                      }, false)
+                    }
+                  >
+                    Restore recipe revision {version.revision}
+                  </button>
+                </div>
+              ))}
               <button
                 className="text-button danger"
                 disabled={busy}
@@ -483,6 +863,60 @@ export default function ReferenceStyle({
               </button>
             </div>
           </details>
+          {selected.video_url && (
+            <details>
+              <summary>Analyze a different excerpt · keep this recipe</summary>
+              <div className="form-grid">
+                <label>
+                  New excerpt start
+                  <input
+                    aria-label="Saved reference excerpt start"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={start}
+                    disabled={busy}
+                    onChange={(e) => setStart(+e.target.value)}
+                  />
+                </label>
+                <label>
+                  New excerpt end
+                  <input
+                    aria-label="Saved reference excerpt end"
+                    type="number"
+                    min="0.5"
+                    step="0.1"
+                    value={end}
+                    disabled={busy}
+                    onChange={(e) => setEnd(e.target.value)}
+                  />
+                </label>
+              </div>
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    adopt(
+                      await api<Style>(
+                        `/reference-styles/${selected.id}/excerpt`,
+                        json({
+                          base_revision: selected.revision,
+                          start,
+                          end: end ? +end : null,
+                        }),
+                      ),
+                    );
+                    onNotice(
+                      "Fresh excerpt analysis saved separately. Your previous tweaks remain available.",
+                    );
+                  }, false)
+                }
+              >
+                Analyze excerpt as new style
+              </button>
+            </details>
+          )}
           <h4>How much should this video follow the style?</h4>
           <div className="form-grid">
             <label>
@@ -518,6 +952,96 @@ export default function ReferenceStyle({
               />
             </label>
           </div>
+          <details className="reference-adaptation">
+            <summary>Smart adaptation controls</summary>
+            <label>
+              Rhythm mapping
+              <select
+                aria-label="Reference rhythm mapping"
+                value={mapping}
+                disabled={busy}
+                onChange={(e) => {
+                  setMapping(e.target.value as "structure" | "loop");
+                  invalidate();
+                }}
+              >
+                <option value="structure">
+                  Follow opening → middle → ending
+                </option>
+                <option value="loop">Repeat the beat pattern</option>
+              </select>
+            </label>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={align}
+                disabled={busy}
+                onChange={(e) => {
+                  setAlign(e.target.checked);
+                  invalidate();
+                }}
+              />{" "}
+              Align nearby cuts to narration pauses and subtitle boundaries
+            </label>
+            <div className="form-grid">
+              <label>
+                Minimum readable hold · seconds
+                <input
+                  aria-label="Reference minimum hold"
+                  type="number"
+                  min="0.25"
+                  max="3"
+                  step="0.05"
+                  value={minimumHold}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setMinimumHold(+e.target.value);
+                    invalidate();
+                  }}
+                />
+              </label>
+              <label>
+                Transferred major effects per minute
+                <input
+                  aria-label="Reference effect frequency"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={effectLimit}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setEffectLimit(+e.target.value);
+                    invalidate();
+                  }}
+                />
+              </label>
+            </div>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={flashes}
+                disabled={busy}
+                onChange={(e) => {
+                  setFlashes(e.target.checked);
+                  invalidate();
+                }}
+              />{" "}
+              Allow white-flash transitions
+            </label>
+            <label className="check-label">
+              <input
+                type="checkbox"
+                checked={suggestions}
+                disabled={busy}
+                onChange={(e) => {
+                  setSuggestions(e.target.checked);
+                  invalidate();
+                }}
+              />{" "}
+              Include automatic effect suggestions I have not individually
+              reviewed
+            </label>
+          </details>
           <div className="workflow-actions">
             {(
               [
@@ -602,6 +1126,11 @@ export default function ReferenceStyle({
             disabled={
               busy ||
               changed ||
+              !validRecipe ||
+              minimumHold < 0.25 ||
+              minimumHold > 3 ||
+              effectLimit < 0 ||
+              effectLimit > 120 ||
               !scenes.length ||
               intensity === 0 ||
               (!pacing && !transitions && !camera) ||
@@ -625,6 +1154,12 @@ export default function ReferenceStyle({
                         pacing,
                         transitions,
                         camera,
+                        mapping,
+                        align_narration: align,
+                        minimum_hold: minimumHold,
+                        effects_per_minute: effectLimit,
+                        allow_flashes: flashes,
+                        use_suggestions: suggestions,
                       },
                     }),
                   ),

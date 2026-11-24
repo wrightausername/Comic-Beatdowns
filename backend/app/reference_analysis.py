@@ -1,8 +1,10 @@
 """Bounded offline reference-video measurements, not semantic/plugin recognition."""
 
+import array
 import math
 import statistics
 import subprocess
+import sys
 from collections import Counter
 
 from PIL import Image, ImageChops, ImageStat
@@ -17,6 +19,72 @@ LIMITS = (
     "Text animation, masks, object isolation, sound design, grading and third-party effects are not identified or copied. "
     "Only timing and supported editable effects are transferred; reference artwork, voices and music stay out of your video."
 )
+
+
+def audio_accents(path, settings, start, duration, has_audio):
+    if not has_audio:
+        return {"available": False, "accents": [], "reason": "The reference has no audio stream"}
+    try:
+        result = subprocess.run(
+            [
+                settings.ffmpeg,
+                "-nostdin",
+                "-v",
+                "error",
+                "-threads",
+                "2",
+                "-format_whitelist",
+                "mov,matroska,webm",
+                "-protocol_whitelist",
+                "file,pipe",
+                "-ss",
+                str(start),
+                "-i",
+                str(path),
+                "-t",
+                str(duration),
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-f",
+                "s16le",
+                "-",
+            ],
+            capture_output=True,
+            timeout=40,
+        )
+        if result.returncode:
+            raise ValueError
+        samples = array.array("h", result.stdout)
+        if sys.byteorder != "little":
+            samples.byteswap()
+        rms = [
+            math.sqrt(sum(v * v for v in samples[i : i + 640]) / max(1, len(samples[i : i + 640])))
+            / 32768
+            for i in range(0, len(samples), 640)
+        ]
+        accents = []
+        for i in range(1, len(rms) - 1):
+            baseline = statistics.median(rms[max(0, i - 12) : i] or [0])
+            if (
+                rms[i] > max(0.03, baseline * 2.5)
+                and rms[i] >= max(rms[i - 1], rms[i + 1])
+                and (not accents or i * 0.04 - accents[-1] >= 0.25)
+            ):
+                accents.append(round(i * 0.04, 3))
+        return {
+            "available": True,
+            "accents": accents[:240],
+            "reason": "Measured audio transients; speech and music can both produce these accents. Audio is not copied.",
+        }
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return {
+            "available": False,
+            "accents": [],
+            "reason": "Audio-transient analysis was unavailable",
+        }
 
 
 def difference(a, b):
@@ -68,6 +136,31 @@ def segment_motion(frames, first, last):
     votes = Counter(motion_cue(frames[i], frames[i + step]) for i in points)
     motion, count = votes.most_common(1)[0]
     return motion if motion != "hold" and count >= 2 else global_cue
+
+
+def representative_indices(beats, limit=240):
+    if limit < 2:
+        raise ValueError("A reference summary needs at least its opening and ending beats")
+    if len(beats) <= limit:
+        return list(range(len(beats)))
+    # Preserve the full arc plus distinctive long holds and effect moments.
+    selected = {0, len(beats) - 1}
+    selected.update(
+        sorted(range(len(beats)), key=lambda i: -beats[i]["seconds"])[: min(24, limit // 4)]
+    )
+    effects = [i for i, beat in enumerate(beats) if beat["transition"] not in {"cut", "crossfade"}]
+    effect_slots = min(32, len(effects), max(0, limit - len(selected)))
+    if effect_slots:
+        selected.update(
+            effects[round(i * (len(effects) - 1) / max(1, effect_slots - 1))]
+            for i in range(effect_slots)
+        )
+    remaining = [i for i in range(len(beats)) if i not in selected]
+    slots = limit - len(selected)
+    selected.update(
+        remaining[round(i * (len(remaining) - 1) / max(1, slots - 1))] for i in range(slots)
+    )
+    return sorted(selected)
 
 
 def analyze_reference(path, settings, start=0, end=None):
@@ -254,24 +347,59 @@ def analyze_reference(path, settings, start=0, end=None):
                 "seconds": round(min(30, max(0.25, right - left)), 3),
                 "transition": filtered[i - 1]["transition"] if i else "cut",
                 "motion": motion,
+                "source_start": round(start + left, 3),
+                "transition_duration": filtered[i - 1]["duration"] if i else None,
+                "transition_reviewed": not i or filtered[i - 1]["transition"] == "cut",
+                "motion_reviewed": motion == "hold",
+                "evidence": (
+                    filtered[i - 1]["evidence"] if i else "Opening frame of the selected reference"
+                )
+                + (
+                    "; coarse motion estimate needs review"
+                    if motion != "hold"
+                    else "; no reliable camera movement measured"
+                ),
             }
         )
     # More than 240 beats is not representable in the Studio's existing timeline.
-    beats = beats[:240]
+    sampled_indices = representative_indices(beats)
+    summary = ""
+    if len(sampled_indices) < len(beats):
+        summary = f"Summarized {len(beats)} measured intervals into {len(sampled_indices)} representative beats spanning the full reference, including long holds and effect cues."
+    beats = [beats[i] for i in sampled_indices]
+    display_events = [filtered[i - 1] for i in sampled_indices if i > 0]
     measured_lengths = [right - left for left, right in zip(boundaries, boundaries[1:])]
     analysis = {
-        "version": 1,
+        "version": 3,
         "start": start,
         "end": end,
         "source_width": video["width"],
         "source_height": video["height"],
         "sample_fps": SAMPLE_FPS,
-        "events": [{**e, "source_time": round(start + e["time"], 3)} for e in filtered[:239]],
+        "events": [{**e, "source_time": round(start + e["time"], 3)} for e in display_events],
+        "original_event_count": len(filtered),
         "median_shot_seconds": round(statistics.median(measured_lengths), 3),
         "limits": LIMITS,
+        "audio": audio_accents(
+            path,
+            settings,
+            start,
+            end - start,
+            any(s["codec_type"] == "audio" for s in metadata["streams"]),
+        ),
+        "sections": [
+            {
+                "name": name,
+                "start": round(start + (end - start) * left, 3),
+                "end": round(start + (end - start) * right, 3),
+                "reason": "Position in the reference excerpt, not an inferred story beat",
+            }
+            for name, left, right in [("Opening", 0, 0.2), ("Middle", 0.2, 0.8), ("Ending", 0.8, 1)]
+        ],
     }
     recipe = {
         "beats": beats,
+        "summary": summary,
         "transition_duration": round(
             statistics.median(
                 [e["duration"] for e in filtered if e["transition"] != "cut"] or [0.18]

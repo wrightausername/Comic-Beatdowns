@@ -890,9 +890,11 @@ export default function App() {
                               </span>
                               <h3>{job.title}</h3>
                               <p className="help">
-                                {job.quality === "draft"
-                                  ? "Draft · 360p"
-                                  : "Final · 1080p"}{" "}
+                                {job.proposal_id
+                                  ? "Proposed edit · 360p"
+                                  : job.quality === "draft"
+                                    ? "Draft · 360p"
+                                    : "Final · 1080p"}{" "}
                                 · Revision {job.project_revision} ·{" "}
                                 {new Date(job.created_at).toLocaleString()}
                               </p>
