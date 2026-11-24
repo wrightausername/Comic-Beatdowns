@@ -33,6 +33,14 @@ it("guides users in the correct order and ignores outdated previews", () => {
   ).toBe("working");
   expect(guidedState(ready, [scene], [renderJob], false)).toBe("review");
   expect(
+    guidedState(
+      ready,
+      [scene],
+      [{ ...renderJob, proposal_id: "pending-edit" }],
+      false,
+    ),
+  ).toBe("generate");
+  expect(
     guidedState(ready, [scene], [{ ...renderJob, project_revision: 3 }], false),
   ).toBe("generate");
   expect(

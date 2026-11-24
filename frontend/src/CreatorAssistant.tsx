@@ -1,14 +1,31 @@
 import { useEffect, useState } from "react";
 import { api, json } from "./api";
-import type { Project, VideoSettings } from "./types";
+import ReferenceStyle from "./ReferenceStyle";
+import type { Project, RenderJob, VideoSettings } from "./types";
 import { errorMessage, timelineSeconds, timecode } from "./utils";
 
-type Proposal = {
+export type Proposal = {
   id: string;
   base_revision: number;
   status: string;
   changes: { shot?: number; field: string; before: unknown; after: unknown }[];
-  plan: { script?: string | null };
+  plan: { script?: string | null; kind?: string };
+  report?: {
+    summary: string[];
+    warnings: string[];
+    counts: Record<string, number>;
+    alignment_sources: string[];
+    unsupported_effects: string[];
+    trace?: {
+      shot: number;
+      source_shot: number;
+      reference_beat: number;
+      reference_time: number | null;
+      purpose: string;
+      evidence: string;
+      reason: string;
+    }[];
+  } | null;
 };
 type Finding = {
   id: string;
@@ -78,6 +95,23 @@ function friendlyValue(value: unknown): string {
   if (value === null || value === undefined) return "None";
   if (typeof value === "boolean") return value ? "On" : "Off";
   if (Array.isArray(value)) return `${value.length} route points`;
+  if (typeof value === "number")
+    return Number.isInteger(value)
+      ? String(value)
+      : String(Number(value.toFixed(3)));
+  if (
+    typeof value === "object" &&
+    "source_shot" in value &&
+    "duration" in value
+  ) {
+    const shot = value as {
+      source_shot: number;
+      duration: number;
+      motion?: string;
+      transition?: string;
+    };
+    return `From shot ${shot.source_shot} · ${Number(shot.duration.toFixed(3))}s · ${friendlyValue(shot.motion)} · ${friendlyValue(shot.transition)}`;
+  }
   if (typeof value === "string") {
     const names: Record<string, string> = {
       zoom_in: "Zoom in",
@@ -137,6 +171,7 @@ export default function CreatorAssistant({
   const [useAI, setUseAI] = useState(false),
     [aiReady, setAIReady] = useState(false);
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [proposalRender, setProposalRender] = useState<RenderJob | null>(null);
   const [queue, setQueue] = useState<Queue | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -159,6 +194,30 @@ export default function CreatorAssistant({
   const stale = Boolean(
     proposal && (proposal.base_revision !== project.revision || dirty),
   );
+  useEffect(() => {
+    setProposalRender(null);
+  }, [proposal?.id]);
+  useEffect(() => {
+    if (
+      !proposalRender ||
+      !["queued", "running"].includes(proposalRender.status)
+    )
+      return;
+    let active = true;
+    const timer = setInterval(() => {
+      void api<RenderJob>(`/renders/${proposalRender.id}`)
+        .then((job) => {
+          if (active) setProposalRender(job);
+        })
+        .catch((e) => {
+          if (active) setError(errorMessage(e));
+        });
+    }, 1500);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [proposalRender?.id, proposalRender?.status]);
   useEffect(() => {
     if (!scenes.some((s) => s.id === target)) setTarget(scenes[0]?.id ?? "");
   }, [project.id, project.revision]);
@@ -413,6 +472,16 @@ export default function CreatorAssistant({
           </details>
         )}
       </details>
+      <ReferenceStyle
+        project={project}
+        busy={!ready}
+        run={run}
+        onProposed={(value) => {
+          setProposal(value);
+          onPreview(null);
+        }}
+        onNotice={setNotice}
+      />
       {proposal && (
         <div
           className="assistant-proposal"
@@ -431,26 +500,87 @@ export default function CreatorAssistant({
               applying.
             </p>
           )}
-          <ul>
-            {proposal.changes.map((c, i) => (
-              <li key={i}>
-                <strong>
-                  {c.shot ? `Shot ${c.shot} · ` : ""}
-                  {fieldLabel(c.field)}
-                </strong>
+          {proposal.report && (
+            <div aria-label="Why these style changes">
+              <h4>Why these changes?</h4>
+              <ul>
+                {proposal.report.summary.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              {!!proposal.report.alignment_sources.length && (
+                <p className="help">
+                  Timing evidence:{" "}
+                  {proposal.report.alignment_sources.join("; ")}. This does not
+                  establish word-level or story alignment.
+                </p>
+              )}
+              {!!proposal.report.counts.unreviewed_effects_skipped && (
+                <p className="help">
+                  Skipped {proposal.report.counts.unreviewed_effects_skipped}{" "}
+                  unreviewed automatic effect suggestions.
+                </p>
+              )}
+              {proposal.report.warnings.map((line) => (
+                <p className="notice" key={line}>
+                  {line}
+                </p>
+              ))}
+              {!!proposal.report.unsupported_effects.length && (
                 <details>
-                  <summary>
-                    {friendlyValue(c.before).slice(0, 90)} →{" "}
-                    {friendlyValue(c.after).slice(0, 90)}
-                  </summary>
-                  <pre>
-                    {describe(c.before)}
-                    {"\n→\n"}
-                    {describe(c.after)}
-                  </pre>
+                  <summary>Reference effects needing manual work</summary>
+                  <ul>
+                    {proposal.report.unsupported_effects.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
                 </details>
-              </li>
-            ))}
+              )}
+              {!!proposal.report.trace?.length && (
+                <details>
+                  <summary>Trace each edited shot to the reference</summary>
+                  <ol>
+                    {proposal.report.trace.map((item) => (
+                      <li key={item.shot}>
+                        <strong>
+                          Shot {item.shot} ← reference beat{" "}
+                          {item.reference_beat}
+                          {item.reference_time !== null
+                            ? ` at ${item.reference_time.toFixed(2)}s`
+                            : ""}
+                        </strong>
+                        <p>
+                          {item.reason}. {item.evidence}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              )}
+            </div>
+          )}
+          <ul>
+            {proposal.changes
+              .filter((c) => c.field !== "Style adaptation")
+              .map((c, i) => (
+                <li key={i}>
+                  <strong>
+                    {c.shot ? `Shot ${c.shot} · ` : ""}
+                    {fieldLabel(c.field)}
+                  </strong>
+                  <details>
+                    <summary>
+                      {friendlyValue(c.before).slice(0, 90)} →{" "}
+                      {friendlyValue(c.after).slice(0, 90)}
+                    </summary>
+                    <pre>
+                      {describe(c.before)}
+                      {"\n→\n"}
+                      {describe(c.after)}
+                    </pre>
+                  </details>
+                </li>
+              ))}
           </ul>
           {proposal.plan.script !== null &&
             proposal.plan.script !== undefined && (
@@ -478,6 +608,26 @@ export default function CreatorAssistant({
                 }
               >
                 Watch proposed edit
+              </button>
+              <button
+                className="button secondary"
+                disabled={!ready || stale}
+                onClick={() =>
+                  void run(async () => {
+                    setProposalRender(
+                      await api<RenderJob>(
+                        `/projects/${project.id}/assistant/proposals/${proposal.id}/render`,
+                        json({ base_revision: proposal.base_revision }),
+                      ),
+                    );
+                    onChanged();
+                    setNotice(
+                      "Rendering the proposed edit with the actual effects and audio mix. Your saved video is unchanged.",
+                    );
+                  }, false)
+                }
+              >
+                Render proposed edit · actual effects
               </button>
               <button
                 className="button"
@@ -516,6 +666,29 @@ export default function CreatorAssistant({
               >
                 Discard proposal
               </button>
+            </div>
+          )}
+          {proposalRender && (
+            <div
+              className="proposed-render"
+              aria-label="Rendered proposed edit"
+            >
+              <p>Rendered proposal · {proposalRender.status}</p>
+              {proposalRender.status === "completed" &&
+                proposalRender.video_url && (
+                  <video
+                    aria-label="Proposed edit rendered playback"
+                    controls
+                    preload="metadata"
+                    src={proposalRender.video_url}
+                  />
+                )}
+              {proposalRender.status === "failed" && (
+                <p role="alert" className="inline-error">
+                  {proposalRender.error ||
+                    "Proposed preview failed; your saved edit is unchanged."}
+                </p>
+              )}
             </div>
           )}
         </div>

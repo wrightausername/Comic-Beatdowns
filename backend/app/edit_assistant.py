@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field
 from sqlalchemy import delete, select, text, update
 
-from .api import project_dict, scene_dict, write_workspace
+from .api import project_dict, write_workspace
 from .creative_dna import approved_instructions
 from .creator_preferences import DEFAULT_FIELDS, RULE_PREFIX, approved_defaults, preferences
 from .database import (
@@ -486,7 +486,16 @@ def proposal_dict(row):
         "plan": row.plan,
         "changes": row.changes,
         "status": row.status,
+        "report": next((c["after"] for c in row.changes if c["field"] == "Style adaptation"), None),
     }
+
+
+def compile_proposal(plan, project, db):
+    if plan.get("kind") == "reference_style":
+        from .reference_style import compile_style_plan
+
+        return compile_style_plan(plan, project, db)
+    return compile_plan(Plan.model_validate(plan), project, db)
 
 
 @router.post("/projects/{project_id}/assistant/proposals", status_code=201)
@@ -541,7 +550,7 @@ def apply(project_id: str, proposal_id: str, data: Revision, db=Depends(session)
     if row.status != "proposed" or row.base_revision != project.revision:
         raise HTTPException(409, "This proposal is stale or already applied. Generate a fresh one.")
     try:
-        workspace, _ = compile_plan(Plan.model_validate(row.plan), project, db)
+        workspace, _ = compile_proposal(row.plan, project, db)
         write_workspace(project, workspace, db)
     except (ValueError, TypeError) as error:
         raise HTTPException(422, str(error)) from error
@@ -580,29 +589,39 @@ def preview(project_id: str, proposal_id: str, db=Depends(session)):
     if row is None or row.project_id != project_id or row.status != "proposed":
         raise HTTPException(404, "Pending proposal not found")
     try:
-        workspace, _ = compile_plan(Plan.model_validate(row.plan), project, db)
+        workspace, _ = compile_proposal(row.plan, project, db)
     except (ValueError, TypeError) as error:
         raise HTTPException(
             422, "This proposal can no longer be previewed: " + str(error)
         ) from error
-    result = project_dict(project, db, True)
-    originals = {s["id"]: s for s in result["scenes"]}
-    result["scenes"] = [
-        {
-            **originals[s.id],
-            **s.model_dump(),
-            "panel": scene_dict(project_scenes(db, project.id)[i], db)["panel"],
-        }
-        for i, s in enumerate(workspace.scenes)
-    ]
-    for scene in result["scenes"]:
-        if scene["panel_id"] != scene["panel"]["id"]:
-            from .api import panel_dict
+    from .reference_style import workspace_preview
 
-            scene["panel"] = panel_dict(db.get(Panel, scene["panel_id"]))
-    result["settings"], result["script"] = workspace.settings.model_dump(), workspace.script
-    result["caption_cues"] = [cue.model_dump() for cue in workspace.cues]
-    return result
+    return workspace_preview(project, workspace, db)
+
+
+@router.post("/projects/{project_id}/assistant/proposals/{proposal_id}/render", status_code=202)
+def render_proposal(
+    project_id: str, proposal_id: str, data: Revision, request: Request, db=Depends(session)
+):
+    from .api import queue_render_for_state
+
+    with request.app.state.render_lock:
+        project = locked_project(db, project_id, data.base_revision)
+        row = db.get(EditProposal, proposal_id)
+        if row is None or row.project_id != project_id or row.status != "proposed":
+            raise HTTPException(409, "Choose a pending proposal before rendering it")
+        try:
+            workspace, _ = compile_proposal(row.plan, project, db)
+        except (ValueError, TypeError) as error:
+            raise HTTPException(422, str(error)) from error
+        return queue_render_for_state(
+            project_id,
+            request.app.state,
+            db,
+            quality="draft",
+            workspace=workspace,
+            proposal_id=proposal_id,
+        )
 
 
 @router.get("/projects/{project_id}/review-queue")
@@ -669,7 +688,11 @@ def review_queue(project_id: str, request: Request, db=Depends(session)):
                 )
     render = db.scalar(
         select(RenderJob)
-        .where(RenderJob.project_id == project_id, RenderJob.project_revision == project.revision)
+        .where(
+            RenderJob.project_id == project_id,
+            RenderJob.project_revision == project.revision,
+            RenderJob.snapshot["proposal_id"].as_string().is_(None),
+        )
         .order_by(RenderJob.created_at.desc())
         .limit(1)
     )

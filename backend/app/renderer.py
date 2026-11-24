@@ -31,10 +31,11 @@ def run(command: list[str], *, cwd=None, timeout=600) -> str:
     return result.stdout
 
 
-def probe(path: Path, settings) -> dict:
+def probe(path: Path, settings, formats: str | None = None) -> dict:
     output = run(
         [
             settings.ffprobe,
+            *(["-format_whitelist", formats] if formats else []),
             "-v",
             "error",
             "-protocol_whitelist",

@@ -1678,9 +1678,11 @@ export default function Editor({
                   <Film size={18} />
                   <div>
                     <strong>
-                      {job.quality === "draft"
-                        ? "Draft · 360p"
-                        : "Final · 1080p"}{" "}
+                      {job.proposal_id
+                        ? "Proposed edit · 360p"
+                        : job.quality === "draft"
+                          ? "Draft · 360p"
+                          : "Final · 1080p"}{" "}
                       · Revision {job.project_revision} · {job.status}
                     </strong>
                     <small>{new Date(job.created_at).toLocaleString()}</small>

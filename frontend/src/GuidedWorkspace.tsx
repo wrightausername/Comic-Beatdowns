@@ -29,7 +29,8 @@ export function guidedState(
   const current = jobs.filter(
     (job) =>
       job.project_id === project.id &&
-      job.project_revision === project.revision,
+      job.project_revision === project.revision &&
+      !job.proposal_id,
   );
   if (
     current.some((job) => job.status === "queued" || job.status === "running")
@@ -96,7 +97,8 @@ export default function GuidedWorkspace({
       job.project_id === project.id &&
       job.project_revision === project.revision &&
       job.status === "completed" &&
-      job.quality === "draft",
+      job.quality === "draft" &&
+      !job.proposal_id,
   );
   const plan: Record<
     GuidedState,

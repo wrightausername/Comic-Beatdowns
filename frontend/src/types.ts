@@ -140,6 +140,7 @@ export interface Project {
   autopilot?: AutopilotOptions;
 }
 export interface RenderJob {
+  proposal_id?: string | null;
   id: string;
   project_id: string;
   project_revision: number;

@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { deflateSync } from "node:zlib";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
 
 function crc32(buffer: Buffer) {
   let crc = -1;
@@ -1277,4 +1278,555 @@ test("check and export scans the current render and requires creator approval", 
     await page.request.get(`/api/renders/${result.job.id}`)
   ).json();
   expect((await page.request.get(final.download_url)).status()).toBe(200);
+});
+
+test("reference video style analyzes, saves tweaks and applies real editable shots with undo", async ({
+  page,
+}, testInfo) => {
+  await mkdir(testInfo.outputDir, { recursive: true });
+  const reference = testInfo.outputPath("reference-style.mp4");
+  const command = ["-v", "error", "-filter_complex_threads", "1"];
+  for (const [color, seconds] of [
+    ["red", 1],
+    ["white", 0.1],
+    ["blue", 1],
+    ["green", 1],
+  ])
+    command.push(
+      "-f",
+      "lavfi",
+      "-i",
+      `color=c=${color}:s=160x90:r=20:d=${seconds}`,
+    );
+  command.push(
+    "-filter_complex",
+    "[0:v][1:v][2:v][3:v]concat=n=4:v=1:a=0[v]",
+    "-map",
+    "[v]",
+    "-c:v",
+    "libx264",
+    "-threads",
+    "2",
+    "-pix_fmt",
+    "yuv420p",
+    "-y",
+    reference,
+  );
+  execFileSync(process.env.CB_FFMPEG || "ffmpeg", command, { timeout: 30_000 });
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "my-art.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "my-voice.wav", mimeType: "audio/wav", buffer: silentWav(6) },
+    {
+      name: "my-words.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:03,000\nMy original words.\n\n2\n00:00:03,000 --> 00:00:06,000\nMy second line.\n",
+      ),
+    },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Reference editing workflow");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Verdict Autopilot", exact: true })
+      .getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Reference editing workflow",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  const initial = await read();
+  const reset = await page.request.put(`/api/projects/${id}/scenes`, {
+    data: {
+      scenes: [0, 1, 2].map((i) => ({
+        panel_id: initial.scenes[0].panel_id,
+        duration: 2,
+        motion: "hold",
+        framing: "fit",
+        locked: i === 1,
+      })),
+    },
+  });
+  expect(reset.status()).toBe(200);
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Reference editing workflow" })
+    .click();
+  const before = await read();
+  const styleBox = page.locator("details.reference-style");
+  await styleBox.locator(":scope > summary").click();
+  await styleBox.getByLabel("Reference video file").setInputFiles(reference);
+  const imported = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/reference-styles") &&
+      r.request().method() === "POST",
+  );
+  await styleBox
+    .getByRole("button", { name: "Analyze reference video", exact: true })
+    .click();
+  const source = await (await imported).json();
+  expect(
+    source.analysis.events.some(
+      (e: { transition: string }) => e.transition === "dip_white",
+    ),
+  ).toBe(true);
+  await expect(styleBox.getByLabel("Saved reference style")).toHaveValue(
+    source.id,
+  );
+  await styleBox
+    .getByText("Tweak and save this style recipe", { exact: true })
+    .click();
+  await styleBox
+    .getByLabel("Reference style name", { exact: true })
+    .fill("My punchy reference recipe");
+  for (let i = 1; i <= source.recipe.beats.length; i++)
+    await styleBox
+      .getByLabel(`Reference beat ${i} duration`, { exact: true })
+      .fill("0.5");
+  await styleBox
+    .getByLabel("Reference beat 1 camera", { exact: true })
+    .selectOption("impact_shake");
+  await styleBox
+    .getByLabel("Reference beat 2 transition", { exact: true })
+    .selectOption("slide_left");
+  await styleBox
+    .getByRole("button", { name: "Save tweaked style", exact: true })
+    .click();
+  await expect(
+    page.getByText("Style recipe saved. You can reuse it in any episode.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await styleBox
+    .getByText("Tweak and save this style recipe", { exact: true })
+    .click();
+  await styleBox
+    .getByLabel("Reference style intensity", { exact: true })
+    .press("End");
+  await expect(
+    styleBox.getByLabel("Reference style intensity", { exact: true }),
+  ).toHaveValue("1");
+  await styleBox
+    .getByText("Smart adaptation controls", { exact: true })
+    .click();
+  await styleBox.getByLabel("Reference rhythm mapping").selectOption("loop");
+  await styleBox.getByLabel("Reference effect frequency").fill("120");
+  await styleBox
+    .getByRole("button", { name: "Propose this reference style", exact: true })
+    .click();
+  const proposal = page.getByLabel("Proposed editing changes", { exact: true });
+  await expect(
+    proposal.getByRole("button", {
+      name: "Apply reviewed changes",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect((await read()).revision).toBe(before.revision);
+  await proposal
+    .getByRole("button", { name: "Watch proposed edit", exact: true })
+    .click();
+  await expect(
+    page.getByText("Previewing proposed / saved edit", { exact: false }),
+  ).toBeVisible();
+  expect((await read()).revision).toBe(before.revision);
+  await proposal
+    .getByRole("button", { name: "Apply reviewed changes", exact: true })
+    .click();
+  await expect(
+    proposal.getByText("Changes applied", { exact: true }),
+  ).toBeVisible();
+  const edited = await read();
+  expect(edited.scenes.length).toBeGreaterThan(before.scenes.length);
+  expect(edited.scenes[0].motion).toBe("impact_shake");
+  expect(
+    edited.scenes.some(
+      (s: { transition: string }) => s.transition === "slide_left",
+    ),
+  ).toBe(true);
+  expect(edited.narration_url).toBe(before.narration_url);
+  expect(edited.caption_cues).toEqual(before.caption_cues);
+  expect(
+    edited.scenes.filter((s: { locked: boolean }) => s.locked),
+  ).toHaveLength(1);
+  expect(
+    edited.scenes.reduce(
+      (n: number, s: { duration: number }) => n + Math.round(s.duration * 24),
+      0,
+    ),
+  ).toBe(144);
+  await page.getByRole("button", { name: "Undo", exact: true }).first().click();
+  await expect.poll(async () => (await read()).scenes.length).toBe(3);
+  expect((await read()).scenes).toEqual(before.scenes);
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Reference editing workflow" })
+    .click();
+  await styleBox.locator(":scope > summary").click();
+  await styleBox.getByLabel("Saved reference style").selectOption(source.id);
+  await expect(styleBox.getByLabel("Reference video playback")).toBeVisible();
+  const referencePlayer = styleBox.getByLabel("Reference video playback");
+  await expect
+    .poll(() =>
+      referencePlayer.evaluate((el: HTMLVideoElement) => el.readyState),
+    )
+    .toBeGreaterThanOrEqual(2);
+  await referencePlayer.evaluate((el: HTMLVideoElement) => el.play());
+  await expect
+    .poll(() =>
+      referencePlayer.evaluate((el: HTMLVideoElement) => el.currentTime),
+    )
+    .toBeGreaterThan(0);
+  await referencePlayer.evaluate((el: HTMLVideoElement) => el.pause());
+  await styleBox.screenshot({
+    path: testInfo.outputPath("reference-style-workflow.png"),
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await styleBox
+    .getByText("Tweak and save this style recipe", { exact: true })
+    .click();
+  await expect(
+    styleBox.getByLabel("Reference beat 1 transition", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("smart style review, consent, rendered proposal and recipe recovery work together", async ({
+  page,
+}, testInfo) => {
+  await mkdir(testInfo.outputDir, { recursive: true });
+  const referencePath = testInfo.outputPath("smart-reference.mp4");
+  execFileSync(
+    process.env.CB_FFMPEG || "ffmpeg",
+    [
+      "-v",
+      "error",
+      "-filter_complex_threads",
+      "1",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=red:s=160x90:r=20:d=1.5",
+      "-f",
+      "lavfi",
+      "-i",
+      "color=c=blue:s=160x90:r=20:d=1.5",
+      "-filter_complex",
+      "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+      "-map",
+      "[v]",
+      "-c:v",
+      "libx264",
+      "-threads",
+      "2",
+      "-pix_fmt",
+      "yuv420p",
+      "-y",
+      referencePath,
+    ],
+    { timeout: 30_000 },
+  );
+  await page
+    .getByRole("button", { name: "Verdict Autopilot", exact: true })
+    .click();
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "smart-art.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "smart-voice.wav", mimeType: "audio/wav", buffer: silentWav(6) },
+    {
+      name: "smart-words.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:03,000\nOriginal words.\n\n2\n00:00:03,000 --> 00:00:06,000\nThe ending words.\n",
+      ),
+    },
+  ]);
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Smart reference workflow");
+  await page.getByRole("button", { name: /Create project/ }).click();
+  await expect(
+    page
+      .getByRole("region", { name: "Verdict Autopilot", exact: true })
+      .getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120_000 });
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Smart reference workflow",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  const initial = await read();
+  await page.request.put(`/api/projects/${id}/scenes`, {
+    data: {
+      scenes: [0, 1, 2].map((i) => ({
+        panel_id: initial.scenes[0].panel_id,
+        duration: 2,
+        motion: "hold",
+        framing: "fit",
+        beat: i === 0 ? "read" : i === 2 ? "hit" : "custom",
+      })),
+    },
+  });
+  const imported = await page.request.post("/api/reference-styles", {
+    multipart: {
+      file: {
+        name: "smart-reference.mp4",
+        mimeType: "video/mp4",
+        buffer: await readFile(referencePath),
+      },
+    },
+  });
+  expect(imported.status()).toBe(201);
+  const style = await imported.json();
+  const savedStyle = await page.request.put(
+    `/api/reference-styles/${style.id}`,
+    {
+      data: {
+        base_revision: style.revision,
+        name: "Smart reference recipe",
+        recipe: {
+          beats: [
+            {
+              seconds: 2,
+              motion: "zoom_in",
+              transition: "crossfade",
+              source_start: 0,
+            },
+            {
+              seconds: 0.5,
+              motion: "impact_shake",
+              transition: "cut",
+              purpose: "hit",
+              source_start: 1.5,
+            },
+          ],
+          transition_duration: 0.15,
+          motion_strength: 0.12,
+        },
+      },
+    },
+  );
+  const saved = await savedStyle.json();
+  let visionCalls = 0;
+  await page.route("**/api/verdict/connection", (route) =>
+    route.fulfill({
+      json: {
+        configured: true,
+        model: "UI fixture vision model",
+        base_url: "https://not-contacted.invalid/v1",
+        transcription_model: "",
+        has_key: false,
+      },
+    }),
+  );
+  await page.route(
+    `**/api/reference-styles/${style.id}/understand`,
+    async (route) => {
+      expect(route.request().postDataJSON().share_frames).toBe(true);
+      visionCalls++;
+      await route.fulfill({
+        json: {
+          base_revision: saved.revision,
+          model: "UI fixture vision model",
+          summary: "A held opening leads to an impact.",
+          shared_frames: [0.2, 1.4, 1.6, 2.7],
+          unsupported_effects: [
+            "Masked character isolation needs manual work.",
+          ],
+          observations: [
+            {
+              index: 1,
+              purpose: "hit",
+              confidence: "uncertain",
+              evidence: "A close-up follows the reveal.",
+            },
+          ],
+          recipe: {
+            ...saved.recipe,
+            summary: "Reviewed impact-style interpretation",
+            unsupported_effects: [
+              "Masked character isolation needs manual work.",
+            ],
+            beats: saved.recipe.beats.map((b: object) => ({
+              ...b,
+              motion_reviewed: false,
+              transition_reviewed: false,
+            })),
+          },
+        },
+      });
+    },
+  );
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Smart reference workflow" })
+    .click();
+  const before = await read();
+  const box = page.locator("details.reference-style");
+  await box.locator(":scope > summary").click();
+  await box.getByLabel("Saved reference style").selectOption(style.id);
+  await expect(
+    box.getByLabel("Reference rhythm map", { exact: true }),
+  ).toBeVisible();
+  await box
+    .getByText("Ask a vision model to interpret this style · optional", {
+      exact: true,
+    })
+    .click();
+  const interpret = box.getByRole("button", {
+    name: "Interpret reference with my vision model",
+    exact: true,
+  });
+  await expect(interpret).toBeDisabled();
+  expect(visionCalls).toBe(0);
+  await box
+    .getByLabel("Share sampled reference frames with my vision model", {
+      exact: true,
+    })
+    .check();
+  await interpret.click();
+  await expect(box.getByLabel("Vision style interpretation")).toBeVisible();
+  expect(visionCalls).toBe(1);
+  await box
+    .getByRole("button", {
+      name: "Use these reviewed suggestions in my recipe",
+      exact: true,
+    })
+    .click();
+  await box
+    .getByRole("button", { name: "Save tweaked style", exact: true })
+    .click();
+  await expect(
+    page.getByText("Style recipe saved. You can reuse it in any episode.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await box
+    .getByLabel("Reference style intensity", { exact: true })
+    .press("End");
+  await box.getByText("Smart adaptation controls", { exact: true }).click();
+  await expect(box.getByLabel("Reference rhythm mapping")).toHaveValue(
+    "structure",
+  );
+  await box
+    .getByRole("button", { name: "Propose this reference style", exact: true })
+    .click();
+  const proposal = page.getByLabel("Proposed editing changes", { exact: true });
+  await expect(proposal.getByLabel("Why these style changes")).toBeVisible();
+  expect((await read()).revision).toBe(before.revision);
+  const queued = page.waitForResponse(
+    (r) =>
+      r.url().includes("/assistant/proposals/") &&
+      r.url().endsWith("/render") &&
+      r.status() === 202,
+  );
+  await proposal
+    .getByRole("button", {
+      name: "Render proposed edit · actual effects",
+      exact: true,
+    })
+    .click();
+  const job = await (await queued).json();
+  expect(job.proposal_id).toBeTruthy();
+  await expect(
+    proposal.getByLabel("Proposed edit rendered playback"),
+  ).toBeVisible({ timeout: 120_000 });
+  const renderedPlayer = proposal.getByLabel("Proposed edit rendered playback");
+  await renderedPlayer.focus();
+  await renderedPlayer.press("Space");
+  await expect
+    .poll(() =>
+      renderedPlayer.evaluate((el: HTMLVideoElement) => el.currentTime),
+    )
+    .toBeGreaterThan(0);
+  await renderedPlayer.press("Space");
+  expect(await read()).toEqual(before);
+  const check = await (
+    await page.request.get(`/api/projects/${id}/finish-check`)
+  ).json();
+  expect(check.scanned_render_id).toBeNull();
+  await expect(
+    proposal.getByRole("button", {
+      name: "Apply reviewed changes",
+      exact: true,
+    }),
+  ).toBeEnabled();
+  await proposal.screenshot({
+    path: testInfo.outputPath("smart-proposed-render.png"),
+  });
+  await proposal
+    .getByRole("button", { name: "Apply reviewed changes", exact: true })
+    .click();
+  await expect(
+    proposal.getByText("Changes applied", { exact: true }),
+  ).toBeVisible();
+  expect((await read()).narration_url).toBe(before.narration_url);
+  const appliedRevision = (await read()).revision;
+  if (
+    !(await box
+      .locator("details.reference-recipe")
+      .evaluate((el) => el.hasAttribute("open")))
+  )
+    await box
+      .getByText("Tweak and save this style recipe", { exact: true })
+      .click();
+  await box
+    .getByRole("button", { name: "Save as separate style", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      "Saved as a separate style. The original recipe is intact.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  const copyId = await box.getByLabel("Saved reference style").inputValue();
+  expect(copyId).not.toBe(style.id);
+  await box
+    .getByLabel("Reference style name", { exact: true })
+    .fill("Changed copy name");
+  await box
+    .getByRole("button", { name: "Save tweaked style", exact: true })
+    .click();
+  await box
+    .getByRole("button", { name: "Show saved recipe versions", exact: true })
+    .click();
+  await box
+    .getByRole("button", { name: "Restore recipe revision 1", exact: true })
+    .click();
+  await expect(page.getByText(/Recipe version restored/)).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await box
+    .getByRole("link", { name: "Export recipe JSON", exact: true })
+    .click();
+  const download = await downloading;
+  const recipePath = testInfo.outputPath("style-backup.json");
+  await download.saveAs(recipePath);
+  const recipe = JSON.parse(await readFile(recipePath, "utf8"));
+  expect(recipe.format).toBe("comic-beatdowns-reference-style");
+  await box.getByText("Import a saved recipe JSON", { exact: true }).click();
+  await box.getByLabel("Import style recipe file").setInputFiles(recipePath);
+  await box
+    .getByRole("button", { name: "Import style recipe", exact: true })
+    .click();
+  await expect(
+    page.getByText(
+      "Style recipe imported. It works without retaining the reference video.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect((await read()).revision).toBe(appliedRevision);
+  expect(visionCalls).toBe(1);
 });

@@ -3,6 +3,7 @@ import io
 import tempfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
@@ -19,7 +20,17 @@ from .autoedit import audio_range, auto_edit
 from .creative_dna import approved_instructions
 from .creative_edits import summarize_workspace_change
 from .creator_preferences import approved_defaults, preferences
-from .database import CreativeEditEvent, Panel, Project, RenderJob, Scene, Template, now, uid
+from .database import (
+    CreativeEditEvent,
+    Panel,
+    Project,
+    RenderJob,
+    Scene,
+    SoundEffect,
+    Template,
+    now,
+    uid,
+)
 from .importer import import_to_library, save_panel
 from .integrations import OpenAICompatibleWriter
 from .page_direction import glide_zoom
@@ -168,6 +179,7 @@ def job_dict(job):
         "created_at": job.created_at,
         "finished_at": job.finished_at,
         "quality": job.snapshot.get("quality", "final"),
+        "proposal_id": job.snapshot.get("proposal_id"),
         "section": job.snapshot.get("section"),
     }
 
@@ -582,10 +594,57 @@ def queue_render(
 
 
 def queue_render_for_state(
-    project_id, state, db, quality="final", start=None, end=None, director_job=None
+    project_id,
+    state,
+    db,
+    quality="final",
+    start=None,
+    end=None,
+    director_job=None,
+    workspace=None,
+    proposal_id=None,
 ):
     project = get_or_404(db, Project, project_id)
     scenes = scenes_for(db, project_id)
+    if workspace is not None:
+        if quality != "draft" or not proposal_id:
+            raise HTTPException(422, "Proposed edits can only render review drafts")
+        originals = {s.id: s for s in scenes}
+        proposed = []
+        for position, shot in enumerate(workspace.scenes):
+            source = originals.get(shot.sfx_source_id or shot.id)
+            effect = db.get(SoundEffect, shot.sfx_id) if shot.sfx_id else None
+            sound = (
+                None
+                if shot.clear_sfx
+                else effect.storage_key
+                if effect
+                else source.sfx_key
+                if source
+                else None
+            )
+            proposed.append(
+                Scene(
+                    **shot.model_dump(exclude={"sfx_source_id", "clear_sfx"}),
+                    position=position,
+                    project_id=project.id,
+                    sfx_key=sound,
+                )
+            )
+        scenes = proposed
+        project = SimpleNamespace(
+            id=project.id,
+            revision=project.revision,
+            title=workspace.title,
+            script=workspace.script,
+            settings=workspace.settings.model_dump(),
+            caption_cues=[c.model_dump() for c in workspace.cues],
+            narration_key=project.narration_key,
+            narration_duration=project.narration_duration,
+            music_key=project.music_key,
+            logo_key=project.logo_key,
+            script_approved=project.script_approved,
+        )
     if not tools_available(state.settings):
         raise HTTPException(503, "Install FFmpeg and FFprobe before rendering")
     if (
@@ -666,6 +725,8 @@ def queue_render_for_state(
         "logo_key": project.logo_key,
         "quality": quality,
     }
+    if proposal_id:
+        snapshot["proposal_id"] = proposal_id
     from .automation import missing_assets, section_snapshot
 
     missing = missing_assets(snapshot, state.storage)

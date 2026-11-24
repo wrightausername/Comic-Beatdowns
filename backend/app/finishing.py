@@ -172,7 +172,14 @@ def check(project_id: str, request: Request, db=Depends(session)):
         .order_by(RenderJob.created_at.desc())
         .limit(100)
     )
-    candidate = next((j for j in jobs if not j.snapshot.get("section") and j.output_key), None)
+    candidate = next(
+        (
+            j
+            for j in jobs
+            if not j.snapshot.get("section") and not j.snapshot.get("proposal_id") and j.output_key
+        ),
+        None,
+    )
     scanned = None
     if candidate:
         try:

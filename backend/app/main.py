@@ -22,6 +22,7 @@ from .inbox import InboxWatcher
 from .limits import BodyLimitMiddleware
 from .production import router as production_router
 from .publishing import router as publishing_router
+from .reference_style import router as reference_style_router
 from .renderer import RenderService
 from .schemas import VideoSettings
 from .storage import LocalStorage
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.login_attempts = {}
         app.state.render_lock = Lock()
         app.state.caption_lock = Lock()
+        app.state.reference_lock = Lock()
         app.state.renderer = RenderService(config, app.state.storage, sessions, executor)
         app.state.renderer.recover()
         with sessions() as db:
@@ -101,6 +103,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(creative_dna_router)
     app.include_router(assistant_router)
+    app.include_router(reference_style_router)
     app.include_router(finishing_router)
     app.include_router(production_router)
     app.include_router(director_router)
