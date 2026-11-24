@@ -1,0 +1,71 @@
+name: Share verified Windows owner preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/reference-video-style]
+    paths: [.github/workflows/share-owner-preview.yml]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: share-owner-preview-2026-11-24
+  cancel-in-progress: false
+
+jobs:
+  share:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download the already tested Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Comic-Beatdowns-Studio-Windows
+          run-id: 45457122609
+          github-token: ${{ github.token }}
+          path: verified
+      - name: Verify the exact tested executable and prepare direct download
+        shell: python
+        run: |
+          import hashlib
+          from pathlib import Path
+          import shutil
+          root = Path('verified')
+          original = root / 'Comic Beatdowns Studio.exe'
+          expected = '5537cf7fb597fa5eb8f12ee40d28e7bdd7bc367b1cbc099a73664a6bbcc5574c'
+          actual = hashlib.sha256(original.read_bytes()).hexdigest()
+          if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
+              raise RuntimeError('The downloaded EXE does not match the tested owner build')
+          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
+          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n')
+          print('Verified original executable:', actual)
+      - name: Share the standalone EXE as an owner test preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=studio-preview-2026-11-24
+          source=e80ed05427b6ee564fe6e8a1c05dea1935917c44
+          cat > preview-notes.md <<'NOTES'
+          Owner test preview from draft PR #18, including smart reference-video styles.
+
+          Download **Comic-Beatdowns-Studio.exe** below and run it directly. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
+
+          Source: `e80ed05427b6ee564fe6e8a1c05dea1935917c44`. This is the unchanged EXE from package run 45457122609, artifact 14950518478, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
+
+          Validation run 45457122506 passed 188 backend tests, 70 frontend tests, 14 browser workflows and 107 Windows media/reference tests.
+
+          This is an unsigned owner trial, not a production release or a merge of the draft PRs. Issue #14's irregular-page automation gate remains open. Reference styles reproduce supported editable effects, not arbitrary third-party plugins. Optional vision interpretation was tested with mocked providers, not a live model. Installer and code-signing work remain excluded from this trial.
+          NOTES
+          if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
+            target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
+            test "$target" = "$source"
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
+          else
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — owner preview, November 24' --notes-file preview-notes.md
+          fi

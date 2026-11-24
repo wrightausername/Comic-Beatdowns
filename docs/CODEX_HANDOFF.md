@@ -328,3 +328,15 @@ passed all 14 workflows. The final trace assertions also passed in all 17 focuse
 intelligence tests. Final exact counts, source SHA
 and Windows build/download checks are recorded in PR #18. The Issue #14 P0 gate,
 actual owner Windows 10/11 acceptance and installer exclusion still apply.
+
+### Owner download recovery (November 24)
+
+The owner reported that temporary chat download pages do not load. The
+`Share verified Windows owner preview` workflow reuses artifact 14950518478
+from successful package run 45457122609, verifies the exact original EXE hash
+`5537cf7fb597fa5eb8f12ee40d28e7bdd7bc367b1cbc099a73664a6bbcc5574c`, and attaches
+the standalone EXE to the `studio-preview-2026-11-24` owner-trial prerelease.
+It does not rebuild or change the tested source `e80ed05427b6ee564fe6e8a1c05dea1935917c44`,
+merge draft PRs, or claim production/owner-PC acceptance. Prefer the fixed
+GitHub release download over five-minute signed chat links. Confirm the
+workflow and anonymous download before handing off that URL.
