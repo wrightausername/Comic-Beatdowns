@@ -40,6 +40,7 @@ import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
 import VideoTimeline from "./VideoTimeline";
 import CreatorAssistant from "./CreatorAssistant";
+import WorkspaceTools, { type WorkspaceTool } from "./WorkspaceTools";
 import EmotionTimeline from "./EmotionTimeline";
 import { parsePerformanceScript } from "./emotion";
 import type {
@@ -438,6 +439,44 @@ export default function Editor({
       />
     );
   }
+  function openWorkspaceTool(tool: WorkspaceTool) {
+    if (tool === "files") setStage("files");
+    const targets: Record<WorkspaceTool, string> = {
+      files: "studio-workflow",
+      draft: "studio-autopilot",
+      style: "studio-reference-style",
+      instructions: "studio-editing-instructions",
+      timeline: "studio-video-timeline",
+      finish: "studio-finish-video",
+      camera: "page-shot-review",
+      review: "studio-review-queue",
+      preferences: "studio-recipe-preferences",
+    };
+    requestAnimationFrame(() => {
+      const target = document.getElementById(targets[tool]);
+      if (!target) return;
+      for (
+        let section: HTMLElement | null = target;
+        section;
+        section = section.parentElement
+      ) {
+        if (section instanceof HTMLDetailsElement) section.open = true;
+      }
+      const focus = target.matches("details")
+        ? target.querySelector("summary")
+        : target.querySelector<HTMLElement>("h2, h3");
+      if (focus) {
+        if (focus.tagName !== "SUMMARY") focus.tabIndex = -1;
+        focus.focus({ preventScroll: true });
+      }
+      target.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+      });
+    });
+  }
   return (
     <fieldset className="studio-fieldset" disabled={busy}>
       <button
@@ -574,6 +613,7 @@ export default function Editor({
           {notice}
         </div>
       )}
+      <WorkspaceTools hasShots={scenes.length > 0} onOpen={openWorkspaceTool} />
       {easyMode && !scenes.length ? (
         <GuidedWorkspace
           project={project}
@@ -625,21 +665,6 @@ export default function Editor({
           </button>
         </div>
       )}
-      <div id="studio-autopilot">
-        <VerdictAutopilot
-          panels={panels}
-          simple={easyMode}
-          autoRunRequest={autoRunRequest}
-          project={project}
-          dirty={dirty}
-          busy={busy}
-          accept={accept}
-          perform={perform}
-          onChanged={onChanged}
-          onReview={() => setStage("review")}
-          onError={onError}
-        />
-      </div>
       {!easyMode && (
         <WorkflowSteps
           stage={stage}
@@ -659,6 +684,60 @@ export default function Editor({
       )}
       <div className="editor-layout">
         <div className="editor-workspace">
+          <div id="studio-workflow">
+            <ProductionWorkflow
+              simple={easyMode}
+              noteMoment={noteMoment}
+              stage={stage}
+              setStage={setStage}
+              draft={draft}
+              project={view}
+              panels={panels}
+              jobs={jobs}
+              effects={effects}
+              update={update}
+              accept={accept}
+              perform={perform}
+              onChanged={onChanged}
+              onPreview={setPreviewOverride}
+              onSeek={(seconds) => {
+                setPreviewOverride(null);
+                setPreviewRequest({ seconds, nonce: Date.now() });
+              }}
+              onRender={(quality, start, end) =>
+                void render(quality, start, end)
+              }
+              onPick={() => {
+                setReplaceIndex(null);
+                setPicker(true);
+              }}
+              onScript={() => {
+                changeMode(false);
+                setStage("edit");
+                setTab("script");
+              }}
+              onSettings={() => {
+                changeMode(false);
+                setStage("edit");
+                setTab("settings");
+              }}
+            />
+          </div>
+          <div id="studio-autopilot">
+            <VerdictAutopilot
+              panels={panels}
+              simple={easyMode}
+              autoRunRequest={autoRunRequest}
+              project={project}
+              dirty={dirty}
+              busy={busy}
+              accept={accept}
+              perform={perform}
+              onChanged={onChanged}
+              onReview={() => setStage("review")}
+              onError={onError}
+            />
+          </div>
           <CreatorAssistant
             key={projectId}
             project={view}
@@ -674,26 +753,6 @@ export default function Editor({
             }}
             onRenderShot={(start, end) => void render("draft", start, end)}
           />
-          {scenes.length > 0 && (
-            <FinishVideo
-              key={`finish-${projectId}`}
-              project={view}
-              dirty={dirty}
-              busy={busy || Boolean(activeJob)}
-              perform={perform}
-              onQueued={(saved, job) => {
-                accept(saved);
-                setJobs((previous) => [job, ...previous]);
-                setStage("export");
-                onChanged();
-              }}
-              onReviewCopy={() => void render("draft")}
-              onSeek={(seconds) => {
-                setPreviewOverride(null);
-                setPreviewRequest({ seconds, nonce: Date.now() });
-              }}
-            />
-          )}
           {scenes.length > 0 && (
             <PageShotReview
               scenes={scenes}
@@ -759,8 +818,20 @@ export default function Editor({
             />
           )}
 
-          <details className="creator-advanced-timeline" open={!easyMode}>
-            <summary>Video timeline · advanced editing</summary>
+          <details
+            id="studio-video-timeline"
+            className="creator-advanced-timeline"
+            open={!easyMode}
+          >
+            <summary className="tool-disclosure-heading">
+              <Film size={22} aria-hidden="true" />
+              <span>
+                <strong>Video timeline · advanced editing</strong>
+                <small>
+                  Trim and reorder shots, edit captions, and balance your audio.
+                </small>
+              </span>
+            </summary>
             <VideoTimeline
               key={projectId}
               project={view}
@@ -787,45 +858,26 @@ export default function Editor({
             />
           </details>
 
-          <div id="studio-workflow">
-            <ProductionWorkflow
-              simple={easyMode}
-              noteMoment={noteMoment}
-              stage={stage}
-              setStage={setStage}
-              draft={draft}
+          {scenes.length > 0 && (
+            <FinishVideo
+              key={`finish-${projectId}`}
               project={view}
-              panels={panels}
-              jobs={jobs}
-              effects={effects}
-              update={update}
-              accept={accept}
+              dirty={dirty}
+              busy={busy || Boolean(activeJob)}
               perform={perform}
-              onChanged={onChanged}
-              onPreview={setPreviewOverride}
+              onQueued={(saved, job) => {
+                accept(saved);
+                setJobs((previous) => [job, ...previous]);
+                setStage("export");
+                onChanged();
+              }}
+              onReviewCopy={() => void render("draft")}
               onSeek={(seconds) => {
                 setPreviewOverride(null);
                 setPreviewRequest({ seconds, nonce: Date.now() });
               }}
-              onRender={(quality, start, end) =>
-                void render(quality, start, end)
-              }
-              onPick={() => {
-                setReplaceIndex(null);
-                setPicker(true);
-              }}
-              onScript={() => {
-                changeMode(false);
-                setStage("edit");
-                setTab("script");
-              }}
-              onSettings={() => {
-                changeMode(false);
-                setStage("edit");
-                setTab("settings");
-              }}
             />
-          </div>
+          )}
           {!easyMode && (
             <div className="tabs">
               {(

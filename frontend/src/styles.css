@@ -5277,3 +5277,304 @@ progress::-webkit-progress-value {
     grid-column: 1 / -1;
   }
 }
+
+/* The workspace presents tools before their detailed controls. */
+.workspace-tools {
+  padding: 22px;
+  margin: 22px 0;
+  background: linear-gradient(125deg, #141e2c, #101620 65%);
+  border-color: #304356;
+}
+.workspace-tools-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.workspace-tools-heading .eyebrow {
+  color: #86dce0;
+  margin-bottom: 8px;
+}
+.workspace-tools-heading h2 {
+  font-size: 22px;
+  line-height: 1.3;
+}
+.workspace-tools-heading p {
+  font-size: 13px;
+  color: #abb9ca;
+  margin-top: 7px;
+}
+.workspace-tools-hint {
+  flex-shrink: 0;
+  color: #b6c6d8;
+  font-size: 11px;
+  padding: 9px 12px;
+  background: #1b2938;
+  border: 1px solid #34465a;
+  border-radius: 20px;
+}
+.workspace-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.workspace-tool {
+  min-width: 0;
+  min-height: 136px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid #334256;
+  border-radius: 10px;
+  text-align: left;
+  background: #162131;
+  transition:
+    background 150ms,
+    border-color 150ms;
+}
+.workspace-tool:not(:disabled):hover {
+  background: #1d3040;
+  border-color: #79cbd1;
+}
+.workspace-tool-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+.workspace-tool-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #213b47;
+  color: #87e4e6;
+}
+.tool-style .workspace-tool-icon,
+.tool-instructions .workspace-tool-icon {
+  color: #d1c0ff;
+  background: #332e4d;
+}
+.tool-finish .workspace-tool-icon {
+  color: #9ce8c0;
+  background: #1e3c36;
+}
+.workspace-tool-group {
+  color: #b0c0d3;
+  font-size: 11px;
+}
+.workspace-tool-arrow {
+  margin-left: auto;
+  color: #b0c0d3;
+}
+.workspace-tool strong {
+  color: #f0f5fa;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.workspace-tool-description {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #b2c0d1;
+}
+.workspace-tool:disabled {
+  opacity: 0.75;
+  border-style: dashed;
+}
+.workspace-tool-shortcuts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  border-top: 1px solid #2c3b4c;
+  margin-top: 18px;
+  padding-top: 14px;
+  font-size: 12px;
+}
+.workspace-tool-shortcuts > span {
+  color: #a6b5c8;
+  margin-right: auto;
+}
+.workspace-tool-shortcuts button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 0;
+  background: none;
+  border: 0;
+  color: #d7e6f4;
+  min-height: 32px;
+}
+.workspace-tool-shortcuts button:not(:disabled):hover {
+  color: var(--cyan);
+  text-decoration: underline;
+}
+.workspace-back-link {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9edfe3;
+  padding: 8px;
+  border-radius: 6px;
+}
+.workspace-back-link:hover {
+  background: #20323f;
+}
+#studio-workflow,
+#studio-autopilot,
+#studio-reference-style,
+#studio-editing-instructions,
+#studio-video-timeline,
+#studio-finish-video,
+#page-shot-review,
+#studio-review-queue,
+#studio-recipe-preferences,
+#studio-tools {
+  scroll-margin-top: 24px;
+}
+.creator-assistant {
+  padding: 22px;
+  border-color: #304256;
+}
+.creator-assistant > .section-heading {
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.creator-assistant > .section-heading h3 {
+  font-size: 20px;
+  margin-top: 6px;
+}
+.creator-assistant > .section-heading p {
+  color: #aebdd0;
+  font-size: 13px;
+  line-height: 1.65;
+  margin-top: 8px;
+  max-width: 56ch;
+}
+.creator-assistant > .assistant-request,
+.creator-assistant > .reference-style {
+  padding: 0 18px;
+  border: 1px solid #3c4d66;
+  border-radius: 10px;
+  background: #172131;
+  margin: 14px 0;
+}
+.creator-assistant > .assistant-request[open],
+.creator-assistant > .reference-style[open] {
+  padding-bottom: 18px;
+}
+.tool-disclosure-heading,
+.creator-assistant .tool-disclosure-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  list-style: none;
+  cursor: pointer;
+  padding: 18px 0;
+  color: #c9baff;
+}
+.tool-disclosure-heading::-webkit-details-marker {
+  display: none;
+}
+.tool-disclosure-heading::after {
+  content: "+";
+  font-size: 22px;
+  margin-left: auto;
+  color: #b6cee1;
+  font-weight: 400;
+}
+details[open] > .tool-disclosure-heading::after {
+  content: "−";
+}
+.tool-disclosure-heading > svg {
+  flex-shrink: 0;
+}
+.tool-disclosure-heading > span {
+  min-width: 0;
+}
+.tool-disclosure-heading strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #eef2fa;
+}
+.tool-disclosure-heading small {
+  display: block;
+  color: #b0bfd1;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 400;
+  margin-top: 5px;
+}
+.creator-assistant > .assistant-review,
+.creator-assistant > .assistant-preferences {
+  padding-top: 12px;
+  border-top: 1px solid #304256;
+}
+.creator-advanced-timeline {
+  margin: 20px 0;
+  border: 1px solid #3c5063;
+  background: #121c29;
+  border-radius: 12px;
+  padding: 0 18px;
+}
+.creator-advanced-timeline > .tool-disclosure-heading {
+  border: 0;
+  border-radius: 0;
+  padding: 18px 0;
+  color: #87e4e6;
+}
+.finish-video-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.finish-video-heading h3 {
+  margin-top: 6px;
+}
+@media (max-width: 760px) {
+  .workspace-tools {
+    padding: 16px;
+  }
+  .workspace-tools-heading {
+    align-items: flex-start;
+  }
+  .workspace-tools-heading h2 {
+    font-size: 19px;
+  }
+  .workspace-tools-hint {
+    display: none;
+  }
+  .workspace-tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-tool {
+    padding: 12px;
+  }
+  .workspace-tool-group {
+    display: none;
+  }
+  .workspace-tool-shortcuts > span {
+    width: 100%;
+  }
+  .creator-assistant {
+    padding: 16px;
+  }
+  .creator-assistant > .assistant-request,
+  .creator-assistant > .reference-style {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .creator-assistant > .section-heading {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-tool {
+    transition: none;
+  }
+}

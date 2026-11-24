@@ -8,9 +8,11 @@ A private, browser-based production desk for **Comic Beatdowns**, hosted by **Ve
 ## Windows desktop update
 
 The combined update branch includes Creative DNA, Easy Mode and Windows desktop
-packaging. Download the portable Windows ZIP only from a successful **Package
-Windows desktop EXE** Actions run for the exact update commit; see
-[desktop instructions](docs/windows-desktop.md). The revised package contains a single executable; choose Extract All before launching it. Your existing checkout is not updated automatically.
+packaging. Owner preview EXEs are linked in the
+[desktop instructions](docs/windows-desktop.md). They reuse a successful **Package
+Windows desktop EXE** Actions run for the exact update source. The Actions ZIP
+also contains that single executable; choose Extract All before launching it.
+Your existing checkout is not updated automatically.
 
 ## Quick start
 
@@ -58,7 +60,17 @@ Stop other servers before running browser tests, which own ports 8000 and 5173. 
 
 ## Tell Verdict what to fix
 
-Open **Fix just this · paste an instruction or a ChatGPT editing plan** and select
+Every project now starts with a **Workspace tools** panel: **Add files**,
+**Make a draft**, **Reference style**, **AI editing assistant**, **Video timeline**
+and **Review & export**. Choose a card to open its section directly. Camera/crop
+review, the review queue and saved defaults have visible shortcuts underneath.
+Export stays visibly unavailable until shots exist. File setup appears before
+the draft builder; detailed timeline controls remain expandable.
+
+[Desktop layout](docs/screenshots/workspace-tools-desktop.png) ·
+[Phone layout](docs/screenshots/workspace-tools-mobile.png)
+
+Open **AI editing assistant** from that panel and select
 a shot. Local examples include **Show the whole panel**, **Hold the shot**,
 **Make the camera slower**, **Use crossfade**, and **Hold for 2 seconds**.
 **Preview proposed changes** lists the exact fields before/after without saving
@@ -96,8 +108,8 @@ the existing renderer. Nothing is published.
 
 ## Use a reference video's editing style
 
-Open **Use a video's editing style · reference and tweak** in the editing
-assistant. Import an MP4, MOV or WebM reference (up to 64 MB), optionally choose
+Choose **Reference style** in Workspace tools to open **Reference video style**.
+Import an MP4, MOV or WebM reference (up to 64 MB), optionally choose
 a range, and select **Analyze reference video**. A blank end analyzes up to
 60 seconds; a selected range can cover 0.5–180 seconds. The default visual and
 audio-transient analysis runs locally and requires no AI subscription.

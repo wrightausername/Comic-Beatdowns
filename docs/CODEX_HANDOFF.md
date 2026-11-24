@@ -340,3 +340,34 @@ It does not rebuild or change the tested source `e80ed05427b6ee564fe6e8a1c05dea1
 merge draft PRs, or claim production/owner-PC acceptance. Prefer the fixed
 GitHub release download over five-minute signed chat links. Confirm the
 workflow and anonymous download before handing off that URL.
+
+## November 24 workspace discoverability and presentation
+
+Owner reported that new features were too hidden and requested clearer
+organization and visual polish. Branch `feature/workspace-tool-discovery`
+is stacked on PR #18 at `ca1d298`. It preserves the existing editor and data.
+
+A visible Workspace tools panel exposes Add files, Make a draft, Reference
+style, AI editing assistant, Video timeline, and Review & export. Camera/crops,
+review queue and saved-default shortcuts are also visible. Cards open existing
+sections, expand the relevant disclosure, scroll and move keyboard focus without
+mutating the project. Export explains its requirement for shots before enabling.
+Files come before the draft builder; shot/timeline review comes before finishing.
+Reference/AI/timeline disclosures have clear titles, descriptions and icons;
+spacing, contrast and responsive cards give the workspace a consistent hierarchy.
+Detailed controls stay available without forcing a switch to the full editor.
+
+Local `make check` passed 188 backend / 70 frontend tests, lint, formatting and
+production build; `make e2e` passed all 15 workflows. Actual desktop/mobile
+screenshots are in `docs/screenshots/workspace-tools-*.png`.
+
+The fresh workspace EXE is pinned to application source
+`b7cfd5240c8cde5e69801876a9f7ee2906b276b9`, package run `45489588848`, artifact
+`14966305603`, SHA256 `65027d42f18123e2b57997fa9cc57884dc887932d2b822c6006b682f7024f08d`.
+The downloaded original checksum and new UI strings inside its bundled JS were
+verified locally. Download/native-window checks passed on separate Windows
+Server 2022/2025 runners. The sharing workflow attaches that unchanged EXE under
+`studio-workspace-preview-2026-11-24`; confirm success and anonymous full download
+before handing off. Final CI/sharing evidence belongs in PR #19. The older
+`studio-preview-2026-11-24` still targets the preceding layout. No installer or main merge;
+Issue #14 irregular pages and owner Windows 10/11 acceptance remain open.

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Wand2 } from "lucide-react";
 import { api, json } from "./api";
 import type { Proposal } from "./CreatorAssistant";
 import { CAMERA_MOVES } from "./effects";
@@ -174,8 +175,20 @@ export default function ReferenceStyle({
     invalidate();
   }
   return (
-    <details className="reference-style" aria-label="Reference video style">
-      <summary>Use a video's editing style · reference and tweak</summary>
+    <details
+      id="studio-reference-style"
+      className="reference-style"
+      aria-label="Reference video style"
+    >
+      <summary className="tool-disclosure-heading">
+        <Wand2 size={22} aria-hidden="true" />
+        <span>
+          <strong>Reference video style</strong>
+          <small>
+            Match a video's pacing and effects, then make it your own.
+          </small>
+        </span>
+      </summary>
       <p>
         Import a reference, review its rhythm and suggested effects, then
         propose an editable pass using your own artwork and narration.
