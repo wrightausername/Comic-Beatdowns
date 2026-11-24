@@ -357,7 +357,17 @@ Reference/AI/timeline disclosures have clear titles, descriptions and icons;
 spacing, contrast and responsive cards give the workspace a consistent hierarchy.
 Detailed controls stay available without forcing a switch to the full editor.
 
-Validation and fresh Windows EXE provenance are recorded in the feature PR.
-The prior owner-preview EXE remains the earlier build until a new, verified
-workspace-preview link is explicitly provided. No installer or main merge;
+Local `make check` passed 188 backend / 70 frontend tests, lint, formatting and
+production build; `make e2e` passed all 15 workflows. Actual desktop/mobile
+screenshots are in `docs/screenshots/workspace-tools-*.png`.
+
+The fresh workspace EXE is pinned to application source
+`b7cfd5240c8cde5e69801876a9f7ee2906b276b9`, package run `45489588848`, artifact
+`14966305603`, SHA256 `65027d42f18123e2b57997fa9cc57884dc887932d2b822c6006b682f7024f08d`.
+The downloaded original checksum and new UI strings inside its bundled JS were
+verified locally. Download/native-window checks passed on separate Windows
+Server 2022/2025 runners. The sharing workflow attaches that unchanged EXE under
+`studio-workspace-preview-2026-11-24`; confirm success and anonymous full download
+before handing off. Final CI/sharing evidence belongs in PR #19. The older
+`studio-preview-2026-11-24` still targets the preceding layout. No installer or main merge;
 Issue #14 irregular pages and owner Windows 10/11 acceptance remain open.

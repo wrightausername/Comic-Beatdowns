@@ -3,7 +3,7 @@ name: Share verified Windows owner preview
 on:
   workflow_dispatch:
   push:
-    branches: [feature/reference-video-style]
+    branches: [feature/workspace-tool-discovery]
     paths: [.github/workflows/share-owner-preview.yml]
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: share-owner-preview-2026-11-24
+  group: share-workspace-preview-2026-11-24
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          run-id: 45457122609
+          run-id: 45489588848
           github-token: ${{ github.token }}
           path: verified
       - name: Verify the exact tested executable and prepare direct download
@@ -34,7 +34,7 @@ jobs:
           import shutil
           root = Path('verified')
           original = root / 'Comic Beatdowns Studio.exe'
-          expected = '5537cf7fb597fa5eb8f12ee40d28e7bdd7bc367b1cbc099a73664a6bbcc5574c'
+          expected = '65027d42f18123e2b57997fa9cc57884dc887932d2b822c6006b682f7024f08d'
           actual = hashlib.sha256(original.read_bytes()).hexdigest()
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
@@ -48,16 +48,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=studio-preview-2026-11-24
-          source=e80ed05427b6ee564fe6e8a1c05dea1935917c44
+          tag=studio-workspace-preview-2026-11-24
+          source=b7cfd5240c8cde5e69801876a9f7ee2906b276b9
           cat > preview-notes.md <<'NOTES'
-          Owner test preview from draft PR #18, including smart reference-video styles.
+          Owner test preview from draft PR #19, stacked on #18. Projects now show a visible tool panel for files, draft creation, reference style, AI edits, timeline and export, with camera/review/default shortcuts and clearer editing sections.
 
           Download **Comic-Beatdowns-Studio.exe** below and run it directly. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
 
-          Source: `e80ed05427b6ee564fe6e8a1c05dea1935917c44`. This is the unchanged EXE from package run 45457122609, artifact 14950518478, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
+          Source: `b7cfd5240c8cde5e69801876a9f7ee2906b276b9`. This is the unchanged EXE from package run 45489588848, artifact 14966305603, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
 
-          Validation run 45457122506 passed 188 backend tests, 70 frontend tests, 14 browser workflows and 107 Windows media/reference tests.
+          Validation run 45489588888 passed 188 backend tests, 70 frontend tests, 15 browser workflows and 107 Windows media/reference tests.
 
           This is an unsigned owner trial, not a production release or a merge of the draft PRs. Issue #14's irregular-page automation gate remains open. Reference styles reproduce supported editable effects, not arbitrary third-party plugins. Optional vision interpretation was tested with mocked providers, not a live model. Installer and code-signing work remain excluded from this trial.
           NOTES
@@ -67,5 +67,5 @@ jobs:
             gh release upload "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — owner preview, November 24' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — workspace preview, November 24' --notes-file preview-notes.md
           fi

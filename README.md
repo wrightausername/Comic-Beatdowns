@@ -8,9 +8,11 @@ A private, browser-based production desk for **Comic Beatdowns**, hosted by **Ve
 ## Windows desktop update
 
 The combined update branch includes Creative DNA, Easy Mode and Windows desktop
-packaging. Download the portable Windows ZIP only from a successful **Package
-Windows desktop EXE** Actions run for the exact update commit; see
-[desktop instructions](docs/windows-desktop.md). The revised package contains a single executable; choose Extract All before launching it. Your existing checkout is not updated automatically.
+packaging. Owner preview EXEs are linked in the
+[desktop instructions](docs/windows-desktop.md). They reuse a successful **Package
+Windows desktop EXE** Actions run for the exact update source. The Actions ZIP
+also contains that single executable; choose Extract All before launching it.
+Your existing checkout is not updated automatically.
 
 ## Quick start
 
@@ -64,6 +66,9 @@ and **Review & export**. Choose a card to open its section directly. Camera/crop
 review, the review queue and saved defaults have visible shortcuts underneath.
 Export stays visibly unavailable until shots exist. File setup appears before
 the draft builder; detailed timeline controls remain expandable.
+
+[Desktop layout](docs/screenshots/workspace-tools-desktop.png) ·
+[Phone layout](docs/screenshots/workspace-tools-mobile.png)
 
 Open **AI editing assistant** from that panel and select
 a shot. Local examples include **Show the whole panel**, **Hold the shot**,
