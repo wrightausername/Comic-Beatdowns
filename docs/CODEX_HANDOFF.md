@@ -1,7 +1,7 @@
 # Comic Beatdowns Studio: Codex handoff and current implementation status
 
 > **Canonical project context for new Codex sessions.** This is a maintained handoff, not a claim that ChatGPT and Codex share a live conversation.  
-> **Last verified:** November 21, 2026 (repo/PR context; feature CI noted by commit). Recheck PR heads, issues, and CI before making decisions.
+> **Last verified:** November 27, 2026. Latest owner update: draft PR #21, autonomy application source `e05aa1d`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
 
 ## Find the actual project
 
@@ -508,3 +508,31 @@ All 15 autonomy integration cases and the final browser autonomy workflow passed
 A fresh full `make check` and Windows/CI checks are being run on the final source;
 use the forthcoming PR/run provenance rather than inferring delivery from this
 entry. Actual original-fixture UI: `docs/screenshots/autonomous-editing-options.png`.
+
+### Verified autonomy application and owner delivery
+
+Draft PR #21: https://github.com/wrightausername/Comic-Beatdowns/pull/21,
+stacked on #20. Application source `e05aa1da014ede6863556590afb5f5c93d57177d`.
+Local final `make check`: 216 backend passed/one Windows-only skip, 70 frontend
+passed, lint/format/production build. All 17 browser workflows passed; the final
+hardened autonomy flow also passed separately. CI validation `46067314452` passed
+216 backend, 70 frontend, 17 browser workflows and **136 Windows media tests**.
+
+Package run `46067314435`, artifact `15231406731`: actual downloaded EXE
+146,576,360 bytes, SHA256
+`a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298`.
+Downloaded startup/authenticated-native-window checks passed on separate
+Windows Server 2022/2025 jobs `140737055803` / `140737055819`.
+Actual CArchive inspection confirmed bundled `/assets/index-CPF_2w3U.js` includes
+background previews, story/timing reports and prepared alternatives; its PYZ
+contains app.story_planning, app.sequence_edits, app.render_cache and app.processes.
+
+The metadata-only delivery commit pins those exact bytes in the sharing workflow
+under `studio-autonomy-preview-2026-11-27`, dated filename
+`Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe`. Verify sharing success and
+a full anonymous download/hash before handing off. Older preview links stay
+available; the existing downloaded app does not update itself. Close it and open
+the new dated EXE from Downloads. ChatGPT's internal blank download page is not a
+working transfer: use the fixed GitHub link in an external Edge/Chrome window.
+No app code changes after the tested source; no main merge or installer. Actual
+owner Windows 10/11 and coherent real-comic episode acceptance remain open.
