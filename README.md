@@ -60,15 +60,37 @@ Stop other servers before running browser tests, which own ports 8000 and 5173. 
 
 ## Tell Verdict what to fix
 
-Every project now starts with a **Workspace tools** panel: **Add files**,
-**Make a draft**, **Reference style**, **AI editing assistant**, **Video timeline**
-and **Review & export**. Choose a card to open its section directly. Camera/crop
-review, the review queue and saved defaults have visible shortcuts underneath.
-Export stays visibly unavailable until shots exist. File setup appears before
-the draft builder; detailed timeline controls remain expandable.
+New projects open in a focused workflow: **Add files → Make a draft → Edit shots
+→ Review & export**. One work area is shown at a time; reference styles, AI
+instructions, timeline, review queue and defaults stay visible in the tool bar.
+The next-step panel stays visible after pages are uploaded and names missing
+narration. **Open full editor** keeps the existing expert controls available.
+
+After the first build, **Edit this draft** opens the saved shots. Fit a panel,
+use a gentle zoom, redraw the crop or move shots earlier/later, then choose
+**Preview my changes** to render those edits without rerunning automatic editing.
+The current rendered video is available under **Watch rendered video**.
+
+Automatic drafts preserve uploaded page order instead of substituting
+pages based on matching character tags. Clear gutters generate editable panel
+crops; uncertain layouts stay whole for review. The explicitly selected vision
+mode can also suggest bounded panel regions and their reading order. Cross-page
+reassignment requires an explicit advanced option, off for sequential comics. Suggestions
+remain reviewable; this is not a guarantee of complete narrative understanding.
+For a previously bad build, **Restore uploaded page order** keeps all shots and
+Undo. To replace old automatic crops, choose **Re-detect panels from the original
+pages on the next draft** before running the draft builder. It replaces unlocked
+shot edits and blocks reset when locked shots or custom routes exist. Narration,
+timed captions and source pages remain intact.
+
+The **Workspace tools** bar exposes the four main steps and direct shortcuts to
+**Reference style**, **AI editing assistant**, **Video timeline**, the review queue
+and saved defaults. Select a tool to open its work area. Editing and export
+explain their shot requirement before enabling; detailed controls stay expandable.
 
 [Desktop layout](docs/screenshots/workspace-tools-desktop.png) ·
-[Phone layout](docs/screenshots/workspace-tools-mobile.png)
+[Phone layout](docs/screenshots/workspace-tools-mobile.png) ·
+[Focused editor](docs/screenshots/guided-editor-desktop.png)
 
 Open **AI editing assistant** from that panel and select
 a shot. Local examples include **Show the whole panel**, **Hold the shot**,

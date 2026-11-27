@@ -12,6 +12,7 @@ from sqlalchemy import select
 from .api import project_dict, queue_render
 from .database import RenderJob
 from .edit_assistant import get_project, review_queue, session
+from .processes import run as run_process
 from .renderer import timeline_duration
 from .schemas import RevisionInput
 from .workspace import locked_project
@@ -31,7 +32,7 @@ def finding(code, message, seconds=None, severity="warning"):
 
 def scan_render(path, config, snapshot):
     """Inspect actual streams and decode the mix; visual/audio intent remains human review."""
-    probe = subprocess.run(
+    probe = run_process(
         [config.ffprobe, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)],
         capture_output=True,
         text=True,
@@ -72,7 +73,7 @@ def scan_render(path, config, snapshot):
         )
     if video is None or audio is None:
         return values
-    scan = subprocess.run(
+    scan = run_process(
         [
             config.ffmpeg,
             "-nostdin",

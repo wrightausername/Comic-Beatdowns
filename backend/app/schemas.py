@@ -228,6 +228,8 @@ class AutopilotOptions(StrictModel):
     mode: Literal["basic", "vision"] = "basic"
     pace: Literal["fast", "slow"] = "fast"
     delivery: Literal["draft", "final"] = "draft"
+    rebuild_pages: bool = False
+    reorder_pages: bool = False
 
 
 class DirectorStart(StrictModel):

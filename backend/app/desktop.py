@@ -119,6 +119,11 @@ def run_desktop(*, check: bool = False, ui_check: bool = False):
         if not health.get("ffmpeg_available"):
             raise RuntimeError("Bundled FFmpeg/FFprobe is missing or incomplete")
         if check:
+            from app.renderer import run
+
+            # Exercise the bundled tool through the same windowless policy used
+            # by imports/renders, on the actual downloaded single EXE.
+            run([Settings().ffmpeg, "-version"], timeout=10)
             with urllib.request.urlopen(base_url + "/", timeout=5) as response:
                 content = response.read(100_000)
             if b"Comic Beatdowns Studio" not in content:

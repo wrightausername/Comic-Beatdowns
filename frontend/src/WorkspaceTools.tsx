@@ -1,5 +1,4 @@
 import {
-  ArrowUpRight,
   Bookmark,
   CheckCircle2,
   Film,
@@ -19,122 +18,126 @@ export type WorkspaceTool =
   | "finish"
   | "camera"
   | "review"
-  | "preferences";
+  | "preferences"
+  | "advanced";
 
 export default function WorkspaceTools({
   hasShots,
+  activeTool,
   onOpen,
 }: {
   hasShots: boolean;
+  activeTool: WorkspaceTool;
   onOpen: (tool: WorkspaceTool) => void;
 }) {
-  const tools = [
+  const steps = [
     {
       id: "files",
       title: "Add files",
-      description: "Comic pages, voice, script and captions.",
+      label: "Open Add files",
       icon: FolderOpen,
-      group: "Start here",
     },
     {
       id: "draft",
       title: "Make a draft",
-      description: "Let Verdict build your first edit.",
+      label: "Open Make a draft",
       icon: Sparkles,
-      group: "Build",
     },
     {
-      id: "style",
-      title: "Reference style",
-      description: "Use a video's pacing and effects.",
-      icon: Wand2,
-      group: "Style",
-    },
-    {
-      id: "instructions",
-      title: "AI editing assistant",
-      description: "Describe a fix or paste a ChatGPT plan.",
-      icon: MessageSquare,
-      group: "Refine",
-    },
-    {
-      id: "timeline",
-      title: "Video timeline",
-      description: "Trim shots, adjust timing and mix audio.",
-      icon: Film,
-      group: "Edit",
+      id: "camera",
+      title: "Edit shots",
+      label: "Camera & crops",
+      icon: ScanEye,
     },
     {
       id: "finish",
       title: "Review & export",
-      description: hasShots
-        ? "Check your edit and make the final MP4."
-        : "Add or generate shots to unlock export.",
+      label: "Open Review & export",
       icon: CheckCircle2,
-      group: "Finish",
+    },
+  ] as const;
+  const tools = [
+    {
+      id: "style",
+      title: "Reference style",
+      label: "Open Reference style",
+      icon: Wand2,
+    },
+    {
+      id: "instructions",
+      title: "AI editing assistant",
+      label: "Open AI editing assistant",
+      icon: MessageSquare,
+    },
+    {
+      id: "timeline",
+      title: "Video timeline",
+      label: "Open Video timeline",
+      icon: Film,
+    },
+    {
+      id: "review",
+      title: "Review queue",
+      label: "Review queue",
+      icon: CheckCircle2,
+    },
+    {
+      id: "preferences",
+      title: "Saved defaults",
+      label: "Saved defaults",
+      icon: Bookmark,
     },
   ] as const;
   return (
     <section
       id="studio-tools"
-      className="workspace-tools surface"
+      className="workspace-tools surface workspace-tools-focused"
       aria-label="Workspace tools"
       tabIndex={-1}
     >
-      <div className="workspace-tools-heading">
-        <div>
-          <span className="eyebrow">YOUR WORKSPACE</span>
-          <h2>What would you like to work on?</h2>
-          <p>Jump straight to a tool. Every edit stays reviewable.</p>
-        </div>
-        <span className="workspace-tools-hint">Start → Shape → Finish</span>
-      </div>
-      <nav className="workspace-tool-grid" aria-label="Choose a video tool">
-        {tools.map(({ id, title, description, icon: Icon, group }) => (
+      <nav className="workspace-flow" aria-label="Your video workflow">
+        {steps.map(({ id, title, label, icon: Icon }, index) => (
           <button
             key={id}
             type="button"
-            className={`workspace-tool tool-${id}`}
-            disabled={id === "finish" && !hasShots}
+            className={activeTool === id ? "active" : ""}
+            aria-label={label}
+            aria-current={activeTool === id ? "step" : undefined}
+            disabled={(id === "finish" || id === "camera") && !hasShots}
+            title={
+              (id === "finish" || id === "camera") && !hasShots
+                ? "Add or generate shots first"
+                : undefined
+            }
             onClick={() => onOpen(id)}
-            aria-label={`Open ${title}`}
           >
-            <span className="workspace-tool-top">
-              <span className="workspace-tool-icon">
-                <Icon size={20} aria-hidden="true" />
-              </span>
-              <span className="workspace-tool-group">{group}</span>
-              <ArrowUpRight
-                size={15}
-                className="workspace-tool-arrow"
-                aria-hidden="true"
-              />
-            </span>
+            <span className="workspace-step-number">{index + 1}</span>
+            <Icon size={17} aria-hidden="true" />
             <strong>{title}</strong>
-            <span className="workspace-tool-description">{description}</span>
           </button>
         ))}
       </nav>
-      <nav className="workspace-tool-shortcuts" aria-label="More video tools">
-        <span>Also in your workspace</span>
-        <button
-          type="button"
-          disabled={!hasShots}
-          title={!hasShots ? "Add or generate shots first" : undefined}
-          onClick={() => onOpen("camera")}
-        >
-          <ScanEye size={15} aria-hidden="true" />
-          Camera & crops
-        </button>
-        <button type="button" onClick={() => onOpen("review")}>
-          <CheckCircle2 size={15} aria-hidden="true" />
-          Review queue
-        </button>
-        <button type="button" onClick={() => onOpen("preferences")}>
-          <Bookmark size={15} aria-hidden="true" />
-          Saved defaults
-        </button>
+      <nav className="workspace-tool-shortcuts" aria-label="Editing tools">
+        <span>Editing tools</span>
+        {tools.map(({ id, title, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            aria-label={label}
+            aria-pressed={activeTool === id}
+            onClick={() => onOpen(id)}
+          >
+            <Icon size={16} aria-hidden="true" />
+            {title}
+          </button>
+        ))}
       </nav>
+      {!hasShots && (
+        <p className="workspace-unlock-help">
+          Add or generate shots to unlock editing and export. You can prepare a
+          reference style now.
+        </p>
+      )}
     </section>
   );
 }

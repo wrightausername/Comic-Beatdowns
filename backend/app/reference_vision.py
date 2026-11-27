@@ -2,7 +2,6 @@
 
 import base64
 import json
-import subprocess
 import time
 from typing import Literal
 
@@ -10,6 +9,7 @@ import httpx
 from pydantic import Field
 
 from .effects import Easing, Motion, Transition
+from .processes import run as run_process
 from .reference_style import Recipe
 from .schemas import StrictModel
 from .verdict_provider import read_connection
@@ -46,7 +46,7 @@ def sample_frames(path, config, analysis):
     for stamp in sorted(stamps)[:18]:
         if time.monotonic() - begun > 45:
             raise ValueError("Reference frame sampling took too long. Use a shorter excerpt.")
-        result = subprocess.run(
+        result = run_process(
             [
                 config.ffmpeg,
                 "-nostdin",

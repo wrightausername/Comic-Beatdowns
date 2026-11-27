@@ -16,7 +16,7 @@ from .panel_detection import suggest_panels
 MAX_VIRTUAL_SHOTS = 120
 
 
-def page_sources(scenes, panels, storage):
+def page_sources(scenes, panels, storage, layouts=()):
     """Expand untouched, one-shot-per-page material into virtual panel shots.
 
     Return source scenes and a review report. On reruns, authored/locked edits and
@@ -59,9 +59,15 @@ def page_sources(scenes, panels, storage):
         for panel in panels
     ]
     output, review = [], []
+    layout_map = {layout.panel_id: layout for layout in layouts}
     for source, panel in zip(originals, panels):
+        layout = layout_map.get(panel.id)
         with Image.open(storage.path(panel.storage_key)) as image:
-            candidates = suggest_panels(image)
+            candidates = (
+                [r.model_dump() for r in layout.regions]
+                if layout and all(r.confidence >= 0.7 for r in layout.regions)
+                else suggest_panels(image)
+            )
         if len(output) + len(candidates or [None]) > MAX_VIRTUAL_SHOTS:
             return scenes, {
                 "expanded": False,
@@ -108,7 +114,9 @@ def page_sources(scenes, panels, storage):
                 "page_id": panel.id,
                 "panel_count": len(candidates),
                 "review_required": True,
-                "reason": "Straight pale gutters detected; verify irregular panels and reading order",
+                "reason": "Vision-suggested panel boundaries; verify reading order and dialogue"
+                if layout and all(r.confidence >= 0.7 for r in layout.regions)
+                else "Straight pale gutters detected; verify irregular panels and reading order",
                 "regions": candidates,
             }
         )

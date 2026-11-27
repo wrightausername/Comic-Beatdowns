@@ -169,6 +169,8 @@ export interface Integrations {
 }
 
 export interface AutopilotOptions {
+  rebuild_pages?: boolean;
+  reorder_pages?: boolean;
   enabled: boolean;
   mode: "basic" | "vision";
   pace: "fast" | "slow";

@@ -168,7 +168,7 @@ export default function ProductionWorkflow(props: Props) {
   const [cards, setCards] = useState<StoryCard[]>(workflow.storyboard ?? []);
   const [options, setOptions] = useState({
     pace: settings.edit_pace,
-    match_panels: true,
+    match_panels: false,
     camera_moves: true,
     sound_effects: true,
     captions: false,

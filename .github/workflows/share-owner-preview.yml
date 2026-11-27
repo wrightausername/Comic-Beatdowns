@@ -3,7 +3,7 @@ name: Share verified Windows owner preview
 on:
   workflow_dispatch:
   push:
-    branches: [feature/workspace-tool-discovery]
+    branches: [fix/quiet-desktop-guided-flow]
     paths: [.github/workflows/share-owner-preview.yml]
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: share-workspace-preview-2026-11-24
+  group: share-guided-fix-preview-2026-11-27
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          run-id: 45489588848
+          run-id: 45989014931
           github-token: ${{ github.token }}
           path: verified
       - name: Verify the exact tested executable and prepare direct download
@@ -34,12 +34,13 @@ jobs:
           import shutil
           root = Path('verified')
           original = root / 'Comic Beatdowns Studio.exe'
-          expected = '65027d42f18123e2b57997fa9cc57884dc887932d2b822c6006b682f7024f08d'
+          expected = '21d03a7b5cc6c4a3658760ae11238723c2212decfa5f89885d1afc295c05f35d'
           actual = hashlib.sha256(original.read_bytes()).hexdigest()
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
           shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
-          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n')
+          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe')
+          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe\n')
           print('Verified original executable:', actual)
       - name: Share the standalone EXE as an owner test preview
         env:
@@ -48,24 +49,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=studio-workspace-preview-2026-11-24
-          source=b7cfd5240c8cde5e69801876a9f7ee2906b276b9
+          tag=studio-guided-fix-preview-2026-11-27
+          source=d1e3d613c2061e2bf8480d733d86f37bf9037afa
           cat > preview-notes.md <<'NOTES'
-          Owner test preview from draft PR #19, stacked on #18. Projects now show a visible tool panel for files, draft creation, reference style, AI edits, timeline and export, with camera/review/default shortcuts and clearer editing sections.
+          Owner test preview from draft PR #20, stacked on #19. Background media tools run without Windows console windows. Guided editing shows one work area at a time; Edit this draft and Preview my changes revise saved shots without rerunning automatic editing. Page order is preserved by default, with improved panel crop handling and explicit page re-detection.
 
-          Download **Comic-Beatdowns-Studio.exe** below and run it directly. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
+          Download **Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe** below. Close every older Studio window, then open that dated file directly from Downloads. In a project, this build shows four steps: Add files, Make a draft, Edit shots, Review & export. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
 
-          Source: `b7cfd5240c8cde5e69801876a9f7ee2906b276b9`. This is the unchanged EXE from package run 45489588848, artifact 14966305603, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
+          Source: `d1e3d613c2061e2bf8480d733d86f37bf9037afa`. This is the unchanged EXE from package run 45989014931, artifact 15192402561, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
 
-          Validation run 45489588888 passed 188 backend tests, 70 frontend tests, 15 browser workflows and 107 Windows media/reference tests.
+          Validation run 45989014858 passed 201 backend tests (one Windows-only check skipped on Linux), 70 frontend tests, 16 browser workflows and 121 Windows media/reference tests.
 
           This is an unsigned owner trial, not a production release or a merge of the draft PRs. Issue #14's irregular-page automation gate remains open. Reference styles reproduce supported editable effects, not arbitrary third-party plugins. Optional vision interpretation was tested with mocked providers, not a live model. Installer and code-signing work remain excluded from this trial.
           NOTES
           if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
             target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
             test "$target" = "$source"
-            gh release upload "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — workspace preview, November 24' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — quiet desktop and guided editing preview, November 27' --notes-file preview-notes.md
           fi

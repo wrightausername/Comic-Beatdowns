@@ -9,6 +9,7 @@ from collections import Counter
 
 from PIL import Image, ImageChops, ImageStat
 
+from .processes import run as run_process
 from .renderer import probe
 
 SAMPLE_FPS = 10
@@ -25,7 +26,7 @@ def audio_accents(path, settings, start, duration, has_audio):
     if not has_audio:
         return {"available": False, "accents": [], "reason": "The reference has no audio stream"}
     try:
-        result = subprocess.run(
+        result = run_process(
             [
                 settings.ffmpeg,
                 "-nostdin",
@@ -183,7 +184,7 @@ def analyze_reference(path, settings, start=0, end=None):
     ):
         raise ValueError("Select 0.5–180 seconds within the reference video")
     end = min(end, duration)
-    result = subprocess.run(
+    result = run_process(
         [
             settings.ffmpeg,
             "-format_whitelist",

@@ -371,3 +371,64 @@ Server 2022/2025 runners. The sharing workflow attaches that unchanged EXE under
 before handing off. Final CI/sharing evidence belongs in PR #19. The older
 `studio-preview-2026-11-24` still targets the preceding layout. No installer or main merge;
 Issue #14 irregular pages and owner Windows 10/11 acceptance remain open.
+
+## November 27 quiet Windows tools, focused editing and page-order corrections
+
+Owner reported flashing command windows, confusing editing, bad ordering/cropping
+of **full comic pages**, and difficulty re-editing a built video. Branch
+`fix/quiet-desktop-guided-flow` is stacked on PR #19 at `7faa0ec`.
+
+All runtime FFmpeg/FFprobe calls now use `app.processes.run`: Windows children
+receive CREATE_NO_WINDOW and disconnected stdin. Output/error capture, timeouts
+and process failure behavior remain intact. Tests enforce use of that policy
+throughout backend/app, verify Windows flags and actual child GetConsoleWindow=0
+on Windows. Downloaded-EXE --check also executes bundled FFmpeg through that
+policy. No build/terminal launcher output is globally redirected or suppressed.
+
+Guided projects show one active work area, a compact four-step navigator and
+persistent next action. New projects default guided; explicit expert preferences
+remain usable. All existing tools stay mounted so switching preserves draft
+inputs/proposals. Edit this draft opens saved shot corrections; Preview my changes
+renders the current timeline instead of automatically rebuilding it. Simple fit,
+zoom and earlier/later actions are visible. The full editor remains an escape
+hatch; technical rendering/export review and explicit approval remain intact.
+
+Local Director no longer replaces page IDs through weak tag matching. Vision
+also preserves source page order by default; cross-page reassignment requires
+explicit advanced opt-in for non-sequential collections. Local
+gutter reading order is row-first even after a vertical split. Optional vision
+responses can supply strict, bounded, evidenced panel regions; uncertain or
+duplicate/out-of-page regions are rejected or kept whole. Crop focal points are
+translated from page coordinates into the chosen panel; points outside that
+panel retain whole-panel framing and a review warning. This uses the already
+explicitly selected provider mode, with no new silent external calls.
+
+Existing bad drafts can restore uploaded page order. Explicit one-run page
+re-detection plans from original pages and clears stale generated storyboard
+assignments; locked shots/custom routes block the reset, source images/narration
+and captions survive, and prior scenes stay in Undo/version history. Ordinary
+manual edits do not trigger this reset.
+
+Final checks, PR and fresh owner-preview EXE provenance are recorded in the new
+feature PR. Model transport/region validation use mocked providers and original
+synthetic geometry. Arbitrary irregular-page semantic quality and actual owner
+Windows 10 acceptance still require real-material trials; Issue #14 is not closed.
+
+Application source for this preview: `d1e3d613c2061e2bf8480d733d86f37bf9037afa`,
+draft PR #20, Windows package `45989014931`, artifact `15192402561`, EXE SHA256
+`21d03a7b5cc6c4a3658760ae11238723c2212decfa5f89885d1afc295c05f35d`.
+Windows passed 121 tests including a real child with no console window; downloaded
+EXE startup/native-window checks passed on separate Server 2022/2025 runners.
+The actual EXE's bundled JS includes Edit this draft, Preview my changes,
+page re-detection/source-order recovery, and its PYZ includes app.processes.
+Sharing pins those exact bytes under `studio-guided-fix-preview-2026-11-27`.
+Confirm final validation `45989014858`, sharing success and anonymous public
+download before handing off. The older November 24 links retain the older app.
+
+Owner later reported still seeing **six large cards**, identifying the old
+workspace layout rather than this application's four-step navigation. Identical
+generic filenames made installed/Downloaded copies ambiguous. Sharing now adds
+`Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe` with the exact same tested bytes
+and SHA256 above. Keep the generic asset alive for existing links; recommend the
+dated file, close all older Studio windows and launch it directly from Downloads.
+No application code or project data is changed by this distribution correction.

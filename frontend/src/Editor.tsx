@@ -86,6 +86,8 @@ export default function Editor({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [autoRunRequest, setAutoRunRequest] = useState(0);
+  const [activeTool, setActiveTool] = useState<WorkspaceTool>("files");
+  const [directorRunning, setDirectorRunning] = useState(false);
   const [easyMode, setEasyMode] = useState(() => {
     try {
       return (
@@ -98,6 +100,7 @@ export default function Editor({
   });
   function changeMode(easy: boolean) {
     setEasyMode(easy);
+    if (easy) setActiveTool(project?.scene_count ? "camera" : "files");
     try {
       localStorage.setItem(
         `comic-beatdowns:editor-mode:${projectId}`,
@@ -131,6 +134,13 @@ export default function Editor({
   };
   useEffect(() => {
     if (!project) return;
+    setActiveTool(
+      project.scene_count
+        ? "camera"
+        : project.narration_url && project.workflow?.panel_ids?.length
+          ? "draft"
+          : "files",
+    );
     try {
       if (!localStorage.getItem(`comic-beatdowns:step:${projectId}`))
         setStageValue(project.scene_count ? "edit" : "files");
@@ -440,6 +450,7 @@ export default function Editor({
     );
   }
   function openWorkspaceTool(tool: WorkspaceTool) {
+    setActiveTool(tool);
     if (tool === "files") setStage("files");
     const targets: Record<WorkspaceTool, string> = {
       files: "studio-workflow",
@@ -451,6 +462,7 @@ export default function Editor({
       camera: "page-shot-review",
       review: "studio-review-queue",
       preferences: "studio-recipe-preferences",
+      advanced: "studio-workflow",
     };
     requestAnimationFrame(() => {
       const target = document.getElementById(targets[tool]);
@@ -613,8 +625,7 @@ export default function Editor({
           {notice}
         </div>
       )}
-      <WorkspaceTools hasShots={scenes.length > 0} onOpen={openWorkspaceTool} />
-      {easyMode && !scenes.length ? (
+      {easyMode ? (
         <GuidedWorkspace
           project={project}
           scenes={scenes}
@@ -623,32 +634,22 @@ export default function Editor({
           busy={busy}
           canRender={canRender}
           onFiles={() => {
-            setStage("files");
-            requestAnimationFrame(() =>
-              document
-                .getElementById("studio-workflow")
-                ?.scrollIntoView({ behavior: "smooth" }),
-            );
+            openWorkspaceTool("files");
           }}
-          onAutopilot={() =>
-            document
-              .getElementById("studio-autopilot")
-              ?.scrollIntoView({ behavior: "smooth" })
-          }
+          onAutopilot={() => openWorkspaceTool("draft")}
           onGenerate={() => {
+            openWorkspaceTool("draft");
             setAutoRunRequest((current) => current + 1);
-            requestAnimationFrame(() =>
-              document
-                .getElementById("studio-autopilot")
-                ?.scrollIntoView({ behavior: "smooth" }),
-            );
           }}
           onSave={() =>
             void perform(async () => setNotice("All changes saved."))
           }
-          onReview={() => setStage("review")}
-          onRender={() => void render("final")}
+          onReview={() => openWorkspaceTool("finish")}
+          onRender={() => openWorkspaceTool("finish")}
           onAdvanced={() => changeMode(false)}
+          onEdit={() => openWorkspaceTool("camera")}
+          onPreview={() => void render("draft")}
+          inProgress={directorRunning}
         />
       ) : (
         <div className="advanced-switch">
@@ -665,6 +666,11 @@ export default function Editor({
           </button>
         </div>
       )}
+      <WorkspaceTools
+        hasShots={scenes.length > 0}
+        activeTool={activeTool}
+        onOpen={openWorkspaceTool}
+      />
       {!easyMode && (
         <WorkflowSteps
           stage={stage}
@@ -684,7 +690,7 @@ export default function Editor({
       )}
       <div className="editor-layout">
         <div className="editor-workspace">
-          <div id="studio-workflow">
+          <div id="studio-workflow" hidden={easyMode && activeTool !== "files"}>
             <ProductionWorkflow
               simple={easyMode}
               noteMoment={noteMoment}
@@ -723,8 +729,12 @@ export default function Editor({
               }}
             />
           </div>
-          <div id="studio-autopilot">
+          <div
+            id="studio-autopilot"
+            hidden={easyMode && activeTool !== "draft"}
+          >
             <VerdictAutopilot
+              onActivity={setDirectorRunning}
               panels={panels}
               simple={easyMode}
               autoRunRequest={autoRunRequest}
@@ -734,13 +744,17 @@ export default function Editor({
               accept={accept}
               perform={perform}
               onChanged={onChanged}
-              onReview={() => setStage("review")}
+              onReview={() =>
+                easyMode ? openWorkspaceTool("camera") : setStage("review")
+              }
+              onFixPage={() => openWorkspaceTool("camera")}
               onError={onError}
             />
           </div>
           <CreatorAssistant
             key={projectId}
             project={view}
+            activeTool={easyMode ? activeTool : undefined}
             dirty={dirty}
             busy={busy || Boolean(activeJob)}
             perform={perform}
@@ -753,73 +767,107 @@ export default function Editor({
             }}
             onRenderShot={(start, end) => void render("draft", start, end)}
           />
-          {scenes.length > 0 && (
-            <PageShotReview
-              scenes={scenes}
-              busy={busy}
-              canUndo={dirty || project.can_undo}
-              onPatch={editScene}
-              onMove={(from, to) => {
-                if (!scenes[from]?.locked && !scenes[to]?.locked)
-                  reorder(from, to);
-              }}
-              onRemove={(index) => {
-                if (
-                  !scenes[index].locked &&
-                  window.confirm(
-                    `Remove shot ${index + 1} from the timeline? The original page is safe, and Undo will restore the shot.`,
-                  )
-                )
-                  update({
-                    scenes: scenes.filter((_, i) => i !== index),
-                  });
-              }}
-              onSplit={(index) => {
-                update({
-                  scenes: splitScene(scenes, index, settings.fps),
-                });
-              }}
-              onJoin={(index) => {
-                try {
-                  update({ scenes: mergePageShots(scenes, index) });
-                  setNotice(
-                    "Joined those crops. Total narration timing was preserved.",
-                  );
-                } catch (error) {
-                  onError(errorMessage(error));
+          <div hidden={easyMode && activeTool !== "camera"}>
+            {scenes.length > 0 && (
+              <PageShotReview
+                scenes={scenes}
+                busy={busy}
+                canUndo={dirty || project.can_undo}
+                onRestoreOrder={
+                  view.workflow?.panel_ids?.length
+                    ? () => {
+                        if (
+                          !window.confirm(
+                            "Restore uploaded page order and top-to-bottom panel order? Every shot is kept, and Undo can restore your current order.",
+                          )
+                        )
+                          return;
+                        const order = new Map(
+                          (view.workflow?.panel_ids ?? []).map((id, i) => [
+                            id,
+                            i,
+                          ]),
+                        );
+                        update({
+                          scenes: [...scenes].sort(
+                            (a, b) =>
+                              (order.get(a.panel_id) ?? 999) -
+                                (order.get(b.panel_id) ?? 999) ||
+                              (a.source_crop?.y ?? 0) -
+                                (b.source_crop?.y ?? 0) ||
+                              (a.source_crop?.x ?? 0) - (b.source_crop?.x ?? 0),
+                          ),
+                        });
+                        setNotice(
+                          "Page order restored. Preview the edit or use Undo to restore the previous order.",
+                        );
+                      }
+                    : undefined
                 }
-              }}
-              onDuplicate={(index) => {
-                const source = scenes[index];
-                if (duration + source.duration > 180) return;
-                update({
-                  scenes: [
-                    ...scenes.slice(0, index + 1),
-                    {
-                      ...source,
-                      id: newId(),
-                      locked: false,
-                      sfx_source_id: source.sfx_source_id ?? source.id,
-                    },
-                    ...scenes.slice(index + 1),
-                  ],
-                });
-              }}
-              onReviewVideo={() => setStage("review")}
-              onPreview={(index) => {
-                setPreviewOverride(null);
-                setPreviewRequest({ index, nonce: Date.now() });
-                document.querySelector(".preview-section")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "nearest",
-                });
-              }}
-              onUndo={() => void perform(() => studio.history("undo"), false)}
-            />
-          )}
+                onPatch={editScene}
+                onMove={(from, to) => {
+                  if (!scenes[from]?.locked && !scenes[to]?.locked)
+                    reorder(from, to);
+                }}
+                onRemove={(index) => {
+                  if (
+                    !scenes[index].locked &&
+                    window.confirm(
+                      `Remove shot ${index + 1} from the timeline? The original page is safe, and Undo will restore the shot.`,
+                    )
+                  )
+                    update({
+                      scenes: scenes.filter((_, i) => i !== index),
+                    });
+                }}
+                onSplit={(index) => {
+                  update({
+                    scenes: splitScene(scenes, index, settings.fps),
+                  });
+                }}
+                onJoin={(index) => {
+                  try {
+                    update({ scenes: mergePageShots(scenes, index) });
+                    setNotice(
+                      "Joined those crops. Total narration timing was preserved.",
+                    );
+                  } catch (error) {
+                    onError(errorMessage(error));
+                  }
+                }}
+                onDuplicate={(index) => {
+                  const source = scenes[index];
+                  if (duration + source.duration > 180) return;
+                  update({
+                    scenes: [
+                      ...scenes.slice(0, index + 1),
+                      {
+                        ...source,
+                        id: newId(),
+                        locked: false,
+                        sfx_source_id: source.sfx_source_id ?? source.id,
+                      },
+                      ...scenes.slice(index + 1),
+                    ],
+                  });
+                }}
+                onReviewVideo={() => setStage("review")}
+                onPreview={(index) => {
+                  setPreviewOverride(null);
+                  setPreviewRequest({ index, nonce: Date.now() });
+                  document.querySelector(".preview-section")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                  });
+                }}
+                onUndo={() => void perform(() => studio.history("undo"), false)}
+              />
+            )}
+          </div>
 
           <details
             id="studio-video-timeline"
+            hidden={easyMode && activeTool !== "timeline"}
             className="creator-advanced-timeline"
             open={!easyMode}
           >
@@ -858,26 +906,28 @@ export default function Editor({
             />
           </details>
 
-          {scenes.length > 0 && (
-            <FinishVideo
-              key={`finish-${projectId}`}
-              project={view}
-              dirty={dirty}
-              busy={busy || Boolean(activeJob)}
-              perform={perform}
-              onQueued={(saved, job) => {
-                accept(saved);
-                setJobs((previous) => [job, ...previous]);
-                setStage("export");
-                onChanged();
-              }}
-              onReviewCopy={() => void render("draft")}
-              onSeek={(seconds) => {
-                setPreviewOverride(null);
-                setPreviewRequest({ seconds, nonce: Date.now() });
-              }}
-            />
-          )}
+          <div hidden={easyMode && activeTool !== "finish"}>
+            {scenes.length > 0 && (
+              <FinishVideo
+                key={`finish-${projectId}`}
+                project={view}
+                dirty={dirty}
+                busy={busy || Boolean(activeJob)}
+                perform={perform}
+                onQueued={(saved, job) => {
+                  accept(saved);
+                  setJobs((previous) => [job, ...previous]);
+                  setStage("export");
+                  onChanged();
+                }}
+                onReviewCopy={() => void render("draft")}
+                onSeek={(seconds) => {
+                  setPreviewOverride(null);
+                  setPreviewRequest({ seconds, nonce: Date.now() });
+                }}
+              />
+            )}
+          </div>
           {!easyMode && (
             <div className="tabs">
               {(
@@ -1800,6 +1850,7 @@ export default function Editor({
             onPlayingChange={previewOverride ? undefined : setTimelinePlaying}
             toggleRequest={previewOverride ? 0 : timelinePlayRequest}
             onMoment={(time) => {
+              changeMode(false);
               setStage("review");
               setNoteMoment({ time, nonce: Date.now() });
             }}
