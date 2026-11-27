@@ -1072,11 +1072,15 @@ export default function App() {
           }}
           onError={showError}
           onCreated={(project) => {
-            // "New project" is the power-user path; Verdict Autopilot is guided.
+            // New projects start guided; an explicit full-editor preference is respected.
             try {
               localStorage.setItem(
                 `comic-beatdowns:editor-mode:${project.id}`,
-                autopilotStart ? "easy" : "advanced",
+                !autopilotStart &&
+                  localStorage.getItem("comic-beatdowns:editor-mode") ===
+                    "advanced"
+                  ? "advanced"
+                  : "easy",
               );
             } catch {
               /* Editor keeps a usable in-memory fallback. */

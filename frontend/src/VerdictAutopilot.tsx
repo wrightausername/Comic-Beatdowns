@@ -141,6 +141,7 @@ export default function VerdictAutopilot({
   onReview,
   onFixPage,
   onError,
+  onActivity,
 }: {
   project: Project;
   simple?: boolean;
@@ -154,6 +155,7 @@ export default function VerdictAutopilot({
   onReview: () => void;
   onFixPage?: () => void;
   onError: (message: string) => void;
+  onActivity?: (working: boolean) => void;
 }) {
   const lastAutomaticStart = useRef(0);
   const [jobs, setJobs] = useState<DirectorJob[]>([]);
@@ -175,6 +177,9 @@ export default function VerdictAutopilot({
   const latest = jobs[0];
   const running =
     latest && ["queued", "working", "rendering"].includes(latest.status);
+  useEffect(() => {
+    onActivity?.(Boolean(running));
+  }, [running, onActivity]);
   const options = {
     ...defaultAutopilot,
     pace: project.settings?.edit_pace ?? defaultAutopilot.pace,
@@ -403,24 +408,62 @@ export default function VerdictAutopilot({
           </button>
         )}
       </div>
+      <div className="draft-reading-mode">
+        {" "}
+        <label>
+          How Verdict decides
+          <select
+            disabled={!!running}
+            value={options.mode}
+            onChange={(e) =>
+              void changeOptions({
+                mode: e.target.value as AutopilotOptions["mode"],
+              })
+            }
+          >
+            <option value="basic">Local · keep page order</option>
+            <option value="vision">Vision AI · suggest panel crops</option>
+          </select>
+        </label>
+        <p className="help">
+          Local keeps your page order and finds clear gutters. Vision can
+          suggest boundaries on complex pages using your configured model.
+          Review all crops before export.
+        </p>
+      </div>
+      {project.scene_count > 0 && (
+        <label className="check-label rebuild-pages-choice">
+          <input
+            type="checkbox"
+            checked={!!options.rebuild_pages}
+            disabled={!!running || busy}
+            onChange={(e) =>
+              void changeOptions({ rebuild_pages: e.target.checked })
+            }
+          />{" "}
+          Re-detect panels from the original pages on the next draft
+          <small>
+            Replaces unlocked shot edits. Your current edit stays in Undo
+            history; narration and source images are kept. Locked shots and
+            custom routes block this reset.
+          </small>
+        </label>
+      )}
       <details className="autopilot-simple-options">
         <summary>Optional · change editing style or AI settings</summary>
+        <label className="check-label">
+          <input
+            type="checkbox"
+            checked={!!options.reorder_pages}
+            disabled={!!running || options.mode !== "vision"}
+            onChange={(e) =>
+              void changeOptions({ reorder_pages: e.target.checked })
+            }
+          />
+          Allow vision to change source page order · leave off for sequential
+          comics
+        </label>
         <div className="form-grid autopilot-options">
-          <label>
-            How Verdict decides
-            <select
-              disabled={!!running}
-              value={options.mode}
-              onChange={(e) =>
-                void changeOptions({
-                  mode: e.target.value as AutopilotOptions["mode"],
-                })
-              }
-            >
-              <option value="basic">Basic · upload order + tags</option>
-              <option value="vision">Vision AI · understands panels</option>
-            </select>
-          </label>
           <label>
             Pacing
             <select
@@ -454,7 +497,7 @@ export default function VerdictAutopilot({
         </div>
         <p className="muted">
           {options.mode === "basic"
-            ? "Runs locally without API credentials. Keep panels in story order; Basic cannot inspect the artwork. Offline English captions may need corrections."
+            ? "Runs locally without API credentials. Keeps page order and detects clear gutters; ambiguous layouts stay whole for review. Offline English captions may need corrections."
             : "Sends resized project panels and narration text to your connected vision model. Audio is sent only if you set a Speech model. Provider charges may apply."}{" "}
           Your full selected recording is kept. No automatic publishing.
         </p>

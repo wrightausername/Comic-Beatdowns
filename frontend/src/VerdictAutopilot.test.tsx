@@ -69,7 +69,7 @@ test("the guided GUI exposes Basic, Vision, pacing, and preview-first delivery",
   expect(screen.getByLabelText("Delivery")).toHaveValue("draft");
   expect(screen.getByLabelText("Pacing")).toHaveValue("fast");
   expect(
-    screen.getByText(/Basic cannot inspect the artwork/),
+    screen.getByText(/ambiguous layouts stay whole for review/),
   ).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Make my video draft" }),

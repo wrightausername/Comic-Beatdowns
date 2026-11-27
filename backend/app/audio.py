@@ -3,12 +3,13 @@
 import array
 import math
 import re
-import subprocess
 import sys
+
+from .processes import run as run_process
 
 
 def pcm_audio(path, settings):
-    result = subprocess.run(
+    result = run_process(
         [
             settings.ffmpeg,
             "-nostdin",

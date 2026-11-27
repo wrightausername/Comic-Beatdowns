@@ -101,7 +101,9 @@ def suggest_panels(source):
     if len(boxes) < 2 or len(boxes) > 12:
         return []
     result = []
-    for x1, y1, x2, y2 in boxes:
+    # A vertical first split can produce column-major order. Western comic
+    # reading order must visit the top row before returning to lower panels.
+    for x1, y1, x2, y2 in sorted(boxes, key=lambda box: (box[1], box[0])):
         if x2 - x1 < 75 or y2 - y1 < 75:
             return []
         result.append(

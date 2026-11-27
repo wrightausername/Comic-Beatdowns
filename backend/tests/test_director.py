@@ -280,26 +280,36 @@ def mock_vision(monkeypatch, panel_id, invalid=False, confidence=None):
     monkeypatch.setattr("app.verdict_provider.httpx.post", post)
 
 
-def test_vision_uses_images_and_validates_provider_plan(client, image_bytes, monkeypatch, settings):
-    project, url, _, second = fixture_project(client, image_bytes)
+@pytest.mark.parametrize("reorder", [False, True])
+def test_vision_uses_images_and_validates_provider_plan(
+    client, image_bytes, monkeypatch, settings, reorder
+):
+    project, url, first, second = fixture_project(client, image_bytes)
     save_connection(
         settings,
         VisionConnection(base_url="https://example.com/v1", model="test", api_key="private"),
     )
-    project = enable(client, project, mode="vision")
+    project = enable(client, project, mode="vision", reorder_pages=reorder)
     mock_vision(monkeypatch, second["id"])
     fake_render(client, monkeypatch)
     start(client, url, project)
     result = wait_job(client, url)
     assert result["status"] == "completed", result
     saved = client.get(url).json()
-    assert all(s["panel_id"] == second["id"] for s in saved["scenes"])
+    if reorder:
+        assert all(s["panel_id"] == second["id"] for s in saved["scenes"])
+    else:
+        assert list(dict.fromkeys(s["panel_id"] for s in saved["scenes"])) == [
+            first["id"],
+            second["id"],
+        ]
     assert result["report"]["mode"] == "vision"
     assert "private" not in json.dumps(result)
-    assert saved["scenes"][0]["focus_x"] > 0.5
+    assert saved["scenes"][-1]["focus_x"] > 0.5
     assert saved["workflow"]["storyboard"][0]["panel_id"] == second["id"]
     assert result["report"]["smart_crops"]
-    assert result["report"]["smart_crops"][0]["reason"] == "Fist at the right edge"
+    if reorder:
+        assert result["report"]["smart_crops"][0]["reason"] == "Fist at the right edge"
     assert result["report"]["smart_crops"][0]["review_required"]
     # A hallucinated panel must never reach the timeline.
     mock_vision(monkeypatch, second["id"], invalid=True)

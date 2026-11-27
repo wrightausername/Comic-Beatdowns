@@ -43,6 +43,7 @@ export default function PageShotReview({
   onPreview,
   onReviewVideo,
   onUndo,
+  onRestoreOrder,
 }: {
   scenes: Scene[];
   busy: boolean;
@@ -56,6 +57,7 @@ export default function PageShotReview({
   onPreview: (index: number) => void;
   onReviewVideo: () => void;
   onUndo: () => void;
+  onRestoreOrder?: () => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
@@ -323,6 +325,59 @@ export default function PageShotReview({
         >
           <RotateCcw size={14} /> Undo edit
         </button>
+      </div>
+      <div className="shot-simple-actions" aria-label="Quick shot corrections">
+        <button
+          type="button"
+          className="button secondary small-button"
+          disabled={disabled || !!scene.camera_path}
+          onClick={() => onPatch(index, { framing: "fit", motion: "hold" })}
+        >
+          Fit whole panel
+        </button>
+        <button
+          type="button"
+          className="button secondary small-button"
+          disabled={disabled || !!scene.camera_path}
+          onClick={() =>
+            onPatch(index, { motion: "zoom_in", motion_strength: 0.06 })
+          }
+        >
+          Gentle zoom
+        </button>
+        <button
+          type="button"
+          className="button secondary small-button"
+          disabled={
+            busy || index === 0 || scene.locked || scenes[index - 1]?.locked
+          }
+          onClick={() => onMove(index, index - 1)}
+        >
+          Move earlier
+        </button>
+        <button
+          type="button"
+          className="button secondary small-button"
+          disabled={
+            busy ||
+            index === scenes.length - 1 ||
+            scene.locked ||
+            scenes[index + 1]?.locked
+          }
+          onClick={() => onMove(index, index + 1)}
+        >
+          Move later
+        </button>
+        {onRestoreOrder && (
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy || scenes.some((s) => s.locked)}
+            onClick={onRestoreOrder}
+          >
+            Restore uploaded page order
+          </button>
+        )}
       </div>
       <div className="page-review-step-label">1 · Pick the shot to check</div>
       <div

@@ -63,6 +63,16 @@ def focus_position(target, ratio, vertical=False):
     return 0.5 if crop >= 0.999 else min(1, max(0, (target - crop / 2) / (1 - crop)))
 
 
+def scene_focus(shot, panel, decision):
+    crop = shot.get("source_crop") or {"x": 0, "y": 0, "width": 1, "height": 1}
+    x = (decision.target_x - crop["x"]) / crop["width"]
+    y = (decision.target_y - crop["y"]) / crop["height"]
+    if not 0 <= x <= 1 or not 0 <= y <= 1:
+        return None
+    ratio = panel.width * crop["width"] / (panel.height * crop["height"])
+    return focus_position(x, ratio), focus_position(y, ratio, vertical=True)
+
+
 class DirectorService:
     def __init__(self, state):
         self.state = state
@@ -153,6 +163,13 @@ class DirectorService:
                         "A source file is missing. Restore it in Add files → Recover missing files.",
                     )
             source = snapshot(db, project)
+            if options.rebuild_pages and any(
+                s.get("locked") or s.get("camera_path") for s in source["scenes"]
+            ):
+                raise HTTPException(
+                    409,
+                    "Rebuilding page boundaries would replace protected shots. Keep the current edit or explicitly unlock/clear its routes first.",
+                )
             source["options"] = options.model_dump()
             source["panels"] = [
                 {
@@ -198,6 +215,9 @@ class DirectorService:
             panels = [SimpleNamespace(**p) for p in source["panels"]]
             scenes = [SimpleNamespace(**s) for s in source["scenes"]]
             options = AutopilotOptions.model_validate(source["options"])
+            if options.rebuild_pages:
+                scenes = []
+                project.workflow = {**project.workflow, "storyboard": []}
             config, storage = self.state.settings, self.state.storage
             path = storage.path(project.narration_key)
             analysis = analyze_audio(path, config)
@@ -242,7 +262,7 @@ class DirectorService:
             )
             decisions = []
             crop_reviews = []
-            summary = "Basic mode uses tags and upload order. It does not see the artwork."
+            summary = "Local mode keeps your page order and detects clear panel gutters. Check uncertain crops against the original page."
             if provider:
                 # Group tiny ASR cues into readable spoken cards. Keep exact timing/text.
                 project.workflow = {**project.workflow, "storyboard": []}
@@ -287,10 +307,12 @@ class DirectorService:
             # Creator supplied complete pages, not necessarily pre-cropped images.
             # Use conservative local geometry to generate virtual scenes only
             # when this project still has one untouched scene per source page.
-            scenes, page_report = page_sources(scenes, panels, storage)
+            scenes, page_report = page_sources(
+                scenes, panels, storage, plan.page_layouts if provider else ()
+            )
             if page_report["expanded"]:
                 warnings.append(
-                    "Whole-page panels were detected using straight gutters. "
+                    "Whole-page panel boundaries were proposed. "
                     "Review the proposed boundaries, order and captions."
                 )
             self.progress(
@@ -307,7 +329,11 @@ class DirectorService:
                     panels,
                     BuildDraftInput(
                         pace=options.pace,
-                        match_panels=not page_report["expanded"],
+                        # Metadata/tag matches are not evidence for jumping back
+                        # and forth through a comic. Basic keeps the supplied order.
+                        match_panels=bool(provider)
+                        and options.reorder_pages
+                        and not page_report["expanded"],
                         captions=bool(project.caption_cues),
                     ),
                     analysis["pauses"],
@@ -333,21 +359,20 @@ class DirectorService:
                     panel = panel_map[shot["panel_id"]]
                     matches = panel.id == decision.panel_id
                     low_confidence = decision.confidence is not None and decision.confidence < 0.55
+                    target = scene_focus(shot, panel, decision) if matches else None
                     if matches:
-                        if low_confidence:
+                        if low_confidence or target is None:
                             # Never force a speculative close-up when the vision
                             # provider says it cannot identify the action.
                             shot.update(focus_x=0.5, focus_y=0.5, framing="fit")
                         else:
                             shot.update(
-                                focus_x=focus_position(
-                                    decision.target_x, panel.width / panel.height
-                                ),
-                                focus_y=focus_position(
-                                    decision.target_y, panel.width / panel.height, vertical=True
-                                ),
+                                focus_x=target[0],
+                                focus_y=target[1],
                                 framing=decision.framing,
                             )
+                    else:
+                        shot.update(focus_x=0.5, focus_y=0.5, framing="fit")
                     crop_reviews.append(
                         {
                             "scene_id": shot["id"],
@@ -357,17 +382,20 @@ class DirectorService:
                             "target_x": decision.target_x if matches else 0.5,
                             "target_y": decision.target_y if matches else 0.5,
                             "framing": shot.get("framing", "fill"),
-                            "reason": decision.reason
+                            "reason": "The suggested focus is outside this panel; full-panel framing kept"
+                            if matches and target is None
+                            else decision.reason
                             if matches
                             else "Panel assignment differs from the selected shot",
                             "confidence": decision.confidence if matches else None,
                             "review_required": (
                                 not matches
+                                or target is None
                                 or low_confidence
                                 or decision.confidence is None
                                 or decision.confidence < 0.75
                             ),
-                            "applied": matches and not low_confidence,
+                            "applied": matches and not low_confidence and target is not None,
                         }
                     )
                 cursor += shot["duration"]
@@ -377,6 +405,8 @@ class DirectorService:
                 revision, project_id = job.base_revision, job.project_id
             with self.sessions() as db:
                 live = locked_project(db, project_id, revision)
+                if options.rebuild_pages:
+                    live.autopilot = {**(live.autopilot or {}), "rebuild_pages": False}
                 job = db.get(DirectorJob, job_id)
                 if job.status == "cancelled" or self.stop_event.is_set():
                     raise InterruptedError

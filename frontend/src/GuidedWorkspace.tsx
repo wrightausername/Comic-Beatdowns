@@ -1,7 +1,5 @@
 import {
   ArrowRight,
-  CheckCircle2,
-  Circle,
   Download,
   Film,
   FolderOpen,
@@ -11,7 +9,14 @@ import {
 import type { Project, RenderJob, Scene } from "./types";
 
 export type GuidedState =
-  "files" | "save" | "working" | "generate" | "review" | "export" | "done";
+  | "files"
+  | "save"
+  | "working"
+  | "generate"
+  | "refresh"
+  | "review"
+  | "export"
+  | "done";
 
 export function guidedState(
   project: Project,
@@ -30,7 +35,8 @@ export function guidedState(
     (job) =>
       job.project_id === project.id &&
       job.project_revision === project.revision &&
-      !job.proposal_id,
+      !job.proposal_id &&
+      !job.section,
   );
   if (
     current.some((job) => job.status === "queued" || job.status === "running")
@@ -45,6 +51,16 @@ export function guidedState(
     current.some((job) => job.status === "completed" && job.quality === "draft")
   )
     return "review";
+  if (
+    scenes.length &&
+    jobs.some(
+      (job) =>
+        job.project_id === project.id &&
+        job.status === "completed" &&
+        !job.proposal_id,
+    )
+  )
+    return "refresh";
   return "generate";
 }
 
@@ -62,6 +78,9 @@ type Props = {
   onReview: () => void;
   onRender: () => void;
   onAdvanced: () => void;
+  onEdit?: () => void;
+  onPreview?: () => void;
+  inProgress?: boolean;
 };
 
 export default function GuidedWorkspace({
@@ -78,8 +97,13 @@ export default function GuidedWorkspace({
   onReview,
   onRender,
   onAdvanced,
+  onEdit,
+  onPreview,
+  inProgress = false,
 }: Props) {
-  const status = guidedState(project, scenes, jobs, dirty);
+  const status = inProgress
+    ? "working"
+    : guidedState(project, scenes, jobs, dirty);
   const panelsReady =
     scenes.length > 0 ||
     project.scene_count > 0 ||
@@ -90,7 +114,9 @@ export default function GuidedWorkspace({
       job.project_id === project.id &&
       job.project_revision === project.revision &&
       job.status === "completed" &&
-      job.quality === "final",
+      job.quality === "final" &&
+      !job.section &&
+      !job.proposal_id,
   );
   const preview = jobs.find(
     (job) =>
@@ -98,7 +124,8 @@ export default function GuidedWorkspace({
       job.project_revision === project.revision &&
       job.status === "completed" &&
       job.quality === "draft" &&
-      !job.proposal_id,
+      !job.proposal_id &&
+      !job.section,
   );
   const plan: Record<
     GuidedState,
@@ -111,7 +138,8 @@ export default function GuidedWorkspace({
       help: !panelsReady
         ? "Drop your comic images, PDF, or CBZ into the file area below. You can add a voice recording at the same time."
         : "Generate Verdict’s voice in ElevenLabs, then upload the MP3 or WAV here. Your recording sets the timing for the edit.",
-      button: "Add missing files",
+      button:
+        panelsReady && !audioReady ? "Add narration" : "Add missing files",
     },
     save: {
       title: "Your edits are still being saved",
@@ -128,6 +156,11 @@ export default function GuidedWorkspace({
       help: "Verdict will arrange the panels, add camera movement and captions, and render a preview. You approve the result before final export.",
       button: "Make my video preview",
     },
+    refresh: {
+      title: "Ready to preview your changes",
+      help: "Render the current edit with your crop, timing and order changes.",
+      button: "Preview my changes",
+    },
     review: {
       title: "Your preview is ready to watch",
       help: "Watch it once, check the crops and captions, and approve it below. You can change anything first.",
@@ -136,7 +169,7 @@ export default function GuidedWorkspace({
     export: {
       title: "Approved. Make the final MP4.",
       help: "This creates a full-resolution vertical video. You stay in control of publishing.",
-      button: "Render final 1080p video",
+      button: "Check and export",
     },
     done: {
       title: "Your video is ready!",
@@ -150,27 +183,29 @@ export default function GuidedWorkspace({
       ? onFiles
       : status === "save"
         ? onSave
-        : status === "generate"
-          ? onGenerate
-          : status === "working" || status === "review"
-            ? onAutopilot
-            : status === "export"
-              ? onRender
-              : undefined;
+        : status === "refresh"
+          ? onPreview
+          : status === "generate"
+            ? onGenerate
+            : status === "review"
+              ? onReview
+              : status === "working"
+                ? onAutopilot
+                : status === "export"
+                  ? onRender
+                  : undefined;
   const mainLabel = status === "done" ? "Finished" : "YOUR NEXT STEP";
 
   return (
-    <section className="guided-studio surface" aria-label="Easy video creation">
+    <section
+      className="guided-studio surface guided-studio-focused"
+      aria-label="Easy video creation"
+    >
       <div className="guided-studio-top">
         <div>
           <span className="eyebrow">
-            <Sparkles size={14} /> EASY MODE
+            <Sparkles size={14} /> YOUR NEXT STEP
           </span>
-          <h2>One step at a time.</h2>
-          <p className="muted">
-            Do the next thing shown here. Verdict handles the edit and you keep
-            the final say.
-          </p>
         </div>
         <button
           type="button"
@@ -180,44 +215,17 @@ export default function GuidedWorkspace({
           <PencilRuler size={16} /> Open full editor
         </button>
       </div>
-      <div className="guided-progress" aria-label="Video production progress">
-        <div className={panelsReady && audioReady ? "complete" : "active"}>
-          {panelsReady && audioReady ? (
-            <CheckCircle2 size={18} />
-          ) : (
-            <Circle size={18} />
-          )}
-          <span>1. Add panels + voice</span>
-        </div>
-        <div
-          className={
-            preview || project.script_approved || final
-              ? "complete"
-              : status === "working" || status === "generate"
-                ? "active"
-                : ""
-          }
+      {scenes.length > 0 && onEdit && (
+        <button
+          type="button"
+          className="button secondary guided-edit-draft"
+          disabled={busy}
+          onClick={onEdit}
         >
-          {preview || project.script_approved || final ? (
-            <CheckCircle2 size={18} />
-          ) : (
-            <Circle size={18} />
-          )}
-          <span>2. Make a preview</span>
-        </div>
-        <div
-          className={
-            final
-              ? "complete"
-              : status === "review" || status === "export"
-                ? "active"
-                : ""
-          }
-        >
-          {final ? <CheckCircle2 size={18} /> : <Circle size={18} />}
-          <span>3. Review + export</span>
-        </div>
-      </div>
+          <PencilRuler size={16} />
+          Edit this draft
+        </button>
+      )}
       <div className="guided-next">
         <div>
           <span className="eyebrow">{mainLabel}</span>
@@ -261,10 +269,17 @@ export default function GuidedWorkspace({
           The export record has no downloadable file. Check the Exports page.
         </p>
       )}
-      <p className="guided-footnote">
-        Use your ElevenLabs recording. Advanced timeline editing and optional AI
-        connections remain available; publishing requires your own approval.
-      </p>
+      {(preview?.video_url || final?.video_url) && (
+        <details className="guided-render">
+          <summary>Watch rendered video</summary>
+          <video
+            src={final?.video_url ?? preview?.video_url ?? undefined}
+            controls
+            preload="metadata"
+            aria-label="Current rendered video"
+          />
+        </details>
+      )}
     </section>
   );
 }

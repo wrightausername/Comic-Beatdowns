@@ -12,13 +12,14 @@ from sqlalchemy import select
 
 from .database import Project, RenderJob, now
 from .effects import TRANSITIONS, camera_expressions, incoming_transition
+from .processes import run as run_process
 
 logger = logging.getLogger(__name__)
 
 
 def run(command: list[str], *, cwd=None, timeout=600) -> str:
     try:
-        result = subprocess.run(
+        result = run_process(
             command, cwd=cwd, capture_output=True, text=True, timeout=timeout, check=False
         )
     except FileNotFoundError as e:

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";
 import { api, json } from "./api";
 import ReferenceStyle from "./ReferenceStyle";
+import type { WorkspaceTool } from "./WorkspaceTools";
 import type { Project, RenderJob, VideoSettings } from "./types";
 import { errorMessage, timelineSeconds, timecode } from "./utils";
 
@@ -146,6 +147,7 @@ function preferenceLabel(instruction: string) {
 }
 
 export default function CreatorAssistant({
+  activeTool,
   project,
   dirty,
   busy,
@@ -156,6 +158,7 @@ export default function CreatorAssistant({
   onSeek,
   onRenderShot,
 }: {
+  activeTool?: WorkspaceTool;
   project: Project;
   dirty: boolean;
   busy: boolean;
@@ -334,6 +337,10 @@ export default function CreatorAssistant({
   return (
     <section
       className="creator-assistant surface"
+      hidden={
+        !!activeTool &&
+        !["style", "instructions", "review", "preferences"].includes(activeTool)
+      }
       aria-label="Creator editing assistant"
     >
       <div className="section-heading">
@@ -361,6 +368,7 @@ export default function CreatorAssistant({
       )}
       <details
         id="studio-editing-instructions"
+        hidden={!!activeTool && activeTool !== "instructions"}
         className="assistant-request"
         open={askOpen}
         onToggle={(e) => setAskOpen(e.currentTarget.open)}
@@ -482,18 +490,23 @@ export default function CreatorAssistant({
           </details>
         )}
       </details>
-      <ReferenceStyle
-        project={project}
-        busy={!ready}
-        run={run}
-        onProposed={(value) => {
-          setProposal(value);
-          onPreview(null);
-        }}
-        onNotice={setNotice}
-      />
+      <div hidden={!!activeTool && activeTool !== "style"}>
+        <ReferenceStyle
+          project={project}
+          busy={!ready}
+          run={run}
+          onProposed={(value) => {
+            setProposal(value);
+            onPreview(null);
+          }}
+          onNotice={setNotice}
+        />
+      </div>
       {proposal && (
         <div
+          hidden={
+            !!activeTool && !["style", "instructions"].includes(activeTool)
+          }
           className="assistant-proposal"
           aria-label="Proposed editing changes"
         >
@@ -705,6 +718,7 @@ export default function CreatorAssistant({
       )}
       <details
         id="studio-review-queue"
+        hidden={!!activeTool && activeTool !== "review"}
         className="assistant-review"
         open={active.length > 0}
       >
@@ -824,7 +838,11 @@ export default function CreatorAssistant({
           ))}
         </ol>
       </details>
-      <details id="studio-recipe-preferences" className="assistant-preferences">
+      <details
+        id="studio-recipe-preferences"
+        hidden={!!activeTool && activeTool !== "preferences"}
+        className="assistant-preferences"
+      >
         <summary>My recipe and learning · optional</summary>
         <p>
           Your preferred recipe starts new episodes with saved captions, pacing,

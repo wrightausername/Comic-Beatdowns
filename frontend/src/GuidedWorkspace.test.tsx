@@ -42,7 +42,7 @@ it("guides users in the correct order and ignores outdated previews", () => {
   ).toBe("generate");
   expect(
     guidedState(ready, [scene], [{ ...renderJob, project_revision: 3 }], false),
-  ).toBe("generate");
+  ).toBe("refresh");
   expect(
     guidedState({ ...ready, script_approved: true }, [scene], [], false),
   ).toBe("export");
@@ -94,4 +94,25 @@ it("offers one clear next action with a way to return to the full editor", () =>
   expect(onGenerate).toHaveBeenCalledTimes(1);
   expect(onAutopilot).not.toHaveBeenCalled();
   expect(screen.queryByText(/not visual AI/i)).not.toBeInTheDocument();
+  const onPreview = vi.fn();
+  const onEdit = vi.fn();
+  view.rerender(
+    <GuidedWorkspace
+      {...base}
+      project={{
+        ...project,
+        narration_url: "/media/voice.wav",
+        scene_count: 1,
+      }}
+      scenes={[scene]}
+      jobs={[{ ...renderJob, project_revision: 3 }]}
+      onPreview={onPreview}
+      onEdit={onEdit}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Preview my changes" }));
+  expect(onPreview).toHaveBeenCalledTimes(1);
+  expect(onGenerate).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Edit this draft" }));
+  expect(onEdit).toHaveBeenCalledTimes(1);
 });

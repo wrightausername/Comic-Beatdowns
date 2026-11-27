@@ -62,6 +62,9 @@ function silentWav(seconds = 1) {
 }
 
 async function openTimeline(page: Page) {
+  await page
+    .getByRole("button", { name: "Open Video timeline", exact: true })
+    .click();
   const section = page.locator("details.creator-advanced-timeline");
   await expect(section).toBeVisible();
   if (!(await section.evaluate((el) => el.hasAttribute("open"))))
@@ -69,6 +72,9 @@ async function openTimeline(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("comic-beatdowns:editor-mode", "advanced"),
+  );
   await page.goto("/");
   await page
     .getByLabel("Studio access token")
@@ -99,7 +105,7 @@ test("workspace tools are discoverable, keyboard accessible and usable on mobile
     tools.getByRole("button", { name: "Open Review & export" }),
   ).toBeDisabled();
   await expect(
-    tools.getByText("Add or generate shots to unlock export."),
+    tools.getByText(/Add or generate shots to unlock editing and export/),
   ).toBeVisible();
   const projects = await (await page.request.get("/api/projects")).json();
   const id = projects.find(
@@ -762,6 +768,9 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
     path: testInfo.outputPath("verdict-autopilot.png"),
     timeout: 60_000,
   });
+  await page
+    .getByRole("button", { name: "Open Make a draft", exact: true })
+    .click();
   await card
     .getByLabel("I checked the preview, captions, and panel matches.")
     .check();
@@ -783,7 +792,10 @@ test("Verdict Autopilot turns uploaded panels and voice into a preview and appro
 test("Easy Mode walks a first-time creator through missing inputs without pretending to generate voice", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "Make a video", exact: true }).click();
+  await page.evaluate(() =>
+    localStorage.removeItem("comic-beatdowns:editor-mode"),
+  );
+  await page.getByRole("button", { name: "New project", exact: true }).click();
   await page
     .getByLabel("The angle", { exact: true })
     .fill("Why this supposedly unbeatable hero gets flattened.");
@@ -797,6 +809,7 @@ test("Easy Mode walks a first-time creator through missing inputs without preten
   await guide.getByRole("button", { name: "Add missing files" }).click();
   await expect(page.getByText("Drop project files here")).toBeVisible();
   const autopilot = page.getByRole("region", { name: "Verdict Autopilot" });
+  await page.getByRole("button", { name: "Open Make a draft" }).click();
   await expect(
     autopilot.getByRole("button", { name: "Make my video draft" }),
   ).toBeDisabled();
@@ -1179,7 +1192,9 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
       .getByRole("button", { name: "Approve & export 1080p" }),
   ).toBeVisible({ timeout: 120_000 });
   const box = page.getByRole("region", { name: "Creator editing assistant" });
-  await box.getByText("AI editing assistant", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Open AI editing assistant", exact: true })
+    .click();
   const projects = await (await page.request.get("/api/projects")).json();
   const id = projects.find(
     (p: { title: string }) => p.title === "Assistant proposal workflow",
@@ -1246,8 +1261,8 @@ test("pasted AI editing plan previews, applies, undoes and seeds the preferred r
   await expect
     .poll(async () => (await read()).scenes[0].framing)
     .toBe(before.scenes[0].framing);
-  await box
-    .getByText("My recipe and learning · optional", { exact: true })
+  await workspaceTools
+    .getByRole("button", { name: "Saved defaults", exact: true })
     .click();
   await box.getByLabel("Preferred recipe name").fill("Creator workflow recipe");
   await box
@@ -1298,6 +1313,9 @@ test("check and export scans the current render and requires creator approval", 
     (await page.request.get(`/api/projects/${project.id}`)).json();
   const before = await read();
   expect(before.script_approved).toBe(false);
+  await page
+    .getByRole("button", { name: "Open Review & export", exact: true })
+    .click();
   const finish = page.getByRole("region", {
     name: "Finish video",
     exact: true,
@@ -1334,6 +1352,9 @@ test("check and export scans the current render and requires creator approval", 
   await page
     .locator(".project-card")
     .filter({ hasText: "Changed finishing workflow" })
+    .click();
+  await page
+    .getByRole("button", { name: "Open Review & export", exact: true })
     .click();
   await expect(
     finish.getByRole("button", { name: "Check and export", exact: true }),
@@ -1566,7 +1587,9 @@ test("reference video style analyzes, saves tweaks and applies real editable sho
     .locator(".project-card")
     .filter({ hasText: "Reference editing workflow" })
     .click();
-  await styleBox.locator(":scope > summary").click();
+  await page
+    .getByRole("button", { name: "Open Reference style", exact: true })
+    .click();
   await styleBox.getByLabel("Saved reference style").selectOption(source.id);
   await expect(styleBox.getByLabel("Reference video playback")).toBeVisible();
   const referencePlayer = styleBox.getByLabel("Reference video playback");
@@ -1772,7 +1795,9 @@ test("smart style review, consent, rendered proposal and recipe recovery work to
     .click();
   const before = await read();
   const box = page.locator("details.reference-style");
-  await box.locator(":scope > summary").click();
+  await page
+    .getByRole("button", { name: "Open Reference style", exact: true })
+    .click();
   await box.getByLabel("Saved reference style").selectOption(style.id);
   await expect(
     box.getByLabel("Reference rhythm map", { exact: true }),
@@ -1925,4 +1950,83 @@ test("smart style review, consent, rendered proposal and recipe recovery work to
   ).toBeVisible();
   expect((await read()).revision).toBe(appliedRevision);
   expect(visionCalls).toBe(1);
+});
+
+test("saved drafts reopen for simple re-editing and preview changes without rebuilding", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Make a video", exact: true }).click();
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Simple re-edit flow");
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "page.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(2) },
+    {
+      name: "words.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:02,000\nOne panel, one clear point.\n",
+      ),
+    },
+  ]);
+  await page.getByRole("button", { name: /Create project/ }).click();
+  const director = page.getByRole("region", {
+    name: "Verdict Autopilot",
+    exact: true,
+  });
+  await expect(
+    director.getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120000 });
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Simple re-edit flow",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  const before = await read();
+  const jobsBefore = await (
+    await page.request.get(`/api/projects/${id}/director`)
+  ).json();
+  const guide = page.getByRole("region", { name: "Easy video creation" });
+  await guide.getByRole("button", { name: "Edit this draft" }).click();
+  const shots = page.getByRole("region", { name: "Quick shot editor" });
+  await expect(shots).toBeVisible();
+  await expect(director).not.toBeVisible();
+  await expect(page.getByLabel("Reference video file")).not.toBeVisible();
+  await shots
+    .getByRole("button", { name: "Fit whole panel", exact: true })
+    .click();
+  await expect
+    .poll(async () => (await read()).revision)
+    .toBeGreaterThan(before.revision);
+  const edited = await read();
+  await expect(
+    guide.getByRole("button", { name: "Preview my changes" }),
+  ).toBeVisible();
+  await guide.getByRole("button", { name: "Preview my changes" }).click();
+  await expect
+    .poll(async () => {
+      const jobs = await (
+        await page.request.get(`/api/renders?project_id=${id}`)
+      ).json();
+      return jobs.some(
+        (job: { project_revision: number; status: string }) =>
+          job.project_revision === edited.revision &&
+          job.status === "completed",
+      );
+    })
+    .toBeTruthy();
+  const jobsAfter = await (
+    await page.request.get(`/api/projects/${id}/director`)
+  ).json();
+  expect(jobsAfter.map((job: { id: string }) => job.id)).toEqual(
+    jobsBefore.map((job: { id: string }) => job.id),
+  );
+  expect((await read()).scenes).toEqual(edited.scenes);
+  await page
+    .getByRole("region", { name: "Workspace tools" })
+    .screenshot({ path: testInfo.outputPath("focused-workspace-desktop.png") });
+  await shots.getByRole("button", { name: "Undo edit", exact: true }).click();
+  await expect.poll(async () => (await read()).scenes).toEqual(before.scenes);
 });
