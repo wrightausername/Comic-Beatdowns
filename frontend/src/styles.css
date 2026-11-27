@@ -5936,3 +5936,19 @@ details[open] > .tool-disclosure-heading::after {
   width: auto;
   margin: 0;
 }
+.panel-organizer .section-heading {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.panel-organizer .section-heading > div {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+@media (max-width: 720px) {
+  .panel-organizer .section-heading {
+    display: block;
+  }
+  .panel-organizer .section-heading > .button {
+    margin-top: 0.75rem;
+  }
+}
