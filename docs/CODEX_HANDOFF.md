@@ -413,3 +413,14 @@ Final checks, PR and fresh owner-preview EXE provenance are recorded in the new
 feature PR. Model transport/region validation use mocked providers and original
 synthetic geometry. Arbitrary irregular-page semantic quality and actual owner
 Windows 10 acceptance still require real-material trials; Issue #14 is not closed.
+
+Application source for this preview: `d1e3d613c2061e2bf8480d733d86f37bf9037afa`,
+draft PR #20, Windows package `45989014931`, artifact `15192402561`, EXE SHA256
+`21d03a7b5cc6c4a3658760ae11238723c2212decfa5f89885d1afc295c05f35d`.
+Windows passed 121 tests including a real child with no console window; downloaded
+EXE startup/native-window checks passed on separate Server 2022/2025 runners.
+The actual EXE's bundled JS includes Edit this draft, Preview my changes,
+page re-detection/source-order recovery, and its PYZ includes app.processes.
+Sharing pins those exact bytes under `studio-guided-fix-preview-2026-11-27`.
+Confirm final validation `45989014858`, sharing success and anonymous public
+download before handing off. The older November 24 links retain the older app.

@@ -89,7 +89,8 @@ and saved defaults. Select a tool to open its work area. Editing and export
 explain their shot requirement before enabling; detailed controls stay expandable.
 
 [Desktop layout](docs/screenshots/workspace-tools-desktop.png) ·
-[Phone layout](docs/screenshots/workspace-tools-mobile.png)
+[Phone layout](docs/screenshots/workspace-tools-mobile.png) ·
+[Focused editor](docs/screenshots/guided-editor-desktop.png)
 
 Open **AI editing assistant** from that panel and select
 a shot. Local examples include **Show the whole panel**, **Hold the shot**,

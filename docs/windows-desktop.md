@@ -7,17 +7,17 @@ WebView2 window, with no browser tab or console window required.
 
 ## Building and downloading
 
-The owner workspace preview has a fixed
-[download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-workspace-preview-2026-11-24)
+The November 27 quiet-desktop/guided-editing owner preview has a fixed
+[download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-guided-fix-preview-2026-11-27)
 with **Comic-Beatdowns-Studio.exe** under Assets. That standalone file needs no
 ZIP extraction. Close older Studio windows before opening the new EXE; your
 project data stays in its existing local profile. If a direct EXE link leaves
 a blank browser tab, check Downloads (Ctrl+J in Chrome/Edge) for the file or a
 browser block. Use the release page to see the actual file listing.
 
-This preview reuses the verified PR #19 application source
-`b7cfd5240c8cde5e69801876a9f7ee2906b276b9`, package run `45489588848`, artifact
-`14966305603`. The sharing workflow verifies its original checksum before
+This preview reuses the verified PR #20 application source
+`d1e3d613c2061e2bf8480d733d86f37bf9037afa`, package run `45989014931`, artifact
+`15192402561`. The sharing workflow verifies its original checksum before
 attaching it. It remains an owner test preview with the limits below.
 
 For developer builds and Actions ZIP downloads:
