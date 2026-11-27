@@ -1,7 +1,7 @@
 # Comic Beatdowns Studio: Codex handoff and current implementation status
 
 > **Canonical project context for new Codex sessions.** This is a maintained handoff, not a claim that ChatGPT and Codex share a live conversation.  
-> **Last verified:** November 27, 2026. Latest owner update: draft PR #21, autonomy application source `e05aa1d`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
+> **Last verified:** November 27, 2026. Latest owner update: draft PR #22, named-panel organizer application source `ce79d98`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
 
 ## Find the actual project
 
@@ -586,3 +586,31 @@ integration case. All six organizer integration cases, the ten editing unit
 cases and final desktop/mobile organizer + workspace-discovery browser flows
 passed. Final full checks and Windows build evidence follow in the feature PR.
 UI screenshots: `docs/screenshots/named-panel-organizer.png` and mobile variant.
+
+### Verified named-panel application and owner delivery
+
+Draft PR #22: https://github.com/wrightausername/Comic-Beatdowns/pull/22,
+stacked on #21. Application source `ce79d986f99c9f8073fe2b94eab1e992fd3551f6`.
+Final local `make check`: **222 backend passed**, one Windows-only skip,
+**71 frontend passed**, lint/format/build. All 18 browser workflows passed, with
+final organizer desktop/mobile and discovery flows checked again after hardening.
+CI push validation `46079241005` and PR validation `46079272458` passed for that
+same application source: 222 backend, 71 frontend, 18 browser and **142 Windows
+media tests**. No installer or main merge.
+
+Package `46079272477`, artifact `15236975376`: actual downloaded EXE
+146,600,309 bytes; SHA256
+`2647d1a10886e165b0c47ef452ad5acd166dbf0f94cb10429507ef439e30f23b`.
+Downloaded startup/authenticated-native-window checks passed on separate Server
+2022/2025 jobs `140775027907` / `140775027919`. Actual CArchive/PYZ inspection
+confirmed `/assets/index-S3ITL2IW.js`, the organizer/build/download/order controls,
+app.panel_organization and the existing planning/cache/sequence/quiet modules.
+
+The metadata-only sharing commit pins those exact bytes under
+`studio-panel-organizer-preview-2026-11-27`, dated filename
+`Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe`. Verify sharing success and
+a complete anonymous public download/hash before handoff. Existing preview URLs
+stay valid, and old installed EXEs do not update themselves. Close older Studio
+windows, then launch this dated file from Downloads. Use an external Edge/Chrome
+window if ChatGPT's internal download tab is blank. Actual owner Windows 10/11
+and irregular/real-comic creative acceptance remain open under Issue #14.

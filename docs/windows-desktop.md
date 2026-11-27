@@ -7,7 +7,22 @@ WebView2 window, with no browser tab or console window required.
 
 ## Building and downloading
 
-The newest November 27 autonomy owner preview has a fixed
+The latest November 27 **named panel organizer** owner preview is available as a
+[standalone Windows EXE](https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-panel-organizer-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe)
+or on its [download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-panel-organizer-preview-2026-11-27).
+Close older Studio windows and launch **Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe**
+from Downloads. Open **Organize panels** in the workspace toolbar to review named,
+page-grouped crops, save their reading order, then build the video. Names such as
+ww_01A stay attached to their shots; optional ZIPs contain actual named PNGs.
+
+Source `ce79d986f99c9f8073fe2b94eab1e992fd3551f6`, package `46079272477`, artifact
+`15236975376`; SHA256
+`2647d1a10886e165b0c47ef452ad5acd166dbf0f94cb10429507ef439e30f23b`.
+Actual downloaded startup/native-window checks passed on separate Server 2022/2025
+runners. Sources, narration and the local data profile are preserved. Irregular
+pages and actual Windows 10/11 owner acceptance remain review/trial work.
+
+The preceding November 27 autonomy owner preview remains available at its fixed
 [download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-autonomy-preview-2026-11-27)
 and [standalone Windows EXE](https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-autonomy-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe).
 Close older Studio windows and open **Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe**
