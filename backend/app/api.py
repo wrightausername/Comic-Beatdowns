@@ -181,6 +181,8 @@ def job_dict(job):
         "quality": job.snapshot.get("quality", "final"),
         "proposal_id": job.snapshot.get("proposal_id"),
         "section": job.snapshot.get("section"),
+        "work_report": job.snapshot.get("work_report"),
+        "resume_count": job.snapshot.get("resume_count", 0),
     }
 
 

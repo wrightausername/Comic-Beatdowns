@@ -736,6 +736,9 @@ def workspace_preview(project, workspace, db):
         "script": workspace.script,
         "caption_cues": [c.model_dump() for c in workspace.cues],
         "scenes": scenes,
+        "scene_count": len(scenes),
+        "duration": sum(round(s["duration"] * workspace.settings.fps) for s in scenes)
+        / workspace.settings.fps,
     }
 
 

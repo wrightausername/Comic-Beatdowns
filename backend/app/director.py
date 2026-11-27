@@ -11,7 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from .api import get_or_404, job_dict, project_dict, queue_render_for_state, session, touch
-from .audio import analyze_audio, transcribe
+from .audio import analyze_audio, speech_words, transcribe
 from .automation import build_draft, storyboard
 from .database import DirectorJob, Project, ProjectVersion, RenderJob, SoundEffect, now
 from .page_direction import page_sources
@@ -22,12 +22,22 @@ from .schemas import (
     BuildDraftInput,
     CaptionList,
     DirectorStart,
+    RevisionInput,
     SceneInput,
     VideoSettings,
     VisionConnection,
 )
+from .story_planning import (
+    locate_spoken_events,
+    narration_map,
+    place_story_artwork,
+    sound_design,
+    story_map,
+    timed_cuts,
+)
 from .verdict_provider import (
     VisionDirector,
+    VisionPlan,
     connection_path,
     connection_status,
     read_connection,
@@ -83,16 +93,26 @@ class DirectorService:
         self.thread = Thread(target=self.monitor, name="verdict-director-monitor", daemon=True)
 
     def start(self):
+        resume = []
         with self.sessions() as db:
             for job in db.scalars(
                 select(DirectorJob).where(DirectorJob.status.in_(["queued", "working"]))
             ):
-                job.status, job.stage = "failed", "interrupted"
-                job.message = (
-                    "Studio restarted during planning. Your files are safe; run Verdict again."
-                )
-                job.finished_at = now()
+                count = job.report.get("resume_count", 0)
+                remote_unfinished = job.snapshot.get("options", {}).get(
+                    "mode"
+                ) == "vision" and not job.snapshot.get("vision_plan")
+                if count >= 2 or remote_unfinished or not job.snapshot.get("project"):
+                    job.status, job.stage = "failed", "interrupted"
+                    job.message = "Planning was interrupted. Retry when ready; unfinished provider calls are not resent automatically."
+                    job.finished_at = now()
+                else:
+                    job.report = {**job.report, "resume_count": count + 1}
+                    job.status = "queued"
+                    resume.append(job.id)
             db.commit()
+        for job_id in resume:
+            self.executor.submit(self.run, job_id)
         self.sync_renders()
         self.thread.start()
 
@@ -212,6 +232,8 @@ class DirectorService:
             with self.sessions() as db:
                 source = copy.deepcopy(db.get(DirectorJob, job_id).snapshot)
             project = SimpleNamespace(**source["project"])
+            for key, value in source.get("prepared_project", {}).items():
+                setattr(project, key, value)
             panels = [SimpleNamespace(**p) for p in source["panels"]]
             scenes = [SimpleNamespace(**s) for s in source["scenes"]]
             options = AutopilotOptions.model_validate(source["options"])
@@ -220,7 +242,8 @@ class DirectorService:
                 project.workflow = {**project.workflow, "storyboard": []}
             config, storage = self.state.settings, self.state.storage
             path = storage.path(project.narration_key)
-            analysis = analyze_audio(path, config)
+            analysis = source.get("audio_analysis") or analyze_audio(path, config)
+            words = source.get("speech_words", [])
             warnings = []
             connection = read_connection(config) if options.mode == "vision" else None
             if options.mode == "vision" and not connection:
@@ -228,13 +251,14 @@ class DirectorService:
                     "The vision connection was removed. Reconnect it or choose Basic mode."
                 )
             provider = VisionDirector(connection) if connection else None
-            if not project.caption_cues:
+            if not project.caption_cues and "prepared_project" not in source:
                 try:
                     if provider and provider.connection.transcription_model:
                         project.caption_cues = provider.transcribe(path, config)
                     else:
                         with self.state.caption_lock:
                             project.caption_cues = transcribe(path, config)
+                            words = speech_words(path, config) if project.caption_cues else []
                         if project.caption_cues:
                             warnings.append(
                                 "Offline English recognition can miss names and jokes. Review the captions."
@@ -252,6 +276,17 @@ class DirectorService:
                 )
             if not project.script.strip() and project.caption_cues:
                 project.script = " ".join(c["text"] for c in project.caption_cues)[:20000]
+            self.checkpoint(
+                job_id,
+                {
+                    "audio_analysis": analysis,
+                    "speech_words": words,
+                    "prepared_project": {
+                        "caption_cues": project.caption_cues,
+                        "script": project.script,
+                    },
+                },
+            )
             self.progress(
                 job_id,
                 "planning",
@@ -279,7 +314,12 @@ class DirectorService:
                         )
                     else:
                         grouped.append(dict(card))
-                plan = provider.plan(source["panels"], grouped, storage)
+                plan = (
+                    VisionPlan.model_validate(source["vision_plan"])
+                    if source.get("vision_plan")
+                    else provider.plan(source["panels"], grouped, storage)
+                )
+                self.checkpoint(job_id, {"vision_plan": plan.model_dump()})
                 decisions = list(zip(grouped, plan.assignments))
                 project.workflow = {
                     **project.workflow,
@@ -310,6 +350,19 @@ class DirectorService:
             scenes, page_report = page_sources(
                 scenes, panels, storage, plan.page_layouts if provider else ()
             )
+            alignment = narration_map(project.script, project.caption_cues, words)
+            mapped_story = story_map(
+                scenes,
+                panels,
+                storyboard(project, panels),
+                plan.page_layouts if provider else (),
+                decisions,
+            )
+            locate_spoken_events(mapped_story, alignment)
+            if alignment["review_required"]:
+                warnings.append(
+                    "Script and recognized/timed speech need review; uncertain wording was not forced onto the recording."
+                )
             if page_report["expanded"]:
                 warnings.append(
                     "Whole-page panel boundaries were proposed. "
@@ -338,6 +391,21 @@ class DirectorService:
                     ),
                     analysis["pauses"],
                     effects,
+                )
+                timing_changes = timed_cuts(
+                    cut["scenes"], cut["settings"], alignment, analysis["pauses"], mapped_story
+                )
+                if page_report["expanded"] or not source["scenes"]:
+                    warnings.extend(
+                        place_story_artwork(cut["scenes"], cut["settings"], mapped_story)
+                    )
+                sound_choices = sound_design(
+                    cut["scenes"],
+                    effects,
+                    cut["settings"],
+                    mapped_story,
+                    scenes,
+                    project.workflow.get("sound_choices", {}),
                 )
             settings = VideoSettings.model_validate(
                 {
@@ -447,6 +515,7 @@ class DirectorService:
                     live.script_approved = True
                 job.output_revision = live.revision
                 job.report = {
+                    **job.report,
                     "mode": options.mode,
                     "summary": summary,
                     "warnings": warnings,
@@ -454,6 +523,10 @@ class DirectorService:
                     "caption_count": len(project.caption_cues),
                     "smart_crops": crop_reviews,
                     "page_reading": page_report,
+                    "story_map": mapped_story,
+                    "narration_alignment": alignment,
+                    "timing_changes": timing_changes,
+                    "sound_design": sound_choices,
                 }
                 # queue_render commits edit and immutable render together.
                 queue_render_for_state(
@@ -477,6 +550,14 @@ class DirectorService:
                 job_id,
                 "Verdict could not finish this run. Your files are safe. Retry, or use the manual editor.",
             )
+
+    def checkpoint(self, job_id, values):
+        with self.sessions() as db:
+            job = db.get(DirectorJob, job_id)
+            if not job or job.status == "cancelled":
+                raise InterruptedError
+            job.snapshot = {**job.snapshot, **values}
+            db.commit()
 
     def fail(self, job_id, message, status="failed"):
         with self.sessions() as db:
@@ -580,3 +661,20 @@ def approve_director(
     touch(project)
     draft.output_revision, draft.finished_at = project.revision, None
     return queue_render_for_state(project_id, request.app.state, db, "final", director_job=draft)
+
+
+@router.post("/projects/{project_id}/background-preview", status_code=202)
+def background_preview(
+    project_id: str, data: RevisionInput, request: Request, db: Session = Depends(session)
+):
+    with request.app.state.render_lock:
+        project = locked_project(db, project_id, data.base_revision)
+        if db.scalar(
+            select(DirectorJob.id).where(
+                DirectorJob.project_id == project_id, DirectorJob.status.in_(ACTIVE)
+            )
+        ):
+            raise HTTPException(409, "The Director is working; preview will follow its saved edit.")
+        if not project.autopilot.get("enabled"):
+            raise HTTPException(422, "Enable Autopilot before automatic previews")
+        return queue_render_for_state(project_id, request.app.state, db, "draft")

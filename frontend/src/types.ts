@@ -140,6 +140,14 @@ export interface Project {
   autopilot?: AutopilotOptions;
 }
 export interface RenderJob {
+  resume_count?: number;
+  work_report?: {
+    reused_shots: number;
+    rendered_shots: number;
+    inspected: boolean;
+    repairs?: { attempt: number; reason: string; action: string }[];
+    findings?: { code: string; message: string; severity: string }[];
+  };
   proposal_id?: string | null;
   id: string;
   project_id: string;
@@ -202,6 +210,10 @@ export interface DirectorJob {
   base_revision: number;
   output_revision: number | null;
   report: {
+    story_map?: import("./StoryPlanReview").StoryMap;
+    narration_alignment?: import("./StoryPlanReview").NarrationAlignment;
+    timing_changes?: unknown[];
+    sound_design?: unknown[];
     mode?: string;
     summary?: string;
     warnings?: string[];

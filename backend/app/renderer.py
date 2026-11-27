@@ -13,6 +13,7 @@ from sqlalchemy import select
 from .database import Project, RenderJob, now
 from .effects import TRANSITIONS, camera_expressions, incoming_transition
 from .processes import run as run_process
+from .render_cache import ShotCache, cache_key
 
 logger = logging.getLogger(__name__)
 
@@ -344,6 +345,9 @@ def mix_audio(snapshot, storage, total, command):
             )
     else:
         filters.append("[voice]alimiter=limit=0.95[audio]")
+    if snapshot.get("mix_headroom"):
+        filters = [f.replace("[audio]", "[limited]") for f in filters]
+        filters.append(f"[limited]volume={snapshot['mix_headroom']}[audio]")
     return filters, index
 
 
@@ -359,18 +363,27 @@ class RenderService:
         self.sessions, self.executor = sessions, executor
 
     def recover(self):
+        resume = []
         with self.sessions() as db:
             for job in db.scalars(
                 select(RenderJob).where(RenderJob.status.in_(["queued", "running"]))
             ):
-                job.status, job.error, job.finished_at = (
-                    "failed",
-                    "Render interrupted by a server restart. Render again.",
-                    now(),
-                )
+                count = job.snapshot.get("resume_count", 0)
+                if count >= 2:
+                    job.status, job.error, job.finished_at = (
+                        "failed",
+                        "Repeated interruptions. Retry the render when Studio is stable.",
+                        now(),
+                    )
+                else:
+                    job.snapshot = {**job.snapshot, "resume_count": count + 1}
+                    job.status, job.error, job.finished_at = "queued", None, None
+                    resume.append(job.id)
             for project in db.scalars(select(Project).where(Project.status == "rendering")):
                 project.status = "ready" if project.script_approved else "scripting"
             db.commit()
+        for job_id in resume:
+            self.enqueue(job_id)
 
     def enqueue(self, job_id):
         self.executor.submit(self.render, job_id)
@@ -382,6 +395,44 @@ class RenderService:
             db.commit()
 
     def render(self, job_id):
+        for attempt in range(2):
+            try:
+                self.render_once(job_id, bypass_cache=bool(attempt))
+                return
+            except Exception as error:
+                logger.exception("Render job %s attempt %s failed", job_id, attempt + 1)
+                with self.sessions() as db:
+                    job = db.get(RenderJob, job_id)
+                    report = job.snapshot.get("work_report", {})
+                    repairs = [
+                        *report.get("repairs", []),
+                        {
+                            "attempt": attempt + 1,
+                            "reason": str(error)[:400],
+                            "action": (
+                                "Reduce mixed audio to 84% and render again"
+                                if "mix_peak" in str(error)
+                                else "Rebuild video segments and remux from the saved snapshot"
+                            )
+                            if attempt == 0
+                            else "Stopped after two attempts; review required",
+                        },
+                    ]
+                    job.snapshot = {**job.snapshot, "work_report": {**report, "repairs": repairs}}
+                    if attempt == 0 and isinstance(error, (ValueError, RuntimeError)):
+                        if "mix_peak" in str(error):
+                            job.snapshot = {**job.snapshot, "mix_headroom": 0.84}
+                        job.status, job.progress = "queued", 0
+                    else:
+                        job.status, job.error, job.finished_at = "failed", str(error)[:1500], now()
+                        project = db.get(Project, job.project_id)
+                        if project and project.revision == job.project_revision:
+                            project.status = "ready" if project.script_approved else "scripting"
+                    db.commit()
+                    if job.status == "failed":
+                        return
+
+    def render_once(self, job_id, bypass_cache=False):
         output_key = f"exports/{job_id}.mp4"
         output = self.storage.path(output_key)
         try:
@@ -393,10 +444,24 @@ class RenderService:
             output.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.TemporaryDirectory(dir=self.storage.path("work")) as directory:
                 work = Path(directory)
+                cache, reused = ShotCache(self.storage), 0
                 scenes, settings = snapshot["scenes"], snapshot["settings"]
                 fps = settings["fps"]
                 size = (360, 640) if snapshot.get("quality") == "draft" else (1080, 1920)
                 for i, scene in enumerate(scenes):
+                    source = self.storage.path(scene["storage_key"])
+                    previous = scenes[i - 1] if i else None
+                    previous_tail = work / f"tail-{i - 1}.png" if i else None
+                    key = cache_key(
+                        scene, previous, settings, source, previous_tail, size, incoming_transition
+                    )
+                    if bypass_cache:
+                        cache.invalidate(key)
+                    segment, tail = work / f"scene-{i}.mp4", work / f"tail-{i}.png"
+                    if not bypass_cache and cache.restore(key, segment, tail):
+                        reused += 1
+                        self.progress(job_id, 5 + round(70 * (i + 1) / len(scenes)))
+                        continue
                     image_path = work / f"panel-{i}.png"
                     prepare_scene_image(
                         self.storage.path(scene["storage_key"]),
@@ -420,6 +485,7 @@ class RenderService:
                         work / f"tail-{i - 1}.png" if i else None,
                         size,
                     )
+                    cache.save(key, segment, tail)
                     self.progress(job_id, 5 + round(70 * (i + 1) / len(scenes)))
                 (work / "segments.txt").write_text(
                     "".join(f"file 'scene-{i}.mp4'\n" for i in range(len(scenes)))
@@ -501,6 +567,32 @@ class RenderService:
                 video = next((s for s in media["streams"] if s["codec_type"] == "video"), {})
                 if (video.get("width"), video.get("height")) != size:
                     raise ValueError("Export validation failed: incorrect output dimensions")
+                from .finishing import scan_render
+
+                findings = scan_render(output, self.settings, snapshot)
+                with self.sessions() as db:
+                    job = db.get(RenderJob, job_id)
+                    report = job.snapshot.get("work_report", {})
+                    job.snapshot = {
+                        **job.snapshot,
+                        "work_report": {
+                            **report,
+                            "reused_shots": reused,
+                            "rendered_shots": len(scenes) - reused,
+                            "findings": findings,
+                            "inspected": True,
+                        },
+                    }
+                    db.commit()
+                critical = [f for f in findings if f["severity"] == "critical"]
+                if critical or (
+                    not snapshot.get("mix_headroom")
+                    and any(f["code"] == "mix_peak" for f in findings)
+                ):
+                    raise ValueError(
+                        "; ".join(f["code"] for f in critical) or "mix_peak: reduce mix headroom"
+                    )
+                cache.prune()
             with self.sessions() as db:
                 job = db.get(RenderJob, job_id)
                 job.status, job.progress, job.output_key, job.finished_at = (
@@ -516,16 +608,9 @@ class RenderService:
                 ):
                     project.status = "exported"
                 db.commit()
-        except Exception as e:
-            logger.exception("Render job %s failed", job_id)
+        except Exception:
             output.unlink(missing_ok=True)
-            with self.sessions() as db:
-                job = db.get(RenderJob, job_id)
-                job.status, job.error, job.finished_at = "failed", str(e)[:1500], now()
-                project = db.get(Project, job.project_id)
-                if project.revision == job.project_revision:
-                    project.status = "ready" if project.script_approved else "scripting"
-                db.commit()
+            raise
 
 
 def tools_available(settings):

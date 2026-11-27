@@ -66,7 +66,7 @@ def analyze_audio(path, settings):
     return {"duration": duration, "peaks": peaks, "pauses": pauses}
 
 
-def transcribe(path, settings, script=""):
+def speech_words(path, settings, script=""):
     from pocketsphinx import Decoder
 
     pcm, samples = pcm_audio(path, settings)
@@ -101,6 +101,11 @@ def transcribe(path, settings, script=""):
         end = min(len(samples) / 16000, (segment.end_frame + 1) / 100)
         if end > segment.start_frame / 100:
             words.append((word, segment.start_frame / 100, end))
+    return [dict(text=w, start=a, end=b) for w, a, b in words]
+
+
+def transcribe(path, settings, script=""):
+    words = [(w["text"], w["start"], w["end"]) for w in speech_words(path, settings, script)]
     cues = []
     chunk = []
     for word in words:

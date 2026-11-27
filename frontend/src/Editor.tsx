@@ -40,6 +40,7 @@ import { AutoEditControls, BulkControls, CaptionEditor } from "./WorkflowTools";
 import type { AutoEditOptions } from "./WorkflowTools";
 import VideoTimeline from "./VideoTimeline";
 import CreatorAssistant from "./CreatorAssistant";
+import BackgroundPreview from "./BackgroundPreview";
 import WorkspaceTools, { type WorkspaceTool } from "./WorkspaceTools";
 import EmotionTimeline from "./EmotionTimeline";
 import { parsePerformanceScript } from "./emotion";
@@ -625,6 +626,12 @@ export default function Editor({
           {notice}
         </div>
       )}
+      <BackgroundPreview
+        project={project}
+        dirty={dirty}
+        busy={busy}
+        onChanged={onChanged}
+      />
       {easyMode ? (
         <GuidedWorkspace
           project={project}

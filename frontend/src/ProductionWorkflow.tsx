@@ -1023,7 +1023,7 @@ export default function ProductionWorkflow(props: Props) {
               Upload an effect once, then choose it from any shot’s Sound
               favorites controls.
             </p>
-            {["impact", "whoosh", "reaction"].map((kind) => (
+            {["impact", "whoosh", "reaction", "riser"].map((kind) => (
               <label key={kind}>
                 Default {kind} sound
                 <select

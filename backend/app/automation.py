@@ -93,7 +93,7 @@ def validate_workflow(value, db):
     choices = value.get("sound_choices", {})
     if (
         not isinstance(choices, dict)
-        or set(choices) - {"impact", "whoosh", "reaction"}
+        or set(choices) - {"impact", "whoosh", "reaction", "riser"}
         or any(
             not isinstance(sound_id, str) or not db.get(SoundEffect, sound_id)
             for sound_id in choices.values()
@@ -384,6 +384,7 @@ def ensure_builtin_effects(db, storage):
         ("impact", "Studio impact", 0.24),
         ("whoosh", "Studio whoosh", 0.4),
         ("reaction", "Studio reaction", 0.3),
+        ("riser", "Studio buildup", 0.8),
     ]:
         from sqlalchemy import select
 
@@ -403,6 +404,12 @@ def ensure_builtin_effects(db, storage):
                     if kind == "whoosh"
                     else math.sin(2 * math.pi * (700 - 1400 * t) * t)
                 )
+                if kind == "riser":
+                    envelope = (t / duration) ** 1.4 * min(1, (duration - t) / 0.015)
+                    value = (
+                        math.sin(2 * math.pi * (150 * t + 450 * t * t)) * 0.65
+                        + rng.uniform(-1, 1) * 0.25
+                    )
                 samples.append(round(value * envelope * 9000))
             import sys
 

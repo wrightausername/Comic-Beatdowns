@@ -184,10 +184,14 @@ def check(project_id: str, request: Request, db=Depends(session)):
     scanned = None
     if candidate:
         try:
-            values += scan_render(
+            scanned_findings = scan_render(
                 request.app.state.storage.path(candidate.output_key),
                 request.app.state.settings,
                 candidate.snapshot,
+            )
+            existing = {(f["code"], f.get("seconds")) for f in values}
+            values.extend(
+                f for f in scanned_findings if (f["code"], f.get("seconds")) not in existing
             )
             scanned = candidate.id
         except (OSError, subprocess.TimeoutExpired, ValueError, KeyError, TypeError):
