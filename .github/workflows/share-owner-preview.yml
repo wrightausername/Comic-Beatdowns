@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: share-panel-organizer-preview-2026-11-27
+  group: share-named-panels-preview-2026-11-27
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          run-id: 46079272477
+          run-id: 46080151734
           github-token: ${{ github.token }}
           path: verified
       - name: Verify the exact tested executable and prepare direct download
@@ -34,13 +34,13 @@ jobs:
           import shutil
           root = Path('verified')
           original = root / 'Comic Beatdowns Studio.exe'
-          expected = '2647d1a10886e165b0c47ef452ad5acd166dbf0f94cb10429507ef439e30f23b'
+          expected = 'fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545'
           actual = hashlib.sha256(original.read_bytes()).hexdigest()
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
           shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
-          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe')
-          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe\n')
+          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe')
+          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe\n')
           print('Verified original executable:', actual)
       - name: Share the standalone EXE as an owner test preview
         env:
@@ -49,26 +49,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=studio-panel-organizer-preview-2026-11-27
-          source=ce79d986f99c9f8073fe2b94eab1e992fd3551f6
+          tag=studio-named-panels-preview-2026-11-27
+          source=76e31b321f10aed13d73b58a18bad44a48c0f914
           cat > preview-notes.md <<'NOTES'
           Owner test preview from draft PR #22, stacked on #21. Adds a visible Organize panels shortcut, automatic clear-gutter cropping, page-grouped thumbnails, names such as ww_01A / ww_01B / ww_01C, visual crop corrections and saved reading order. The same labels follow editable video shots, timeline clips and assistant selections. Original source pages remain intact.
 
-          Download **Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe** below. Close older Studio windows and open that dated file from Downloads. If ChatGPT shows a blank download tab, paste the fixed GitHub EXE link into Edge or Chrome opened from Windows. Your projects stay in the same local profile; no ZIP extraction or installer is required for the executable.
+          Download **Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe** below. Close older Studio windows and open that dated file from Downloads. If ChatGPT shows a blank download tab, paste the fixed GitHub EXE link into Edge or Chrome opened from Windows. Your projects stay in the same local profile; no ZIP extraction or installer is required for the executable.
 
           Open **Organize panels** in the workspace toolbar. Auto-crop, review the page and panel order, Save named panels, then Build video from these panels. Crop fixes and naming controls are optional. Actual named PNG downloads are grouped as ww_01/ww_01A.png, etc., for the episode or selected page. Existing cameras/timing stay intact when saving the layout; explicit rebuild/order actions protect locked shots and custom routes and retain Undo.
 
-          Source: `ce79d986f99c9f8073fe2b94eab1e992fd3551f6`. Unchanged executable from package run 46079272477, artifact 15236975376; 146,600,309 bytes. SHA256: `2647d1a10886e165b0c47ef452ad5acd166dbf0f94cb10429507ef439e30f23b`. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Inspection of the downloaded bundle confirmed the new organizer module and UI, persistent panel fields, and the existing autonomy/quiet-process modules.
+          Source: `76e31b321f10aed13d73b58a18bad44a48c0f914`. Unchanged executable from package run 46080151734, artifact 15237306349; 146,600,776 bytes. SHA256: `fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545`. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Inspection of the downloaded bundle confirmed the new organizer module and UI, persistent panel fields, and the existing autonomy/quiet-process modules.
 
-          Validation run 46079272458 covers 222 backend tests (one Windows-only skip on Linux), 71 frontend tests, 18 browser workflows and 142 Windows media tests. Fixtures are original synthetic art/audio; providers are mocked. Actual owner Windows 10/11 and real-comic creative acceptance remain open.
+          Explicit rebuilds refine earlier automatic crop layouts, including new Vision regions, while creator-saved crop order stays protected. This corrects the initial organizer preview.
+
+          Validation run 46080146866 covers 224 backend tests (one Windows-only skip on Linux), 71 frontend tests, 18 browser workflows and 144 Windows media tests. Fixtures are original synthetic art/audio; providers are mocked. Actual owner Windows 10/11 and real-comic creative acceptance remain open.
 
           Detection is conservative: ambiguous/irregular pages stay whole and flagged for correction. This does not claim universal comic understanding or close Issue #14. The existing reference style, timeline, assistant, cached previews, Undo and separate export/publishing choices remain in place. This unsigned owner preview does not merge draft PRs, install runtimes or publish videos. WebView2 and a compatible .NET runtime remain prerequisites.
           NOTES
           if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
             target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
             test "$target" = "$source"
-            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — named panel organizer preview, November 27' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — named panel crops preview, November 27' --notes-file preview-notes.md
           fi

@@ -1,7 +1,7 @@
 # Comic Beatdowns Studio: Codex handoff and current implementation status
 
 > **Canonical project context for new Codex sessions.** This is a maintained handoff, not a claim that ChatGPT and Codex share a live conversation.  
-> **Last verified:** November 27, 2026. Latest owner update: draft PR #22, named-panel organizer application source `ce79d98`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
+> **Last verified:** November 27, 2026. Latest owner update: draft PR #22, named-panel organizer application source `76e31b3`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
 
 ## Find the actual project
 
@@ -621,3 +621,28 @@ follow-up fix re-detects on explicit rebuild only when the layout was not
 creator-saved. Two staged Basic → Vision integration cases verify both refinement
 of automatic crops and preservation of the creator's accepted layout. This
 supersedes the first organizer preview; final source/package evidence follows.
+
+### Corrected named-panel preview — final source
+
+The rebuild fix is verified at **`76e31b321f10aed13d73b58a18bad44a48c0f914`**.
+Final local `make check` passed **224 backend tests** (one Windows-only skip),
+**71 frontend tests**, lint/format/build; final `make e2e` passed all **18 browser
+workflows**, including desktop/mobile cropping, save/reload and actual draft
+construction. CI `46080146866` passed those same checks plus **144 Windows media
+tests**. Eight organizer cases now include explicit automatic-layout refinement
+and protection of the creator's saved layout under staged Basic → Vision rebuilds.
+
+Package `46080151734`, artifact `15237306349`: **146,600,776 bytes**, SHA256
+`fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545`.
+Downloaded startup/native-window checks passed on Server 2022/2025 jobs
+`140777937941` / `140777937974`. The original downloaded artifact hash and actual
+bundled organizer/autonomy UI/backend modules were inspected again. Frontend
+entry remains `/assets/index-S3ITL2IW.js`; the changed Director is in the new PYZ.
+
+Final sharing pins those exact bytes under `studio-named-panels-preview-2026-11-27`,
+filename **Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe**. It supersedes the
+first `studio-panel-organizer-preview-2026-11-27` trial, whose link is retained.
+Confirm sharing and complete anonymous download/hash before delivery. Later
+metadata-only commits do not change the tested application source. Issue #14 and
+actual owner Windows 10/11/real-comic acceptance remain open; no installer/main
+merge or automatic publishing was added.
