@@ -409,7 +409,13 @@ export default function VerdictAutopilot({
         )}
       </div>
       <div className="draft-reading-mode">
-        {" "}
+        {options.mode === "vision" && (
+          <p className="help">
+            Vision sends resized comic pages and narration text to your
+            configured model. Provider charges may apply. Audio is sent only
+            when a speech model is configured.
+          </p>
+        )}{" "}
         <label>
           How Verdict decides
           <select
