@@ -128,6 +128,20 @@ and choose **Approve and export · 1080p**. A later edit invalidates the check;
 the server rechecks the revision and blocking source problems before queuing
 the existing renderer. Nothing is published.
 
+## Crop and organize full pages
+
+Open **Crop & organize panels** to automatically group clear-gutter crops under
+each source page. Names such as **ww_01A, ww_01B, ww_01C** follow the same panel
+through extra video shots and later editing. Review page order and thumbnails,
+move panels earlier/later, or expand the optional crop fixes to redraw a boundary.
+Uncertain layouts stay whole and flagged; original pages are preserved.
+
+Save the layout, then choose **Build video from these panels** once narration is
+available. Existing unlocked edits stay in Undo; protected routes/locks block a
+replacement. **Restore organized panel order** puts matched shots back into the
+saved A/B/C order without discarding them. Optional ZIP downloads contain real
+named PNG crops in page folders, for the episode or selected page.
+
 ## Automatic editing assistance
 
 After making a draft, expand **Story & timing plan** to see authored panels,

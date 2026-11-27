@@ -16,7 +16,7 @@ from .panel_detection import suggest_panels
 MAX_VIRTUAL_SHOTS = 120
 
 
-def page_sources(scenes, panels, storage, layouts=()):
+def page_sources(scenes, panels, storage, layouts=(), organization=None):
     """Expand untouched, one-shot-per-page material into virtual panel shots.
 
     Return source scenes and a review report. On reruns, authored/locked edits and
@@ -26,6 +26,7 @@ def page_sources(scenes, panels, storage, layouts=()):
         len(scenes) != len(panels)
         or any(
             getattr(s, "locked", False)
+            or getattr(s, "source_panel_ref", None)
             or getattr(s, "source_crop", None)
             or getattr(s, "camera_path", None)
             for s in scenes
@@ -60,11 +61,15 @@ def page_sources(scenes, panels, storage, layouts=()):
     ]
     output, review = [], []
     layout_map = {layout.panel_id: layout for layout in layouts}
+    organized = {p["page_id"]: p for p in (organization or {}).get("pages", [])}
     for source, panel in zip(originals, panels):
         layout = layout_map.get(panel.id)
+        page = organized.get(panel.id)
         with Image.open(storage.path(panel.storage_key)) as image:
             candidates = (
-                [r.model_dump() for r in layout.regions]
+                [r["crop"] for r in page["regions"]]
+                if page
+                else [r.model_dump() for r in layout.regions]
                 if layout and all(r.confidence >= 0.7 for r in layout.regions)
                 else suggest_panels(image)
             )
@@ -89,9 +94,20 @@ def page_sources(scenes, panels, storage, layouts=()):
             values = dict(vars(source))
             # Original recording, caption, script and manually uploaded assets
             # are never edited by this proposal.
+            if page:
+                from .panel_organization import letters
+
+                values.update(
+                    source_panel_ref=page["regions"][index]["id"],
+                    source_label=page["name"] + letters(index),
+                )
+            full = all(
+                abs(rect[k] - v) < 0.000001
+                for k, v in {"x": 0, "y": 0, "width": 1, "height": 1}.items()
+            )
             values.update(
                 id=source.id if index == 0 else uid(),
-                source_crop={k: rect[k] for k in ("x", "y", "width", "height")},
+                source_crop=None if full else {k: rect[k] for k in ("x", "y", "width", "height")},
                 motion="hold",
                 focus_x=0.5,
                 focus_y=0.5,
@@ -113,8 +129,10 @@ def page_sources(scenes, panels, storage, layouts=()):
             {
                 "page_id": panel.id,
                 "panel_count": len(candidates),
-                "review_required": True,
-                "reason": "Vision-suggested panel boundaries; verify reading order and dialogue"
+                "review_required": page["review_required"] if page else True,
+                "reason": page["reason"]
+                if page
+                else "Vision-suggested panel boundaries; verify reading order and dialogue"
                 if layout and all(r.confidence >= 0.7 for r in layout.regions)
                 else "Straight pale gutters detected; verify irregular panels and reading order",
                 "regions": candidates,

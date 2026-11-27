@@ -84,6 +84,46 @@ class SourceRegion(StrictModel):
         return self
 
 
+class OrganizedRegion(StrictModel):
+    id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    crop: SourceRegion
+
+
+class OrganizedPage(StrictModel):
+    page_id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=72, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+    regions: list[OrganizedRegion] = Field(min_length=1, max_length=24)
+    review_required: bool = True
+    reason: str = Field(default="", max_length=300)
+
+
+class PanelOrganization(StrictModel):
+    version: Literal[1] = 1
+    user_order: bool = False
+    pages: list[OrganizedPage] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def unique_entries(self):
+        page_ids = [p.page_id for p in self.pages]
+        names = [p.name.casefold() for p in self.pages]
+        region_ids = [r.id for p in self.pages for r in p.regions]
+        if len(set(page_ids)) != len(page_ids) or len(set(names)) != len(names):
+            raise ValueError("Each page needs a unique source and name")
+        if len(set(region_ids)) != len(region_ids) or len(region_ids) > 120:
+            raise ValueError("Keep up to 120 uniquely identified panels")
+        reserved = {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            *(f"COM{i}" for i in range(1, 10)),
+            *(f"LPT{i}" for i in range(1, 10)),
+        }
+        if any(p.name.upper() in reserved for p in self.pages):
+            raise ValueError("Choose a page name that is valid on Windows")
+        return self
+
+
 class CameraWaypoint(StrictModel):
     """A user-selected focal point relative to an intact source-panel window."""
 
@@ -123,6 +163,8 @@ class SceneInput(StrictModel):
     sfx_id: str | None = None
     sfx_offset: float = Field(default=0, ge=0, le=30)
     framing: Literal["fill", "fit"] = "fill"
+    source_panel_ref: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    source_label: str | None = Field(default=None, max_length=100)
     source_crop: SourceRegion | None = None
     glide_axis: Literal["horizontal", "vertical"] | None = None
     glide_start: float = Field(default=0, ge=0, le=1)

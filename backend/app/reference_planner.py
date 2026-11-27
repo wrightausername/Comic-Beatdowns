@@ -159,7 +159,15 @@ def compile_smart_style(plan, project, db):
     )
 
     def can_merge(left, right):
-        fields = ("panel_id", "source_crop", "framing", "focus_x", "focus_y", "beat")
+        fields = (
+            "panel_id",
+            "source_panel_ref",
+            "source_crop",
+            "framing",
+            "focus_x",
+            "focus_y",
+            "beat",
+        )
         if not options.camera:
             fields += ("motion", "motion_strength", "easing")
         return all(left[k] == right[k] for k in fields) and right["note"] in ("", left["note"])

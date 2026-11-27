@@ -41,6 +41,8 @@ SCENE_FIELDS = (
     "note",
     "beat",
     "framing",
+    "source_panel_ref",
+    "source_label",
     "source_crop",
     "glide_axis",
     "glide_start",

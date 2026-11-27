@@ -536,3 +536,53 @@ the new dated EXE from Downloads. ChatGPT's internal blank download page is not 
 working transfer: use the fixed GitHub link in an external Edge/Chrome window.
 No app code changes after the tested source; no main merge or installer. Actual
 owner Windows 10/11 and coherent real-comic episode acceptance remain open.
+
+## November 27 named panel organizer — stacked on PR #21
+
+Owner requested an easier automatic crop/order workflow with persistent names
+such as `ww_01A`, `ww_01B`, `ww_01C`, then the next page. Branch
+`feature/named-panel-organizer` extends the existing source-preserving page engine.
+
+A project-owned `workflow.panel_organization` stores ordered source pages,
+validated Windows-safe unique page names and bounded normalized panel regions.
+Stable panel references are separate from letter labels and editorial shot IDs.
+Scene `source_panel_ref` / `source_label` fields migrate in place and survive
+pacing, reframing, splits, saved workspaces, history and reload. Original page
+images remain the scene's source; there is no mandatory pre-cropping or duplicate
+library-asset creation. User-saved reading order wins over later automatic
+geometry/tag choices, and a rebuild from these panels is explicit for existing
+videos, with the existing locked-shot/custom-route protection and Undo.
+
+The visual organizer groups named thumbnail crops under each page and provides
+page/panel ordering, naming prefix, saved order, crop redraw/add/remove/merge and
+keep-whole correction. Local geometry handles clear gutters; unknown layouts stay
+whole with a specific review prompt. Save keeps existing cameras/timing intact;
+build uses the reviewed layout with imported narration through the existing
+Director. Shot review/timeline/assistant selectors display the same panel names.
+Restoring organized order uses stable references and refuses protected or
+unmatched content rather than silently sorting only by current crop coordinates.
+
+The optional authenticated ZIP download contains actual original-resolution PNG
+crops grouped as `ww_01/ww_01A.png`, etc. It also supports one saved page at a
+time; bounded pixels/bytes and safe validated names prevent oversized or invalid
+archives. Original stored files stay unchanged. Preview/save are revision checked,
+repeat detection reuses source-derived references, and stale/foreign/duplicate/
+out-of-page layouts are rejected. This is an organization improvement; it does
+not close Issue #14's irregular-page/story-aware camera/real-owner Windows gate.
+
+Initial integration verification: named PNG bytes match their source regions,
+source hashes remain unchanged, local full-page detection and deterministic names,
+real FFmpeg video from saved reading order, label preservation under auto-edit and
+workspace saves, protected-shot metadata changes, stable-reference reorder and
+exact Undo. Full checks, browser desktop/mobile workflow, Windows media/package
+checks and a uniquely named owner preview are required before delivery; record
+exact final application source/run/hash evidence in the feature PR.
+
+Local initial full check passed 221 backend tests (one Windows-only skip), 70
+frontend tests, lint/format/build and all 18 browser workflows. Final hardening
+adds correct tall-crop thumbnail proportions, a visible Organize panels shortcut,
+metadata handling for merged/replaced panels and a further assistant-reference
+integration case. All six organizer integration cases, the ten editing unit
+cases and final desktop/mobile organizer + workspace-discovery browser flows
+passed. Final full checks and Windows build evidence follow in the feature PR.
+UI screenshots: `docs/screenshots/named-panel-organizer.png` and mobile variant.

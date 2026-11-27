@@ -151,6 +151,17 @@ export function mergePageShots(scenes: Scene[], index: number): Scene[] {
       ...first,
       duration: Number((first.duration + next.duration).toFixed(6)),
       source_crop,
+      ...((first.source_panel_ref || next.source_panel_ref) &&
+      first.source_panel_ref !== next.source_panel_ref
+        ? {
+            source_panel_ref: null,
+            source_label:
+              `${first.source_label || first.panel.title} + ${next.source_label || next.panel.title}`.slice(
+                0,
+                100,
+              ),
+          }
+        : {}),
       motion: glide_axis ? ("panel_glide" as const) : ("hold" as const),
       glide_axis,
       glide_start: 0,
@@ -209,6 +220,10 @@ export function applyStoryboard(
     if (scene.locked || !card) return scene;
     return {
       ...scene,
+      source_panel_ref:
+        card.panel_id === scene.panel_id ? scene.source_panel_ref : null,
+      source_label:
+        card.panel_id === scene.panel_id ? scene.source_label : null,
       panel_id: card.panel_id,
       source_crop: scene.panel_id === card.panel_id ? scene.source_crop : null,
       camera_path: scene.panel_id === card.panel_id ? scene.camera_path : null,

@@ -5798,3 +5798,141 @@ details[open] > .tool-disclosure-heading::after {
   padding-left: 0.75rem;
   border-left: 2px solid var(--border, #343c4b);
 }
+
+.panel-organizer {
+  scroll-margin-top: 190px;
+}
+.panel-organizer h3 {
+  margin: 0;
+}
+.organizer-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.organizer-page-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 1rem 0;
+}
+.organizer-page-controls label {
+  flex: 0 1 240px;
+}
+.organizer-page-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+.organizer-source {
+  position: relative;
+  width: 100%;
+  background: #080d14;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.organizer-source > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+}
+.organizer-source.drawing {
+  cursor: crosshair;
+  touch-action: none;
+}
+.organizer-source.drawing .organizer-box {
+  pointer-events: none;
+}
+.organizer-box {
+  position: absolute;
+  border: 2px solid #77d5e6;
+  background: #32bbd415;
+  padding: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+.organizer-box.selected {
+  border-color: #ffe178;
+  box-shadow: inset 0 0 0 1px #202630;
+}
+.organizer-box > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0.1rem 0.4rem;
+  background: #102638;
+  color: #fff;
+  font-weight: 750;
+  font-size: 0.9rem;
+}
+.organizer-box.drag {
+  border: 2px dashed #ffe178;
+  pointer-events: none;
+}
+.organized-crop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.6rem;
+  max-height: 500px;
+  overflow: auto;
+  padding: 0.25rem;
+}
+.organized-crop {
+  padding: 0.45rem;
+  border: 1px solid #344252;
+  background: #121e2c;
+  color: #e0eaf2;
+  border-radius: 8px;
+  min-width: 0;
+}
+.organized-crop.selected {
+  border-color: #ffe178;
+  outline: 1px solid #ffe178;
+}
+.organized-crop svg {
+  display: block;
+  width: 100%;
+  max-height: 150px;
+  background: #0a1018;
+}
+.organized-crop strong {
+  display: block;
+  padding-top: 0.4rem;
+  overflow-wrap: anywhere;
+}
+.organizer-save-actions {
+  border-top: 1px solid #344252;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+@media (max-width: 720px) {
+  .organizer-page-layout {
+    grid-template-columns: 1fr;
+  }
+  .organizer-source {
+    max-height: none;
+  }
+  .organizer-page-tabs {
+    max-height: 180px;
+    overflow: auto;
+  }
+}
+.panel-organizer {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+.panel-organizer .check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+.panel-organizer .check-label input {
+  width: auto;
+  margin: 0;
+}

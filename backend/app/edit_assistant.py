@@ -123,7 +123,7 @@ def context_for(project, db):
                 "number": i + 1,
                 "scene_id": s.id,
                 "locked": s.locked,
-                "panel_title": db.get(Panel, s.panel_id).title,
+                "panel_title": s.source_label or db.get(Panel, s.panel_id).title,
                 **{k: getattr(s, k) for k in EDIT_FIELDS if hasattr(s, k)},
             }
             for i, s in enumerate(scenes)
@@ -367,7 +367,22 @@ def compile_plan(plan, project, db):
                         "after": value,
                     }
                 )
+        if "panel_id" in edit.changes and edit.changes["panel_id"] != source["panel_id"]:
+            source.update(source_panel_ref=None, source_label=None)
         source.update(edit.changes)
+        if "source_crop" in edit.changes and project.workflow.get("panel_organization"):
+            from .panel_organization import labels
+
+            crop = source.get("source_crop") or dict(x=0, y=0, width=1, height=1)
+            candidates = [
+                (ref, entry)
+                for ref, entry in labels(project.workflow["panel_organization"]).items()
+                if entry["page_id"] == source["panel_id"]
+                and all(abs(entry["crop"][k] - crop[k]) < 0.00001 for k in crop)
+            ]
+            if len(candidates) == 1:
+                ref, entry = candidates[0]
+                source.update(source_panel_ref=ref, source_label=entry["label"])
     # A single duration correction rolls its neighboring cut, retaining audio timing.
     old_scenes = project_dict(project, db, True)["scenes"]
     old_frames = sum(round(s["duration"] * fps) for s in old_scenes)

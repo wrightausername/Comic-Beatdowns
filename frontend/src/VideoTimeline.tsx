@@ -626,7 +626,7 @@ export default function VideoTimeline({
                     key={c.scene.id}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Timeline shot ${c.index + 1}: ${c.scene.panel.title}`}
+                    aria-label={`Timeline shot ${c.index + 1}: ${c.scene.source_label || c.scene.panel.title}`}
                     aria-pressed={selection.has(c.scene.id!)}
                     className={`video-clip ${dragTarget === c.index ? "clip-drop-target" : ""}`}
                     style={position(c.start, c.end)}
@@ -704,7 +704,8 @@ export default function VideoTimeline({
                       draggable={false}
                     />
                     <span>
-                      {c.index + 1} · {c.scene.panel.title}
+                      {c.index + 1} ·{" "}
+                      {c.scene.source_label || c.scene.panel.title}
                       {c.scene.locked ? " · Locked" : ""}
                     </span>
                     <small>{(c.end - c.start).toFixed(2)}s</small>

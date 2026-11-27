@@ -418,7 +418,7 @@ export default function CreatorAssistant({
             )}
             {scenes.map((s, i) => (
               <option key={s.id} value={s.id}>
-                {i + 1}. {s.panel.title}
+                {i + 1}. {s.source_label || s.panel.title}
                 {s.locked ? " · Locked" : ""}
               </option>
             ))}

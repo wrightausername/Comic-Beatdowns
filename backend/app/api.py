@@ -112,6 +112,8 @@ def scene_dict(scene, db):
         "note": scene.note,
         "beat": scene.beat,
         "framing": scene.framing,
+        "source_panel_ref": scene.source_panel_ref,
+        "source_label": scene.source_label,
         "source_crop": scene.source_crop,
         "glide_axis": scene.glide_axis,
         "glide_start": scene.glide_start,
