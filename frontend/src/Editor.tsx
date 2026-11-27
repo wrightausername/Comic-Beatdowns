@@ -41,6 +41,7 @@ import type { AutoEditOptions } from "./WorkflowTools";
 import VideoTimeline from "./VideoTimeline";
 import CreatorAssistant from "./CreatorAssistant";
 import BackgroundPreview from "./BackgroundPreview";
+import PanelOrganizer from "./PanelOrganizer";
 import WorkspaceTools, { type WorkspaceTool } from "./WorkspaceTools";
 import EmotionTimeline from "./EmotionTimeline";
 import { parsePerformanceScript } from "./emotion";
@@ -455,6 +456,7 @@ export default function Editor({
     if (tool === "files") setStage("files");
     const targets: Record<WorkspaceTool, string> = {
       files: "studio-workflow",
+      panels: "studio-panel-organizer",
       draft: "studio-autopilot",
       style: "studio-reference-style",
       instructions: "studio-editing-instructions",
@@ -737,6 +739,23 @@ export default function Editor({
             />
           </div>
           <div
+            hidden={
+              easyMode && !["files", "draft", "panels"].includes(activeTool)
+            }
+          >
+            <PanelOrganizer
+              autoOpen={activeTool === "panels"}
+              project={project}
+              panels={panels}
+              busy={busy || directorRunning || !!activeJob}
+              dirty={dirty}
+              perform={perform}
+              accept={accept}
+              onChanged={onChanged}
+              onBuilt={() => openWorkspaceTool("draft")}
+            />
+          </div>
+          <div
             id="studio-autopilot"
             hidden={easyMode && activeTool !== "draft"}
           >
@@ -780,9 +799,45 @@ export default function Editor({
                 scenes={scenes}
                 busy={busy}
                 canUndo={dirty || project.can_undo}
+                restoreOrderLabel={
+                  view.workflow?.panel_organization
+                    ? "Restore organized panel order"
+                    : undefined
+                }
                 onRestoreOrder={
                   view.workflow?.panel_ids?.length
                     ? () => {
+                        if (view.workflow?.panel_organization) {
+                          if (
+                            !window.confirm(
+                              "Restore the saved A, B, C panel order? Every shot stays editable and Undo restores your current cut.",
+                            )
+                          )
+                            return;
+                          void perform(async () => {
+                            const saved = await api<Project>(
+                              `/projects/${projectId}`,
+                            );
+                            const ordered = await api<Project>(
+                              `/projects/${projectId}/panel-organization`,
+                              json(
+                                {
+                                  base_revision: saved.revision,
+                                  organization:
+                                    saved.workflow?.panel_organization,
+                                  reorder_video: true,
+                                },
+                                "PUT",
+                              ),
+                            );
+                            accept(ordered);
+                            onChanged();
+                            setNotice(
+                              "Organized panel order restored. Preview your video to review the result.",
+                            );
+                          });
+                          return;
+                        }
                         if (
                           !window.confirm(
                             "Restore uploaded page order and top-to-bottom panel order? Every shot is kept, and Undo can restore your current order.",
@@ -1140,7 +1195,9 @@ export default function Editor({
                               alt={scene.panel.title}
                             />
                             <div>
-                              <strong>{scene.panel.title}</strong>
+                              <strong>
+                                {scene.source_label || scene.panel.title}
+                              </strong>
                               <div className="form-grid">
                                 <label>
                                   Duration (seconds)
@@ -1918,6 +1975,8 @@ export default function Editor({
             if (replaceIndex !== null && chosen.length) {
               editScene(replaceIndex, {
                 panel: chosen[0],
+                source_panel_ref: null,
+                source_label: null,
                 panel_id: chosen[0].id,
               });
               setReplaceIndex(null);

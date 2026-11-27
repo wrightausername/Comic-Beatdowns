@@ -61,7 +61,10 @@ def project_panels(db, project):
             ]
         )
     )
-    return [p for panel_id in ids if (p := db.get(Panel, panel_id))]
+    organization = (project.workflow or {}).get("panel_organization", {})
+    order = {page["page_id"]: i for i, page in enumerate(organization.get("pages", []))}
+    panels = [p for panel_id in ids if (p := db.get(Panel, panel_id))]
+    return sorted(panels, key=lambda p: order.get(p.id, len(order)))
 
 
 def effect_dict(effect):
@@ -139,6 +142,11 @@ async def suggest_draft(
             cues = project.caption_cues or []
         working = copy.copy(project)
         working.caption_cues = cues
+        if organization := (project.workflow or {}).get("panel_organization"):
+            from .page_direction import page_sources
+
+            scenes, _ = page_sources(scenes, panels, storage, organization=organization)
+            options = options.model_copy(update={"match_panels": False})
         result = build_draft(
             working,
             scenes,

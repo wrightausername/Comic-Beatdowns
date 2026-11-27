@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from .autoedit import audio_range, auto_edit
 from .database import Panel, SoundEffect, uid
 from .renderer import scene_frames, timeline_duration
-from .schemas import AutoEditInput, SceneInput
+from .schemas import AutoEditInput, PanelOrganization, SceneInput
 
 BEATS = {
     "hit": {
@@ -66,12 +66,28 @@ def beat_for(text):
 def validate_workflow(value, db):
     if len(json.dumps(value)) > 128_000:
         raise HTTPException(422, "Project notes and storyboard are too large")
-    allowed = {"panel_ids", "storyboard", "notes", "sound_choices", "emotion_overrides"}
+    allowed = {
+        "panel_ids",
+        "storyboard",
+        "notes",
+        "sound_choices",
+        "emotion_overrides",
+        "panel_organization",
+    }
     if set(value) - allowed:
         raise HTTPException(422, "Unknown workflow fields")
     for key in ("panel_ids", "storyboard", "notes"):
         if key in value and (not isinstance(value[key], list) or len(value[key]) > 600):
             raise HTTPException(422, "Too many workflow entries")
+    if value.get("panel_organization") is not None:
+        try:
+            organization = PanelOrganization.model_validate(value["panel_organization"])
+        except ValueError as error:
+            raise HTTPException(
+                422, "Organized panel names, crop bounds or references are invalid"
+            ) from error
+        if any(not db.get(Panel, page.page_id) for page in organization.pages):
+            raise HTTPException(422, "An organized source page is missing")
     overrides = value.get("emotion_overrides", {})
     if (
         not isinstance(overrides, dict)

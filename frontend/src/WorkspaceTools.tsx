@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 export type WorkspaceTool =
+  | "panels"
   | "files"
   | "draft"
   | "style"
@@ -57,6 +58,12 @@ export default function WorkspaceTools({
     },
   ] as const;
   const tools = [
+    {
+      id: "panels",
+      title: "Organize panels",
+      label: "Crop & organize panels",
+      icon: ScanEye,
+    },
     {
       id: "style",
       title: "Reference style",

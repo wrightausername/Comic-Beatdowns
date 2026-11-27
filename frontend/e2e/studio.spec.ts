@@ -2152,3 +2152,204 @@ test("autonomous planning, sequence edits, prepared alternatives and background 
     path: testInfo.outputPath("autonomous-editing-options.png"),
   });
 });
+
+function comicGridPng() {
+  const width = 800,
+    height = 800,
+    header = Buffer.alloc(13);
+  header.writeUInt32BE(width);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 2;
+  const pixels = Buffer.alloc((width * 3 + 1) * height);
+  const colors = [
+    [26, 65, 92],
+    [108, 42, 38],
+    [42, 99, 58],
+    [88, 55, 108],
+  ];
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
+      const gap =
+        x < 8 ||
+        x >= 792 ||
+        y < 8 ||
+        y >= 792 ||
+        (x >= 380 && x < 420) ||
+        (y >= 380 && y < 420);
+      const color = gap
+        ? [255, 255, 255]
+        : colors[(y >= 420 ? 2 : 0) + (x >= 420 ? 1 : 0)];
+      const offset = y * (width * 3 + 1) + 1 + x * 3;
+      for (let c = 0; c < 3; c++) pixels[offset + c] = color[c];
+    }
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(pixels)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+test("named panel organizer crops, reorders, saves, downloads and builds editable labeled shots", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Make a video", exact: true }).click();
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Named panel organization");
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "ww_02.png", mimeType: "image/png", buffer: comicGridPng() },
+    { name: "ww_01.png", mimeType: "image/png", buffer: comicGridPng() },
+  ]);
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  const organizer = page.getByRole("region", {
+    name: "Panel organizer",
+    exact: true,
+  });
+  await organizer
+    .getByRole("button", { name: "Auto-crop & organize panels", exact: true })
+    .click();
+  await expect(
+    organizer.getByRole("button", {
+      name: "Organized panel ww_01A",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    organizer.getByRole("button", {
+      name: "Organized panel ww_01D",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Named panel organization",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  expect((await read()).scene_count).toBe(0);
+  await organizer
+    .getByRole("button", { name: "Panel later", exact: true })
+    .click();
+  await organizer
+    .getByText("Fix a crop or panel boundary", { exact: true })
+    .click();
+  await organizer
+    .getByRole("button", { name: "Redraw selected crop", exact: true })
+    .click();
+  const bounds = await organizer
+    .getByRole("group", { name: "Original page with organized panel crops" })
+    .boundingBox();
+  expect(bounds).toBeTruthy();
+  await page.mouse.move(
+    bounds!.x + bounds!.width * 0.06,
+    bounds!.y + bounds!.height * 0.06,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds!.x + bounds!.width * 0.44,
+    bounds!.y + bounds!.height * 0.44,
+  );
+  await page.mouse.up();
+  await organizer
+    .getByRole("button", { name: "Save named panels", exact: true })
+    .click();
+  await expect(organizer.getByText(/Named panels saved/)).toBeVisible();
+  const saved = await read();
+  const layout = saved.workflow.panel_organization;
+  expect(layout.pages.map((p: { name: string }) => p.name)).toEqual([
+    "ww_01",
+    "ww_02",
+  ]);
+  expect(layout.pages[0].regions[1].crop.width).toBeCloseTo(0.38, 1);
+  const zip = await page.request.get(
+    `/api/projects/${id}/panel-organization/download`,
+  );
+  expect(zip.status()).toBe(200);
+  expect((await zip.body()).subarray(0, 2).toString()).toBe("PK");
+  await organizer.screenshot({
+    path: testInfo.outputPath("named-panel-organizer.png"),
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBeTruthy();
+  await expect(
+    organizer.getByRole("button", {
+      name: "Organized panel ww_01A",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await organizer.screenshot({
+    path: testInfo.outputPath("named-panel-organizer-mobile.png"),
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const voice = await page.request.post(`/api/projects/${id}/narration`, {
+    multipart: {
+      file: { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(4) },
+    },
+  });
+  expect(voice.status()).toBe(200);
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Named panel organization" })
+    .click();
+  await page
+    .getByRole("button", { name: "Crop & organize panels", exact: true })
+    .click();
+  await organizer
+    .getByRole("button", { name: "Build video from these panels", exact: true })
+    .click();
+  const director = page.getByRole("region", {
+    name: "Verdict Autopilot",
+    exact: true,
+  });
+  await expect(
+    director.getByRole("button", {
+      name: "Approve & export 1080p",
+      exact: true,
+    }),
+  ).toBeVisible({ timeout: 120000 });
+  const draft = await read();
+  expect([
+    ...new Set(
+      draft.scenes.map((s: { source_label: string }) => s.source_label),
+    ),
+  ]).toEqual([
+    "ww_01A",
+    "ww_01B",
+    "ww_01C",
+    "ww_01D",
+    "ww_02A",
+    "ww_02B",
+    "ww_02C",
+    "ww_02D",
+  ]);
+  expect(draft.scenes[0].source_panel_ref).toBe(layout.pages[0].regions[0].id);
+  await page
+    .getByRole("region", { name: "Easy video creation" })
+    .getByRole("button", { name: "Edit this draft", exact: true })
+    .click();
+  const shots = page.getByRole("region", { name: "Quick shot editor" });
+  await expect(
+    shots.getByRole("button", { name: "Review shot 1", exact: true }),
+  ).toContainText("ww_01A");
+  await expect(
+    shots.getByRole("button", {
+      name: "Restore organized panel order",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await openTimeline(page);
+  await expect(
+    page.getByRole("button", { name: "Timeline shot 1: ww_01A", exact: true }),
+  ).toBeVisible();
+});

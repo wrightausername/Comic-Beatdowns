@@ -15,6 +15,7 @@ from .audio import analyze_audio, speech_words, transcribe
 from .automation import build_draft, storyboard
 from .database import DirectorJob, Project, ProjectVersion, RenderJob, SoundEffect, now
 from .page_direction import page_sources
+from .panel_organization import generate_organization, labels, match_label
 from .production import project_panels
 from .schemas import (
     AutopilotOptions,
@@ -197,6 +198,7 @@ class DirectorService:
                     for key in (
                         "id",
                         "storage_key",
+                        "source_name",
                         "title",
                         "series",
                         "characters",
@@ -347,9 +349,28 @@ class DirectorService:
             # Creator supplied complete pages, not necessarily pre-cropped images.
             # Use conservative local geometry to generate virtual scenes only
             # when this project still has one untouched scene per source page.
-            scenes, page_report = page_sources(
-                scenes, panels, storage, plan.page_layouts if provider else ()
+            organization = generate_organization(
+                panels,
+                storage,
+                existing=project.workflow.get("panel_organization"),
+                redetect=options.rebuild_pages
+                and not (project.workflow.get("panel_organization") or {}).get("user_order"),
+                layouts=plan.page_layouts if provider else (),
             )
+            panels.sort(
+                key=lambda p: next(
+                    (i for i, page in enumerate(organization["pages"]) if page["page_id"] == p.id),
+                    len(panels),
+                )
+            )
+            scenes, page_report = page_sources(
+                scenes, panels, storage, plan.page_layouts if provider else (), organization
+            )
+            entries = labels(organization)
+            for scene in scenes:
+                ref, entry = match_label(scene, entries)
+                if ref:
+                    scene.source_panel_ref, scene.source_label = ref, entry["label"]
             alignment = narration_map(project.script, project.caption_cues, words)
             mapped_story = story_map(
                 scenes,
@@ -386,7 +407,8 @@ class DirectorService:
                         # and forth through a comic. Basic keeps the supplied order.
                         match_panels=bool(provider)
                         and options.reorder_pages
-                        and not page_report["expanded"],
+                        and not page_report["expanded"]
+                        and not organization.get("user_order"),
                         captions=bool(project.caption_cues),
                     ),
                     analysis["pauses"],
@@ -395,10 +417,26 @@ class DirectorService:
                 timing_changes = timed_cuts(
                     cut["scenes"], cut["settings"], alignment, analysis["pauses"], mapped_story
                 )
-                if page_report["expanded"] or not source["scenes"]:
+                if not organization.get("user_order") and (
+                    page_report["expanded"] or not source["scenes"]
+                ):
                     warnings.extend(
                         place_story_artwork(cut["scenes"], cut["settings"], mapped_story)
                     )
+                for shot in cut["scenes"]:
+                    ref, entry = match_label(
+                        SimpleNamespace(**shot),
+                        entries,
+                        prefer_reference=bool(organization.get("user_order")),
+                    )
+                    if ref:
+                        shot.update(source_panel_ref=ref, source_label=entry["label"])
+                    elif (
+                        shot.get("source_panel_ref")
+                        and entries.get(shot["source_panel_ref"], {}).get("page_id")
+                        != shot["panel_id"]
+                    ):
+                        shot.update(source_panel_ref=None, source_label=None)
                 sound_choices = sound_design(
                     cut["scenes"],
                     effects,
@@ -504,6 +542,7 @@ class DirectorService:
                 )
                 live.workflow = {
                     **live.workflow,
+                    "panel_organization": organization,
                     "storyboard": [
                         {k: c[k] for k in ("start", "end", "text", "panel_id", "beat") if k in c}
                         for c in cut["storyboard"]

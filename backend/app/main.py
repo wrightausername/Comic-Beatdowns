@@ -20,6 +20,7 @@ from .edit_assistant import router as assistant_router
 from .finishing import router as finishing_router
 from .inbox import InboxWatcher
 from .limits import BodyLimitMiddleware
+from .panel_organization import router as panel_organization_router
 from .production import router as production_router
 from .publishing import router as publishing_router
 from .reference_style import router as reference_style_router
@@ -106,6 +107,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(reference_style_router)
     app.include_router(finishing_router)
     app.include_router(production_router)
+    app.include_router(panel_organization_router)
     app.include_router(director_router)
     app.include_router(publishing_router)
     dist = ROOT / "frontend" / "dist"

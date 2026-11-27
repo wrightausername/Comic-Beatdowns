@@ -1,7 +1,7 @@
 # Comic Beatdowns Studio: Codex handoff and current implementation status
 
 > **Canonical project context for new Codex sessions.** This is a maintained handoff, not a claim that ChatGPT and Codex share a live conversation.  
-> **Last verified:** November 27, 2026. Latest owner update: draft PR #21, autonomy application source `e05aa1d`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
+> **Last verified:** November 27, 2026. Latest owner update: draft PR #22, named-panel organizer application source `76e31b3`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
 
 ## Find the actual project
 
@@ -536,3 +536,113 @@ the new dated EXE from Downloads. ChatGPT's internal blank download page is not 
 working transfer: use the fixed GitHub link in an external Edge/Chrome window.
 No app code changes after the tested source; no main merge or installer. Actual
 owner Windows 10/11 and coherent real-comic episode acceptance remain open.
+
+## November 27 named panel organizer — stacked on PR #21
+
+Owner requested an easier automatic crop/order workflow with persistent names
+such as `ww_01A`, `ww_01B`, `ww_01C`, then the next page. Branch
+`feature/named-panel-organizer` extends the existing source-preserving page engine.
+
+A project-owned `workflow.panel_organization` stores ordered source pages,
+validated Windows-safe unique page names and bounded normalized panel regions.
+Stable panel references are separate from letter labels and editorial shot IDs.
+Scene `source_panel_ref` / `source_label` fields migrate in place and survive
+pacing, reframing, splits, saved workspaces, history and reload. Original page
+images remain the scene's source; there is no mandatory pre-cropping or duplicate
+library-asset creation. User-saved reading order wins over later automatic
+geometry/tag choices, and a rebuild from these panels is explicit for existing
+videos, with the existing locked-shot/custom-route protection and Undo.
+
+The visual organizer groups named thumbnail crops under each page and provides
+page/panel ordering, naming prefix, saved order, crop redraw/add/remove/merge and
+keep-whole correction. Local geometry handles clear gutters; unknown layouts stay
+whole with a specific review prompt. Save keeps existing cameras/timing intact;
+build uses the reviewed layout with imported narration through the existing
+Director. Shot review/timeline/assistant selectors display the same panel names.
+Restoring organized order uses stable references and refuses protected or
+unmatched content rather than silently sorting only by current crop coordinates.
+
+The optional authenticated ZIP download contains actual original-resolution PNG
+crops grouped as `ww_01/ww_01A.png`, etc. It also supports one saved page at a
+time; bounded pixels/bytes and safe validated names prevent oversized or invalid
+archives. Original stored files stay unchanged. Preview/save are revision checked,
+repeat detection reuses source-derived references, and stale/foreign/duplicate/
+out-of-page layouts are rejected. This is an organization improvement; it does
+not close Issue #14's irregular-page/story-aware camera/real-owner Windows gate.
+
+Initial integration verification: named PNG bytes match their source regions,
+source hashes remain unchanged, local full-page detection and deterministic names,
+real FFmpeg video from saved reading order, label preservation under auto-edit and
+workspace saves, protected-shot metadata changes, stable-reference reorder and
+exact Undo. Full checks, browser desktop/mobile workflow, Windows media/package
+checks and a uniquely named owner preview are required before delivery; record
+exact final application source/run/hash evidence in the feature PR.
+
+Local initial full check passed 221 backend tests (one Windows-only skip), 70
+frontend tests, lint/format/build and all 18 browser workflows. Final hardening
+adds correct tall-crop thumbnail proportions, a visible Organize panels shortcut,
+metadata handling for merged/replaced panels and a further assistant-reference
+integration case. All six organizer integration cases, the ten editing unit
+cases and final desktop/mobile organizer + workspace-discovery browser flows
+passed. Final full checks and Windows build evidence follow in the feature PR.
+UI screenshots: `docs/screenshots/named-panel-organizer.png` and mobile variant.
+
+### Verified named-panel application and owner delivery
+
+Draft PR #22: https://github.com/wrightausername/Comic-Beatdowns/pull/22,
+stacked on #21. Application source `ce79d986f99c9f8073fe2b94eab1e992fd3551f6`.
+Final local `make check`: **222 backend passed**, one Windows-only skip,
+**71 frontend passed**, lint/format/build. All 18 browser workflows passed, with
+final organizer desktop/mobile and discovery flows checked again after hardening.
+CI push validation `46079241005` and PR validation `46079272458` passed for that
+same application source: 222 backend, 71 frontend, 18 browser and **142 Windows
+media tests**. No installer or main merge.
+
+Package `46079272477`, artifact `15236975376`: actual downloaded EXE
+146,600,309 bytes; SHA256
+`2647d1a10886e165b0c47ef452ad5acd166dbf0f94cb10429507ef439e30f23b`.
+Downloaded startup/authenticated-native-window checks passed on separate Server
+2022/2025 jobs `140775027907` / `140775027919`. Actual CArchive/PYZ inspection
+confirmed `/assets/index-S3ITL2IW.js`, the organizer/build/download/order controls,
+app.panel_organization and the existing planning/cache/sequence/quiet modules.
+
+The metadata-only sharing commit pins those exact bytes under
+`studio-panel-organizer-preview-2026-11-27`, dated filename
+`Comic-Beatdowns-Studio-2026-11-27-Panel-Organizer.exe`. Verify sharing success and
+a complete anonymous public download/hash before handoff. Existing preview URLs
+stay valid, and old installed EXEs do not update themselves. Close older Studio
+windows, then launch this dated file from Downloads. Use an external Edge/Chrome
+window if ChatGPT's internal download tab is blank. Actual owner Windows 10/11
+and irregular/real-comic creative acceptance remain open under Issue #14.
+
+Final audit found that an explicit rebuild from an earlier automatic local crop
+plan could keep that plan instead of taking new Vision panel regions. The
+follow-up fix re-detects on explicit rebuild only when the layout was not
+creator-saved. Two staged Basic → Vision integration cases verify both refinement
+of automatic crops and preservation of the creator's accepted layout. This
+supersedes the first organizer preview; final source/package evidence follows.
+
+### Corrected named-panel preview — final source
+
+The rebuild fix is verified at **`76e31b321f10aed13d73b58a18bad44a48c0f914`**.
+Final local `make check` passed **224 backend tests** (one Windows-only skip),
+**71 frontend tests**, lint/format/build; final `make e2e` passed all **18 browser
+workflows**, including desktop/mobile cropping, save/reload and actual draft
+construction. CI `46080146866` passed those same checks plus **144 Windows media
+tests**. Eight organizer cases now include explicit automatic-layout refinement
+and protection of the creator's saved layout under staged Basic → Vision rebuilds.
+
+Package `46080151734`, artifact `15237306349`: **146,600,776 bytes**, SHA256
+`fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545`.
+Downloaded startup/native-window checks passed on Server 2022/2025 jobs
+`140777937941` / `140777937974`. The original downloaded artifact hash and actual
+bundled organizer/autonomy UI/backend modules were inspected again. Frontend
+entry remains `/assets/index-S3ITL2IW.js`; the changed Director is in the new PYZ.
+
+Final sharing pins those exact bytes under `studio-named-panels-preview-2026-11-27`,
+filename **Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe**. It supersedes the
+first `studio-panel-organizer-preview-2026-11-27` trial, whose link is retained.
+Confirm sharing and complete anonymous download/hash before delivery. Later
+metadata-only commits do not change the tested application source. Issue #14 and
+actual owner Windows 10/11/real-comic acceptance remain open; no installer/main
+merge or automatic publishing was added.

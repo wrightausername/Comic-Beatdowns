@@ -72,6 +72,8 @@ export interface Scene {
   sfx_id?: string | null;
   sfx_offset?: number;
   framing?: "fill" | "fit";
+  source_panel_ref?: string | null;
+  source_label?: string | null;
   source_crop?: { x: number; y: number; width: number; height: number } | null;
   glide_axis?: "horizontal" | "vertical" | null;
   glide_start?: number;
@@ -97,7 +99,24 @@ export interface EditNote {
   text: string;
   done: boolean;
 }
+export interface OrganizedRegion {
+  id: string;
+  crop: { x: number; y: number; width: number; height: number };
+}
+export interface OrganizedPage {
+  page_id: string;
+  name: string;
+  regions: OrganizedRegion[];
+  review_required: boolean;
+  reason: string;
+}
+export interface PanelOrganization {
+  version: 1;
+  user_order?: boolean;
+  pages: OrganizedPage[];
+}
 export interface Workflow {
+  panel_organization?: PanelOrganization;
   sound_choices?: Record<string, string>;
   panel_ids?: string[];
   storyboard?: StoryCard[];

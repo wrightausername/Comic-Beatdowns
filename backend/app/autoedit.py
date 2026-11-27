@@ -63,6 +63,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
                     "sfx_id": None,
                     "sfx_offset": 0,
                     "framing": "fill",
+                    "source_panel_ref": None,
+                    "source_label": None,
                     "source_crop": None,
                     "glide_axis": None,
                     "glide_start": 0,
@@ -102,6 +104,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         if (
             groups
             and groups[-1].panel_id == scene.panel_id
+            and getattr(groups[-1], "source_panel_ref", None)
+            == getattr(scene, "source_panel_ref", None)
             and getattr(groups[-1], "source_crop", None) == getattr(scene, "source_crop", None)
             and not scene.caption.strip()
             and not scene.sfx_key
@@ -155,6 +159,8 @@ def auto_edit(scenes, settings, duration, options, pauses=()):
         values = {
             key: getattr(source, key) for key in ("panel_id", "focus_x", "focus_y", "caption")
         }
+        values["source_panel_ref"] = getattr(source, "source_panel_ref", None)
+        values["source_label"] = getattr(source, "source_label", None)
         values["source_crop"] = getattr(source, "source_crop", None)
         values["glide_axis"] = getattr(source, "glide_axis", None)
         values["glide_start"] = getattr(source, "glide_start", 0)

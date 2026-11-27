@@ -44,6 +44,7 @@ export default function PageShotReview({
   onReviewVideo,
   onUndo,
   onRestoreOrder,
+  restoreOrderLabel = "Restore uploaded page order",
 }: {
   scenes: Scene[];
   busy: boolean;
@@ -58,6 +59,7 @@ export default function PageShotReview({
   onReviewVideo: () => void;
   onUndo: () => void;
   onRestoreOrder?: () => void;
+  restoreOrderLabel?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
@@ -372,10 +374,12 @@ export default function PageShotReview({
           <button
             type="button"
             className="text-button"
-            disabled={busy || scenes.some((s) => s.locked)}
+            disabled={
+              busy || scenes.some((s) => s.locked || s.camera_path?.length)
+            }
             onClick={onRestoreOrder}
           >
-            Restore uploaded page order
+            {restoreOrderLabel}
           </button>
         )}
       </div>
@@ -415,7 +419,8 @@ export default function PageShotReview({
                 />
               )}
             </span>
-            <strong>Shot {shotIndex + 1}</strong>
+            <strong>{shot.source_label || `Shot ${shotIndex + 1}`}</strong>
+            {shot.source_label && <small>Shot {shotIndex + 1}</small>}
             <small>
               {shot.locked
                 ? "Locked"
@@ -432,7 +437,9 @@ export default function PageShotReview({
             <strong>
               Shot {index + 1} of {scenes.length}
             </strong>
-            <span>{scene.panel.title || "Comic artwork"}</span>
+            <span>
+              {scene.source_label || scene.panel.title || "Comic artwork"}
+            </span>
           </div>
           <div
             className={

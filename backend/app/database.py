@@ -92,6 +92,8 @@ class Scene(Base):
     note: Mapped[str] = mapped_column(Text, default="", server_default="")
     beat: Mapped[str] = mapped_column(String, default="custom", server_default="custom")
     framing: Mapped[str] = mapped_column(String, default="fill", server_default="fill")
+    source_panel_ref: Mapped[str | None] = mapped_column(String, nullable=True)
+    source_label: Mapped[str | None] = mapped_column(String, nullable=True)
     source_crop: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     glide_axis: Mapped[str | None] = mapped_column(String, nullable=True)
     glide_start: Mapped[float] = mapped_column(Float, default=0, server_default="0")
@@ -266,6 +268,8 @@ def migrate_scene_options(engine):
         "note": "TEXT NOT NULL DEFAULT ''",
         "beat": "VARCHAR NOT NULL DEFAULT 'custom'",
         "framing": "VARCHAR NOT NULL DEFAULT 'fill'",
+        "source_panel_ref": "VARCHAR",
+        "source_label": "VARCHAR",
         "source_crop": "JSON",
         "glide_axis": "VARCHAR",
         "glide_start": "FLOAT NOT NULL DEFAULT 0",

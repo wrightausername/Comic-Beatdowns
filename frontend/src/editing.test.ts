@@ -190,3 +190,23 @@ it("refuses unsafe joins that would discard voice captions or scene effects", ()
     "at most 30",
   );
 });
+
+it("merging different named panels shows both origins instead of retaining a false single-panel reference", () => {
+  const first = {
+    ...scene("page"),
+    source_panel_ref: "a".repeat(32),
+    source_label: "ww_01A",
+    source_crop: { x: 0, y: 0, width: 1, height: 0.45 },
+  };
+  const second = {
+    ...scene("page"),
+    id: "second",
+    source_panel_ref: "b".repeat(32),
+    source_label: "ww_01B",
+    source_crop: { x: 0, y: 0.55, width: 1, height: 0.45 },
+  };
+  const merged = mergePageShots([first, second], 0);
+  expect(merged).toHaveLength(1);
+  expect(merged[0].source_panel_ref).toBeNull();
+  expect(merged[0].source_label).toBe("ww_01A + ww_01B");
+});

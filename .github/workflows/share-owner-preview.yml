@@ -3,7 +3,7 @@ name: Share verified Windows owner preview
 on:
   workflow_dispatch:
   push:
-    branches: [feature/autonomous-editing-workflow]
+    branches: [feature/named-panel-organizer]
     paths: [.github/workflows/share-owner-preview.yml]
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: share-autonomy-preview-2026-11-27
+  group: share-named-panels-preview-2026-11-27
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          run-id: 46067314435
+          run-id: 46080151734
           github-token: ${{ github.token }}
           path: verified
       - name: Verify the exact tested executable and prepare direct download
@@ -34,13 +34,13 @@ jobs:
           import shutil
           root = Path('verified')
           original = root / 'Comic Beatdowns Studio.exe'
-          expected = 'a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298'
+          expected = 'fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545'
           actual = hashlib.sha256(original.read_bytes()).hexdigest()
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
           shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
-          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe')
-          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe\n')
+          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe')
+          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe\n')
           print('Verified original executable:', actual)
       - name: Share the standalone EXE as an owner test preview
         env:
@@ -49,28 +49,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=studio-autonomy-preview-2026-11-27
-          source=e05aa1da014ede6863556590afb5f5c93d57177d
+          tag=studio-named-panels-preview-2026-11-27
+          source=76e31b321f10aed13d73b58a18bad44a48c0f914
           cat > preview-notes.md <<'NOTES'
-          Owner test preview from draft PR #21, stacked on #20. Adds story/timing reports, region-linked narration planning, contextual sound choices, bounded technical render inspection/repair, reversible sequence requests, prepared alternatives and cached background previews. It keeps the existing four-step workspace, timeline, Undo and private local profile.
+          Owner test preview from draft PR #22, stacked on #21. Adds a visible Organize panels shortcut, automatic clear-gutter cropping, page-grouped thumbnails, names such as ww_01A / ww_01B / ww_01C, visual crop corrections and saved reading order. The same labels follow editable video shots, timeline clips and assistant selections. Original source pages remain intact.
 
-          Download **Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe** below. Close every older Studio window, then open that dated file directly from Downloads. No ZIP extraction or installer is needed. If ChatGPT shows a blank download tab, paste the GitHub EXE link into Edge or Chrome opened from Windows, then check Downloads with Ctrl+J. Existing projects stay under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
+          Download **Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe** below. Close older Studio windows and open that dated file from Downloads. If ChatGPT shows a blank download tab, paste the fixed GitHub EXE link into Edge or Chrome opened from Windows. Your projects stay in the same local profile; no ZIP extraction or installer is required for the executable.
 
-          Find Story & timing plan under Make a draft, and sequence requests/Compare another approach in AI editing assistant. Automatically preview my saved edits is a visible option in Autopilot-enabled projects. Every proposed edit stays previewable and reversible; final export choices and publishing remain separate.
+          Open **Organize panels** in the workspace toolbar. Auto-crop, review the page and panel order, Save named panels, then Build video from these panels. Crop fixes and naming controls are optional. Actual named PNG downloads are grouped as ww_01/ww_01A.png, etc., for the episode or selected page. Existing cameras/timing stay intact when saving the layout; explicit rebuild/order actions protect locked shots and custom routes and retain Undo.
 
-          Source: `e05aa1da014ede6863556590afb5f5c93d57177d`. This is the unchanged EXE from package run 46067314435, artifact 15231406731. Original SHA256: `a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298`. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. The actual downloaded bundle was inspected for the new UI and backend planning, sequence, cache and quiet-process modules.
+          Source: `76e31b321f10aed13d73b58a18bad44a48c0f914`. Unchanged executable from package run 46080151734, artifact 15237306349; 146,600,776 bytes. SHA256: `fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545`. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Inspection of the downloaded bundle confirmed the new organizer module and UI, persistent panel fields, and the existing autonomy/quiet-process modules.
 
-          Validation run 46067314452 covers 216 backend tests (one Windows-only check skipped on Linux), 70 frontend tests, 17 browser workflows and 136 Windows media tests. Original synthetic fixtures and mocked providers verify mechanisms; real-material creative acceptance and actual owner Windows 10/11 trials remain open.
+          Explicit rebuilds refine earlier automatic crop layouts, including new Vision regions, while creator-saved crop order stays protected. This corrects the initial organizer preview.
 
-          Local mode leaves unknown story facts empty. Imported SRT timing is phrase-level; word anchors require observed speech evidence. Local opening/middle/ending sequence scopes use timeline thirds. Repair is bounded to two technical attempts and does not remove intentional silence or dark artwork. The cache reuses video segments; audio, captions and branding are remixed. Unfinished paid provider calls are not silently replayed.
+          Validation run 46080146866 covers 224 backend tests (one Windows-only skip on Linux), 71 frontend tests, 18 browser workflows and 144 Windows media tests. Fixtures are original synthetic art/audio; providers are mocked. Actual owner Windows 10/11 and real-comic creative acceptance remain open.
 
-          This is an unsigned owner preview, not a production release or merge of draft PRs. Issue #14's irregular-page/story-aware camera gate remains open. WebView2 and a compatible .NET runtime remain prerequisites. Installer work is excluded; nothing is automatically published.
+          Detection is conservative: ambiguous/irregular pages stay whole and flagged for correction. This does not claim universal comic understanding or close Issue #14. The existing reference style, timeline, assistant, cached previews, Undo and separate export/publishing choices remain in place. This unsigned owner preview does not merge draft PRs, install runtimes or publish videos. WebView2 and a compatible .NET runtime remain prerequisites.
           NOTES
           if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
             target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
             test "$target" = "$source"
-            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — autonomous editing preview, November 27' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — named panel crops preview, November 27' --notes-file preview-notes.md
           fi
