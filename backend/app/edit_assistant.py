@@ -30,6 +30,7 @@ from .database import (
 )
 from .preflight import check_episode
 from .schemas import CaptionCue, SceneInput, StrictModel, WorkspaceInput
+from .sequence_edits import alternative_plans, compile_sequence, sequence_request
 from .workspace import locked_project, project_scenes
 
 router = APIRouter(prefix="/api", tags=["Creator assistant"])
@@ -183,6 +184,13 @@ def local_plan(text, project, db, selected_id=None):
         if len(fence) > 1:
             raise ValueError("Paste one edit plan at a time")
         return Plan.model_validate(json.loads(fence[0] if fence else raw))
+    if actions := sequence_request(raw):
+        return {
+            "kind": "sequence",
+            "project_id": project.id,
+            "base_revision": project.revision,
+            "actions": actions,
+        }
     scenes = project_scenes(db, project.id)
     if not scenes:
         raise ValueError("Add or generate shots before requesting an edit")
@@ -491,6 +499,8 @@ def proposal_dict(row):
 
 
 def compile_proposal(plan, project, db):
+    if plan.get("kind") == "sequence":
+        return compile_sequence(plan, project, db)
     if plan.get("kind") == "reference_style":
         from .reference_style import compile_style_plan
 
@@ -509,7 +519,8 @@ def propose(project_id: str, data: Instruction, request: Request, db=Depends(ses
             if data.use_ai
             else local_plan(data.text, project, db, data.scene_id)
         )
-        _, changes = compile_plan(plan, project, db)
+        plan_data = plan if isinstance(plan, dict) else plan.model_dump()
+        _, changes = compile_proposal(plan_data, project, db)
     except (ValueError, TypeError, KeyError, IndexError, httpx.HTTPError) as error:
         raise HTTPException(
             422,
@@ -523,7 +534,7 @@ def propose(project_id: str, data: Instruction, request: Request, db=Depends(ses
     row = EditProposal(
         project_id=project.id,
         base_revision=project.revision,
-        plan=plan.model_dump(),
+        plan=plan_data,
         changes=changes,
     )
     db.add(row)
@@ -539,6 +550,59 @@ def propose(project_id: str, data: Instruction, request: Request, db=Depends(ses
         db.delete(value)
     db.commit()
     return proposal_dict(row)
+
+
+class AlternativesInput(Revision):
+    scene_id: str = Field(min_length=1, max_length=64)
+
+
+@router.post("/projects/{project_id}/assistant/alternatives", status_code=201)
+def alternatives(project_id: str, data: AlternativesInput, db=Depends(session)):
+    project = locked_project(db, project_id, data.base_revision)
+    scenes = project_scenes(db, project_id)
+    scene = next((s for s in scenes if s.id == data.scene_id), None)
+    if scene is None:
+        raise HTTPException(404, "Choose a shot in this video")
+    result = []
+    for label, plan in alternative_plans(project, scene, scenes):
+        try:
+            _, changes = compile_proposal(plan, project, db)
+        except ValueError:
+            continue
+        # Same revision/plan gives the same saved candidate across repeated clicks.
+        row = next(
+            (
+                r
+                for r in db.scalars(
+                    select(EditProposal).where(
+                        EditProposal.project_id == project_id,
+                        EditProposal.base_revision == project.revision,
+                        EditProposal.status == "proposed",
+                    )
+                )
+                if r.plan == plan
+            ),
+            None,
+        )
+        if row is None:
+            row = EditProposal(
+                project_id=project_id, base_revision=project.revision, plan=plan, changes=changes
+            )
+            db.add(row)
+            db.flush()
+        result.append({"label": label, "proposal": proposal_dict(row)})
+    for old in db.scalars(
+        select(EditProposal)
+        .where(EditProposal.project_id == project_id)
+        .order_by(EditProposal.created_at.desc())
+        .offset(50)
+    ):
+        db.delete(old)
+    db.commit()
+    return {
+        "alternatives": result,
+        "limits": "These are editable framing/timing options, not claims about the correct story choice.",
+    }
 
 
 @router.post("/projects/{project_id}/assistant/proposals/{proposal_id}/apply")
@@ -706,6 +770,8 @@ def review_queue(project_id: str, request: Request, db=Depends(session)):
                 "seconds": None,
             }
         )
+    if render and render.status == "completed" and not render.snapshot.get("section"):
+        values.extend(dict(f) for f in render.snapshot.get("work_report", {}).get("findings", []))
     for kind in ("music", "logo"):
         key = getattr(project, kind + "_key")
         if key and not request.app.state.storage.path(key).is_file():

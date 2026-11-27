@@ -3,7 +3,7 @@ name: Share verified Windows owner preview
 on:
   workflow_dispatch:
   push:
-    branches: [fix/quiet-desktop-guided-flow]
+    branches: [feature/autonomous-editing-workflow]
     paths: [.github/workflows/share-owner-preview.yml]
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: share-guided-fix-preview-2026-11-27
+  group: share-autonomy-preview-2026-11-27
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          run-id: 45989014931
+          run-id: 46067314435
           github-token: ${{ github.token }}
           path: verified
       - name: Verify the exact tested executable and prepare direct download
@@ -34,13 +34,13 @@ jobs:
           import shutil
           root = Path('verified')
           original = root / 'Comic Beatdowns Studio.exe'
-          expected = '21d03a7b5cc6c4a3658760ae11238723c2212decfa5f89885d1afc295c05f35d'
+          expected = 'a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298'
           actual = hashlib.sha256(original.read_bytes()).hexdigest()
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
           shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
-          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe')
-          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe\n')
+          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe')
+          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe\n')
           print('Verified original executable:', actual)
       - name: Share the standalone EXE as an owner test preview
         env:
@@ -49,24 +49,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=studio-guided-fix-preview-2026-11-27
-          source=d1e3d613c2061e2bf8480d733d86f37bf9037afa
+          tag=studio-autonomy-preview-2026-11-27
+          source=e05aa1da014ede6863556590afb5f5c93d57177d
           cat > preview-notes.md <<'NOTES'
-          Owner test preview from draft PR #20, stacked on #19. Background media tools run without Windows console windows. Guided editing shows one work area at a time; Edit this draft and Preview my changes revise saved shots without rerunning automatic editing. Page order is preserved by default, with improved panel crop handling and explicit page re-detection.
+          Owner test preview from draft PR #21, stacked on #20. Adds story/timing reports, region-linked narration planning, contextual sound choices, bounded technical render inspection/repair, reversible sequence requests, prepared alternatives and cached background previews. It keeps the existing four-step workspace, timeline, Undo and private local profile.
 
-          Download **Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe** below. Close every older Studio window, then open that dated file directly from Downloads. In a project, this build shows four steps: Add files, Make a draft, Edit shots, Review & export. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
+          Download **Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe** below. Close every older Studio window, then open that dated file directly from Downloads. No ZIP extraction or installer is needed. If ChatGPT shows a blank download tab, paste the GitHub EXE link into Edge or Chrome opened from Windows, then check Downloads with Ctrl+J. Existing projects stay under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
 
-          Source: `d1e3d613c2061e2bf8480d733d86f37bf9037afa`. This is the unchanged EXE from package run 45989014931, artifact 15192402561, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
+          Find Story & timing plan under Make a draft, and sequence requests/Compare another approach in AI editing assistant. Automatically preview my saved edits is a visible option in Autopilot-enabled projects. Every proposed edit stays previewable and reversible; final export choices and publishing remain separate.
 
-          Validation run 45989014858 passed 201 backend tests (one Windows-only check skipped on Linux), 70 frontend tests, 16 browser workflows and 121 Windows media/reference tests.
+          Source: `e05aa1da014ede6863556590afb5f5c93d57177d`. This is the unchanged EXE from package run 46067314435, artifact 15231406731. Original SHA256: `a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298`. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. The actual downloaded bundle was inspected for the new UI and backend planning, sequence, cache and quiet-process modules.
 
-          This is an unsigned owner trial, not a production release or a merge of the draft PRs. Issue #14's irregular-page automation gate remains open. Reference styles reproduce supported editable effects, not arbitrary third-party plugins. Optional vision interpretation was tested with mocked providers, not a live model. Installer and code-signing work remain excluded from this trial.
+          Validation run 46067314452 covers 216 backend tests (one Windows-only check skipped on Linux), 70 frontend tests, 17 browser workflows and 136 Windows media tests. Original synthetic fixtures and mocked providers verify mechanisms; real-material creative acceptance and actual owner Windows 10/11 trials remain open.
+
+          Local mode leaves unknown story facts empty. Imported SRT timing is phrase-level; word anchors require observed speech evidence. Local opening/middle/ending sequence scopes use timeline thirds. Repair is bounded to two technical attempts and does not remove intentional silence or dark artwork. The cache reuses video segments; audio, captions and branding are remixed. Unfinished paid provider calls are not silently replayed.
+
+          This is an unsigned owner preview, not a production release or merge of draft PRs. Issue #14's irregular-page/story-aware camera gate remains open. WebView2 and a compatible .NET runtime remain prerequisites. Installer work is excluded; nothing is automatically published.
           NOTES
           if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
             target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
             test "$target" = "$source"
-            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — quiet desktop and guided editing preview, November 27' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — autonomous editing preview, November 27' --notes-file preview-notes.md
           fi

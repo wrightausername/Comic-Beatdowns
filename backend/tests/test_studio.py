@@ -236,8 +236,13 @@ def test_snapshot_and_interrupted_job_recovery(client, image_bytes, monkeypatch)
         assert snapshot["scenes"][0]["duration"] == 1
     renderer.recover()
     recovered = client.get(f"/api/renders/{job['id']}").json()
-    assert recovered["status"] == "failed"
-    assert "restart" in recovered["error"]
+    assert recovered["status"] == "queued"
+    assert recovered["resume_count"] == 1
+    renderer.recover()
+    renderer.recover()
+    exhausted = client.get(f"/api/renders/{job['id']}").json()
+    assert exhausted["status"] == "failed"
+    assert "interruptions" in exhausted["error"]
     assert client.get(url).json()["status"] == "scripting"
 
 

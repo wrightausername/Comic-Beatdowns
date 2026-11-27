@@ -1,5 +1,7 @@
 # Codex: Next implementation task for Comic Beatdowns Studio
 
+> **November 27 update:** draft PR #21 now stacks on #20 with the connected autonomy workflow. Read the latest November 27 entries in [CODEX_HANDOFF.md](CODEX_HANDOFF.md) for tested application source, exact EXE delivery, implementation limits and remaining real-material/Windows 10 acceptance. The older briefs below preserve the creator requirements; do not duplicate implemented modules or assume drafts are merged.
+
 **Owner direction confirmed November 21, 2026:** Make video creation feel automatic and effortless, while letting the creator correct individual comic shots visually in seconds. **This is the primary creator workflow, not an optional subfeature.**
 
 ## Repository and working branches

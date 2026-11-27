@@ -7,7 +7,22 @@ WebView2 window, with no browser tab or console window required.
 
 ## Building and downloading
 
-The November 27 quiet-desktop/guided-editing owner preview has a fixed
+The newest November 27 autonomy owner preview has a fixed
+[download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-autonomy-preview-2026-11-27)
+and [standalone Windows EXE](https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-autonomy-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe).
+Close older Studio windows and open **Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe**
+from Downloads. If ChatGPT shows a blank page, paste that EXE link into Chrome or
+Edge opened from Windows. The app adds Story & timing plan under Make a draft,
+sequence requests/prepared alternatives in AI editing assistant, and a visible
+background-preview toggle. Existing projects use the same local profile.
+
+Source `e05aa1da014ede6863556590afb5f5c93d57177d`, package `46067314435`, artifact
+`15231406731`; SHA256
+`a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298`.
+Downloaded startup/native-window checks passed on separate Server 2022/2025
+runners. Real comic/Windows 10 owner acceptance is still required.
+
+The preceding quiet-desktop/guided-editing owner preview remains available at its fixed
 [download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-guided-fix-preview-2026-11-27)
 with **Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe** under Assets. Use that
 dated filename to distinguish it from older generic Downloads/shortcuts. This

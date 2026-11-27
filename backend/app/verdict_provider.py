@@ -17,6 +17,11 @@ from .schemas import CaptionCue, CaptionList, StrictModel, VisionConnection
 
 class PanelDecision(StrictModel):
     panel_id: str
+    region_index: int | None = Field(default=None, ge=0, le=23)
+    characters: list[str] = Field(default_factory=list, max_length=12)
+    dialogue: str = Field(default="", max_length=800)
+    action: str = Field(default="", max_length=400)
+    reaction: str = Field(default="", max_length=400)
     beat: str = Field(default="custom", pattern=r"^(custom|hit|reveal|reaction|read)$")
     target_x: float = Field(default=0.5, ge=0, le=1)
     target_y: float = Field(default=0.5, ge=0, le=1)
@@ -34,6 +39,10 @@ class PageRegion(StrictModel):
     height: float = Field(ge=0.03, le=1)
     confidence: float = Field(ge=0, le=1)
     reason: str = Field(min_length=1, max_length=200)
+    characters: list[str] = Field(default_factory=list, max_length=12)
+    dialogue: str = Field(default="", max_length=800)
+    action: str = Field(default="", max_length=400)
+    reaction: str = Field(default="", max_length=400)
 
     @model_validator(mode="after")
     def inside_page(self):
@@ -165,6 +174,8 @@ class VisionDirector:
             "Each normalized region is one authored comic panel, in left-to-right then top-to-bottom reading order, with visible evidence in reason. "
             "Handle inset/irregular layouts only when their boundaries are visible. Preserve an elongated panel as one region. "
             "Do not split panels into camera shots, cut off dialogue, invent boundaries or infer missing artwork. Omit layouts you cannot establish."
+            " Build a story map before deciding edits: for each region include characters (only identifiable names), dialogue (visible text only), action and reaction (visible evidence only). Leave unknown facts empty."
+            " Each assignment may include region_index (zero-based within that page's regions), characters, dialogue, action and reaction. Use region_index to link the exact narrated beat to its authored panel, never merely the full page."
         )
         content = [
             {
@@ -232,6 +243,13 @@ class VisionDirector:
                 i not in {p["id"] for p in panels} for i in layout_ids
             ):
                 raise ValueError("The provider returned foreign or duplicate page layouts")
+            layouts = {p.panel_id: p for p in result.page_layouts}
+            for assignment in result.assignments:
+                if assignment.region_index is not None and (
+                    assignment.panel_id not in layouts
+                    or assignment.region_index >= len(layouts[assignment.panel_id].regions)
+                ):
+                    raise ValueError("The provider referred to an unknown authored panel")
             return result
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as error:
             raise ValueError(

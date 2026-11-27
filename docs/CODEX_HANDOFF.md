@@ -1,7 +1,7 @@
 # Comic Beatdowns Studio: Codex handoff and current implementation status
 
 > **Canonical project context for new Codex sessions.** This is a maintained handoff, not a claim that ChatGPT and Codex share a live conversation.  
-> **Last verified:** November 21, 2026 (repo/PR context; feature CI noted by commit). Recheck PR heads, issues, and CI before making decisions.
+> **Last verified:** November 27, 2026. Latest owner update: draft PR #21, autonomy application source `e05aa1d`; final source/check/package evidence is in the November 27 autonomy delivery entry below. Draft PRs remain unmerged; Issue #14 acceptance remains open.
 
 ## Find the actual project
 
@@ -432,3 +432,107 @@ generic filenames made installed/Downloaded copies ambiguous. Sharing now adds
 and SHA256 above. Keep the generic asset alive for existing links; recommend the
 dated file, close all older Studio windows and launch it directly from Downloads.
 No application code or project data is changed by this distribution correction.
+
+## November 27 autonomous editing workflow — stacked on PR #20
+
+Owner approved all seven editing-assistance proposals. Branch
+`feature/autonomous-editing-workflow` preserves the four-step workspace and the
+existing SQLite/assets, Director, proposals, Undo and explicit export choices.
+
+The Director now produces a persisted story report separating authored page
+regions from editorial shots and spoken beats. Optional vision output can include
+region-specific characters, visible dialogue, action/reaction evidence and
+validated region references. Local mode leaves unknown story facts empty; it
+cannot read balloons or recognize characters. New shots may follow grounded,
+chronological within-page region assignments; conflicting page order stays
+flagged. This does not close Issue #14 or establish real-material creative quality.
+
+Narration reports retain real observed local recognition word times when
+available, otherwise imported caption phrase boundaries. Script agreement and
+misread/missing text are reported separately from acoustic confidence; no word
+timestamps are invented from an SRT. Grounded action keywords can anchor cuts and
+sounds; adjacent cuts roll toward phrase/pause boundaries, preserving total
+frames, protected routes/glides/locks and the original recording. Dialogue and
+reaction holds have minimum-time guards. Exact action alignment remains limited
+by recognition or supplied timestamps and model evidence.
+
+Every actual render now gets a local stream/decode/black/silence/peak scan. Up to
+two attempts rebuild/remux technical failures; near-zero mix peaks can receive
+render-only headroom and a rescan. Findings and repairs remain visible on the
+render and in review. Intentional dark art/silence and uncertain creative choices
+are warnings; they are not blindly removed. Repair does not rewrite the timeline
+or automatically approve/publish an episode.
+
+Sound planning rotates available installed/user-imported impacts/whooshes,
+honors favorite choices and existing custom sounds, can build into a following
+hit/reveal with an original synthesized riser, and leaves reactions/dialogue
+clear. Existing voice normalization, ducking and adjustable mixer stay in use.
+No third-party audio is fetched. Automatic sound design is a bounded one-event
+per-shot system, not arbitrary layered audio composition.
+
+The existing assistant understands bounded local sequence instructions such as
+“Speed up the middle, keep the opening, let the final reaction breathe.” These
+use timeline thirds (stated in the UI), add actual editable reframings and roll
+the ending cut while keeping the recording, captions, total frames and protected
+absolute intervals. More open-ended instructions still use the existing pasted
+plan or explicitly enabled writing provider. Proposals have stable new shot IDs,
+real FFmpeg previews, revision checks, Apply/Discard and Undo. Prepared wider,
+longer-hold or next-artwork candidates use those same preview/apply controls;
+unavailable/protected/no-op alternatives are omitted and repeat requests reuse
+saved candidates.
+
+After a saved edit in an Autopilot-enabled project, the visible, disableable
+background-preview option debounces rendering. It waits for active work and
+queues a revision-checked draft, never an automatic final export. Content hashes
+reuse encoded shots and final camera frames, including predecessor-image/blend
+and duration dependencies; captions, branding and audio are remixed each time.
+Corrupt entries rebuild, incomplete writes stay private, and the local shot cache
+is pruned to 1 GiB after renders. Queued/running renders resume immutable snapshots
+on restart with bounded recovery; local planning resumes from saved evidence.
+Unfinished remote calls are not automatically resent without a saved plan.
+Newer project edits cannot be overwritten by an older resumed run.
+
+Validation includes original synthetic page/audio fixtures, actual MP4 decoding,
+sequence apply/Undo, stable previews, protected absolute intervals, candidate
+staleness/deduplication, incoming-blend cache invalidation/corruption, bounded
+repair and render/planning restart recovery. Full local checks, browser workflow,
+Windows validation and downloaded-EXE evidence must be recorded against the final
+application SHA in the feature PR before sharing a new owner build. Installer
+work and actual owner Windows 10/11 acceptance remain outside these checks.
+
+Local initial full verification passed 212 backend tests (one Windows-only skip),
+70 frontend tests, lint/format/build and all 17 browser workflows. Final hardening
+adds four more integration cases: observed-word anchors, inspected mix repair and
+rescan, background revision/Director gates, and sound timing/truncation guards.
+All 15 autonomy integration cases and the final browser autonomy workflow passed.
+A fresh full `make check` and Windows/CI checks are being run on the final source;
+use the forthcoming PR/run provenance rather than inferring delivery from this
+entry. Actual original-fixture UI: `docs/screenshots/autonomous-editing-options.png`.
+
+### Verified autonomy application and owner delivery
+
+Draft PR #21: https://github.com/wrightausername/Comic-Beatdowns/pull/21,
+stacked on #20. Application source `e05aa1da014ede6863556590afb5f5c93d57177d`.
+Local final `make check`: 216 backend passed/one Windows-only skip, 70 frontend
+passed, lint/format/production build. All 17 browser workflows passed; the final
+hardened autonomy flow also passed separately. CI validation `46067314452` passed
+216 backend, 70 frontend, 17 browser workflows and **136 Windows media tests**.
+
+Package run `46067314435`, artifact `15231406731`: actual downloaded EXE
+146,576,360 bytes, SHA256
+`a9367748feac13c3d335cbcdbff71d789dd04155afd4304bd89e3bbd6d634298`.
+Downloaded startup/authenticated-native-window checks passed on separate
+Windows Server 2022/2025 jobs `140737055803` / `140737055819`.
+Actual CArchive inspection confirmed bundled `/assets/index-CPF_2w3U.js` includes
+background previews, story/timing reports and prepared alternatives; its PYZ
+contains app.story_planning, app.sequence_edits, app.render_cache and app.processes.
+
+The metadata-only delivery commit pins those exact bytes in the sharing workflow
+under `studio-autonomy-preview-2026-11-27`, dated filename
+`Comic-Beatdowns-Studio-2026-11-27-Autonomy-Preview.exe`. Verify sharing success and
+a full anonymous download/hash before handing off. Older preview links stay
+available; the existing downloaded app does not update itself. Close it and open
+the new dated EXE from Downloads. ChatGPT's internal blank download page is not a
+working transfer: use the fixed GitHub link in an external Edge/Chrome window.
+No app code changes after the tested source; no main merge or installer. Actual
+owner Windows 10/11 and coherent real-comic episode acceptance remain open.

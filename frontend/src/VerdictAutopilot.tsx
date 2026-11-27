@@ -9,6 +9,7 @@ import type {
   VisionConnection,
 } from "./types";
 import { errorMessage, timecode } from "./utils";
+import StoryPlanReview from "./StoryPlanReview";
 
 export const defaultAutopilot: AutopilotOptions = {
   enabled: false,
@@ -525,6 +526,31 @@ export default function VerdictAutopilot({
             />
           )}
           <p>{latest.report.summary}</p>
+          {latest.report.story_map && (
+            <StoryPlanReview
+              story={latest.report.story_map}
+              alignment={latest.report.narration_alignment}
+              timingChanges={latest.report.timing_changes?.length}
+              soundChoices={latest.report.sound_design?.length}
+            />
+          )}
+          {latest.render?.work_report?.inspected && (
+            <div className="notice">
+              <p>
+                Preview inspected · {latest.render.work_report.reused_shots}{" "}
+                shots reused · {latest.render.work_report.rendered_shots} shots
+                rendered.
+              </p>
+              {latest.render.work_report.repairs?.map((repair, i) => (
+                <p key={i}>
+                  Automatic repair: {repair.action}. {repair.reason}
+                </p>
+              ))}
+              {latest.render.work_report.findings?.map((finding, i) => (
+                <p key={i}>{finding.message}</p>
+              ))}
+            </div>
+          )}
           {latest.status === "completed" && (
             <button
               type="button"

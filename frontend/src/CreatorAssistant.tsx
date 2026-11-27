@@ -54,6 +54,8 @@ type Rule = {
 
 function fieldLabel(field: string) {
   const labels: Record<string, string> = {
+    panel_id: "Source artwork",
+    sequence: "Sequence pacing",
     path_move_fraction: "Camera travel time",
     path_zoom: "Camera zoom",
     camera_path: "Camera route",
@@ -175,6 +177,9 @@ export default function CreatorAssistant({
   const [useAI, setUseAI] = useState(false),
     [aiReady, setAIReady] = useState(false);
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [alternatives, setAlternatives] = useState<
+    { label: string; proposal: Proposal }[]
+  >([]);
   const [proposalRender, setProposalRender] = useState<RenderJob | null>(null);
   const [queue, setQueue] = useState<Queue | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
@@ -187,6 +192,26 @@ export default function CreatorAssistant({
   const [askOpen, setAskOpen] = useState(false);
   const [recipeName, setRecipeName] = useState("My usual episode");
   const ready = !working && !busy;
+  useEffect(() => {
+    if (activeTool !== "instructions" || !target || dirty || busy) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      void api<{ alternatives: { label: string; proposal: Proposal }[] }>(
+        `/projects/${project.id}/assistant/alternatives`,
+        json({ base_revision: project.revision, scene_id: target }),
+      )
+        .then((result) => {
+          if (alive) setAlternatives(result.alternatives);
+        })
+        .catch(() => {
+          if (alive) setAlternatives([]);
+        });
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [activeTool, target, project.id, project.revision, dirty, busy]);
   const selected = scenes.find((s) => s.id === target);
   const start = timelineSeconds(
     scenes.slice(
@@ -419,6 +444,7 @@ export default function CreatorAssistant({
             "Hold the shot",
             "Make the camera slower",
             "Use crossfade",
+            "Speed up the middle, keep the opening, let the final reaction breathe",
           ].map((value) => (
             <button
               key={value}
@@ -429,6 +455,33 @@ export default function CreatorAssistant({
             </button>
           ))}
         </div>
+        {!!alternatives.length && (
+          <div
+            className="prepared-alternatives"
+            aria-label="Prepared editing alternatives"
+          >
+            <strong>Compare another approach</strong>
+            <p className="help">
+              Choose an option, then watch or render its proposed edit. Your
+              saved video stays intact until Apply.
+            </p>
+            <div className="workflow-actions">
+              {alternatives.map((option) => (
+                <button
+                  className="button secondary small-button"
+                  key={option.proposal.id}
+                  disabled={!ready || dirty}
+                  onClick={() => {
+                    setProposal(option.proposal);
+                    onPreview(null);
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <label className="check-label">
           <input
             type="checkbox"
@@ -439,11 +492,13 @@ export default function CreatorAssistant({
           Use my connected writing AI to interpret this request
         </label>
         <p className="help">
-          Duration changes roll a neighboring unlocked cut to keep the recording
-          aligned. Local commands and pasted edit plans need no API key.
-          Connected AI sends this instruction, your script, shot settings and
-          panel labels to your writing provider; provider charges may apply.
-          Artwork files and credentials are excluded.{" "}
+          Opening, middle and ending requests use thirds of the timeline. Faster
+          sequences add cuts while keeping the recording intact. Duration
+          changes roll a neighboring unlocked cut to keep the recording aligned.
+          Local commands and pasted edit plans need no API key. Connected AI
+          sends this instruction, your script, shot settings and panel labels to
+          your writing provider; provider charges may apply. Artwork files and
+          credentials are excluded.{" "}
           {aiReady
             ? ""
             : "No writing provider is configured; the local options work without one."}

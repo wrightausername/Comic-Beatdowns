@@ -87,8 +87,8 @@ async def add_effect(
     kind: str = Form("impact"),
     db: Session = Depends(session),
 ):
-    if kind not in {"impact", "whoosh", "reaction"}:
-        raise HTTPException(422, "Choose impact, whoosh, or reaction")
+    if kind not in {"impact", "whoosh", "reaction", "riser"}:
+        raise HTTPException(422, "Choose impact, whoosh, reaction, or riser")
     filename = Path(file.filename or "Sound effect").stem
     key, duration = await save_audio(file, request, "sfx", 30)
     effect = SoundEffect(

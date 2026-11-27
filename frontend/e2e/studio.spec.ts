@@ -2030,3 +2030,125 @@ test("saved drafts reopen for simple re-editing and preview changes without rebu
   await shots.getByRole("button", { name: "Undo edit", exact: true }).click();
   await expect.poll(async () => (await read()).scenes).toEqual(before.scenes);
 });
+
+test("autonomous planning, sequence edits, prepared alternatives and background previews work together", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Make a video", exact: true }).click();
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Autonomous editing trial");
+  await page.getByLabel("New project files").setInputFiles([
+    { name: "page.png", mimeType: "image/png", buffer: originalPng() },
+    { name: "voice.wav", mimeType: "audio/wav", buffer: silentWav(9) },
+    {
+      name: "words.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,000 --> 00:00:09,000\nAzure punches, then pauses for the reaction.\n",
+      ),
+    },
+  ]);
+  await page.getByRole("button", { name: /Create project/ }).click();
+  const director = page.getByRole("region", {
+    name: "Verdict Autopilot",
+    exact: true,
+  });
+  await expect(
+    director.getByRole("button", { name: "Approve & export 1080p" }),
+  ).toBeVisible({ timeout: 120000 });
+  await director.getByText(/Story & timing plan/).click();
+  await expect(
+    director.getByText(/Timing evidence: phrase boundaries/),
+  ).toBeVisible();
+  await page.getByLabel("Automatically preview my saved edits").uncheck();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Autonomous editing trial",
+  ).id;
+  const read = async () =>
+    (await page.request.get(`/api/projects/${id}`)).json();
+  const initial = await read();
+  const seeded = await page.request.put(`/api/projects/${id}/scenes`, {
+    data: {
+      scenes: Array.from({ length: 9 }, () => ({
+        panel_id: initial.scenes[0].panel_id,
+        duration: 1,
+        motion: "hold",
+        framing: "fill",
+      })),
+    },
+  });
+  expect(seeded.status()).toBe(200);
+  await page.reload();
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Autonomous editing trial" })
+    .click();
+  await page
+    .getByRole("button", { name: "Open AI editing assistant", exact: true })
+    .click();
+  const assistant = page.getByRole("region", {
+    name: "Creator editing assistant",
+  });
+  await expect(
+    assistant.getByLabel("Prepared editing alternatives"),
+  ).toBeVisible();
+  const before = await read();
+  await assistant
+    .getByLabel("Paste an editing instruction")
+    .fill(
+      "Speed up the middle, keep the opening, let the final reaction breathe",
+    );
+  await assistant
+    .getByRole("button", { name: "Preview proposed changes", exact: true })
+    .click();
+  await assistant
+    .getByRole("button", { name: "Watch proposed edit", exact: true })
+    .click();
+  expect((await read()).scenes).toEqual(before.scenes);
+  await assistant
+    .getByRole("button", { name: "Apply reviewed changes", exact: true })
+    .click();
+  await expect.poll(async () => (await read()).scene_count).toBe(12);
+  expect((await read()).narration_url).toBe(before.narration_url);
+  await page.getByLabel("Automatically preview my saved edits").check();
+  await expect
+    .poll(
+      async () => {
+        const current = await read();
+        const jobs = await (
+          await page.request.get(`/api/renders?project_id=${id}`)
+        ).json();
+        return jobs.some(
+          (j: {
+            project_revision: number;
+            status: string;
+            proposal_id?: string;
+            work_report?: { inspected: boolean };
+          }) =>
+            j.project_revision === current.revision &&
+            !j.proposal_id &&
+            j.status === "completed" &&
+            j.work_report?.inspected,
+        );
+      },
+      { timeout: 120000 },
+    )
+    .toBeTruthy();
+  await expect(page.getByText(/Background preview ready\./)).toBeVisible();
+  await assistant
+    .getByRole("button", { name: "Wider and still", exact: true })
+    .click();
+  await assistant
+    .getByRole("button", {
+      name: "Render proposed edit · actual effects",
+      exact: true,
+    })
+    .click();
+  await expect(assistant.locator("video")).toBeVisible({ timeout: 120000 });
+  expect((await read()).scene_count).toBe(12);
+  await assistant.screenshot({
+    path: testInfo.outputPath("autonomous-editing-options.png"),
+  });
+});

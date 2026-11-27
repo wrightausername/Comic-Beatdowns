@@ -128,6 +128,26 @@ and choose **Approve and export · 1080p**. A later edit invalidates the check;
 the server rechecks the revision and blocking source problems before queuing
 the existing renderer. Nothing is published.
 
+## Automatic editing assistance
+
+After making a draft, expand **Story & timing plan** to see authored panels,
+spoken beats, evidence and script/recording differences. Local mode uses geometry
+and narration timing; visual story observations require your selected vision
+provider. Imported SRTs provide phrase timing, not invented word timestamps.
+
+**Automatically preview my saved edits** reuses unchanged rendered shots after
+Autopilot edits. Turn it off to pause background rendering. Interrupted renders
+resume when Studio restarts. Each MP4 is inspected; supported technical failures
+get a bounded retry, and unresolved findings remain reviewable.
+
+In **AI editing assistant**, try “Speed up the middle, keep the opening, let the
+final reaction breathe.” Local opening/middle/ending ranges use timeline thirds.
+Faster sequences add editable cuts while keeping the recording and sequence
+endpoints. Prepared alternatives offer other framing/timing choices. Watch or
+render any proposal before Apply; Undo restores your prior edit. Existing routes,
+locked shots, source audio and captions stay protected. Story/comedy judgement
+and final approval still belong to you.
+
 ## Use a reference video's editing style
 
 Choose **Reference style** in Workspace tools to open **Reference video style**.
