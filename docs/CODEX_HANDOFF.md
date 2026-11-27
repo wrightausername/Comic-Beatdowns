@@ -424,3 +424,11 @@ page re-detection/source-order recovery, and its PYZ includes app.processes.
 Sharing pins those exact bytes under `studio-guided-fix-preview-2026-11-27`.
 Confirm final validation `45989014858`, sharing success and anonymous public
 download before handing off. The older November 24 links retain the older app.
+
+Owner later reported still seeing **six large cards**, identifying the old
+workspace layout rather than this application's four-step navigation. Identical
+generic filenames made installed/Downloaded copies ambiguous. Sharing now adds
+`Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe` with the exact same tested bytes
+and SHA256 above. Keep the generic asset alive for existing links; recommend the
+dated file, close all older Studio windows and launch it directly from Downloads.
+No application code or project data is changed by this distribution correction.

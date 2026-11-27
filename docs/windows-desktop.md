@@ -9,7 +9,10 @@ WebView2 window, with no browser tab or console window required.
 
 The November 27 quiet-desktop/guided-editing owner preview has a fixed
 [download page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-guided-fix-preview-2026-11-27)
-with **Comic-Beatdowns-Studio.exe** under Assets. That standalone file needs no
+with **Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe** under Assets. Use that
+dated filename to distinguish it from older generic Downloads/shortcuts. This
+build shows four workflow steps inside projects; six large cards identify the
+older UI. That standalone file needs no
 ZIP extraction. Close older Studio windows before opening the new EXE; your
 project data stays in its existing local profile. If a direct EXE link leaves
 a blank browser tab, check Downloads (Ctrl+J in Chrome/Edge) for the file or a

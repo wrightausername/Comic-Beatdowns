@@ -39,7 +39,8 @@ jobs:
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
           shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
-          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n')
+          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe')
+          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe\n')
           print('Verified original executable:', actual)
       - name: Share the standalone EXE as an owner test preview
         env:
@@ -53,7 +54,7 @@ jobs:
           cat > preview-notes.md <<'NOTES'
           Owner test preview from draft PR #20, stacked on #19. Background media tools run without Windows console windows. Guided editing shows one work area at a time; Edit this draft and Preview my changes revise saved shots without rerunning automatic editing. Page order is preserved by default, with improved panel crop handling and explicit page re-detection.
 
-          Download **Comic-Beatdowns-Studio.exe** below and run it directly. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
+          Download **Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe** below. Close every older Studio window, then open that dated file directly from Downloads. In a project, this build shows four steps: Add files, Make a draft, Edit shots, Review & export. No ZIP extraction or installer is needed. WebView2 and a compatible .NET runtime remain prerequisites. Existing project data stays under `%LOCALAPPDATA%\ComicBeatdownsStudio`.
 
           Source: `d1e3d613c2061e2bf8480d733d86f37bf9037afa`. This is the unchanged EXE from package run 45989014931, artifact 15192402561, verified against its original SHA256 before upload. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Actual owner Windows 10/11 acceptance remains open.
 
@@ -64,8 +65,8 @@ jobs:
           if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
             target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
             test "$target" = "$source"
-            gh release upload "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — quiet desktop and guided editing preview, November 27' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Guided-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — quiet desktop and guided editing preview, November 27' --notes-file preview-notes.md
           fi
