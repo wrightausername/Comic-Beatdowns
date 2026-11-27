@@ -207,25 +207,27 @@ export default function GuidedWorkspace({
             <Sparkles size={14} /> YOUR NEXT STEP
           </span>
         </div>
-        <button
-          type="button"
-          className="button secondary small-button"
-          onClick={onAdvanced}
-        >
-          <PencilRuler size={16} /> Open full editor
-        </button>
+        <div className="guided-header-actions">
+          {scenes.length > 0 && onEdit && (
+            <button
+              type="button"
+              className="button secondary guided-edit-draft"
+              disabled={busy}
+              onClick={onEdit}
+            >
+              <PencilRuler size={16} />
+              Edit this draft
+            </button>
+          )}
+          <button
+            type="button"
+            className="button secondary small-button"
+            onClick={onAdvanced}
+          >
+            <PencilRuler size={16} /> Open full editor
+          </button>
+        </div>
       </div>
-      {scenes.length > 0 && onEdit && (
-        <button
-          type="button"
-          className="button secondary guided-edit-draft"
-          disabled={busy}
-          onClick={onEdit}
-        >
-          <PencilRuler size={16} />
-          Edit this draft
-        </button>
-      )}
       <div className="guided-next">
         <div>
           <span className="eyebrow">{mainLabel}</span>

@@ -5731,3 +5731,32 @@ details[open] > .tool-disclosure-heading::after {
   max-height: 360px;
   background: #080d14;
 }
+.guided-studio-focused {
+  gap: 8px;
+}
+.guided-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.guided-studio-focused .guided-edit-draft {
+  float: none;
+  margin: 0;
+  width: auto;
+}
+.page-shot-review {
+  padding: 18px;
+}
+@media (min-width: 761px) {
+  .workspace-tools-focused {
+    position: sticky;
+    top: 12px;
+    z-index: 20;
+    box-shadow: 0 8px 24px #080d14c9;
+  }
+  .studio-fieldset [id^="studio-"]:not(#studio-tools),
+  #page-shot-review {
+    scroll-margin-top: 188px;
+  }
+}
