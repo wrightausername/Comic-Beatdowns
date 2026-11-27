@@ -614,3 +614,10 @@ stay valid, and old installed EXEs do not update themselves. Close older Studio
 windows, then launch this dated file from Downloads. Use an external Edge/Chrome
 window if ChatGPT's internal download tab is blank. Actual owner Windows 10/11
 and irregular/real-comic creative acceptance remain open under Issue #14.
+
+Final audit found that an explicit rebuild from an earlier automatic local crop
+plan could keep that plan instead of taking new Vision panel regions. The
+follow-up fix re-detects on explicit rebuild only when the layout was not
+creator-saved. Two staged Basic → Vision integration cases verify both refinement
+of automatic crops and preservation of the creator's accepted layout. This
+supersedes the first organizer preview; final source/package evidence follows.

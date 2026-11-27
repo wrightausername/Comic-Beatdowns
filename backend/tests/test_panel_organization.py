@@ -5,6 +5,7 @@ import hashlib
 import io
 import zipfile
 
+import pytest
 from conftest import add_project, wav_bytes
 from PIL import Image
 from test_director import enable, start, wait_job
@@ -292,3 +293,82 @@ def test_assistant_replacement_with_another_organized_crop_updates_its_label(cli
     assert preview["scenes"][0]["source_label"] == "ww_01B"
     assert preview["scenes"][0]["source_panel_ref"] == page["regions"][1]["id"]
     assert client.get(url).json()["scenes"][0]["source_label"] == "ww_01A"
+
+
+@pytest.mark.parametrize("creator_saved", [False, True])
+def test_explicit_vision_rebuild_refines_auto_crops_but_preserves_creator_layout(
+    client, image_bytes, settings, monkeypatch, creator_saved
+):
+    from test_director import fake_render
+
+    from app.schemas import VisionConnection
+    from app.verdict_provider import VisionDirector, VisionPlan, save_connection
+
+    project = add_project(client)
+    url = "/api/projects/" + project["id"]
+    for filename, content, kind in [
+        ("ww_01.png", image_bytes, "panels"),
+        ("voice.wav", wav_bytes(2), "narration"),
+        ("words.srt", b"1\n00:00:00,000 --> 00:00:02,000\nAzure hits.\n", "captions"),
+    ]:
+        response = client.post(
+            url + "/import-file", data={"kind": kind}, files={"file": (filename, content)}
+        )
+        assert response.status_code == 201, response.text
+        project = response.json()["project"]
+    fake_render(client, monkeypatch)
+    project = enable(client, project)
+    start(client, url, project)
+    assert wait_job(client, url)["status"] == "completed"
+    project = client.get(url).json()
+    original = project["workflow"]["panel_organization"]
+    assert len(original["pages"][0]["regions"]) == 1
+    if creator_saved:
+        project = save(client, project, url, original)
+    save_connection(
+        settings,
+        VisionConnection(base_url="https://example.test/v1", model="mock", api_key="fixture-only"),
+    )
+
+    def plan(self, panels, cards, storage):
+        return VisionPlan.model_validate(
+            {
+                "assignments": [{"panel_id": panels[0]["id"], "confidence": 0.9} for _ in cards],
+                "page_layouts": [
+                    {
+                        "panel_id": panels[0]["id"],
+                        "regions": [
+                            dict(
+                                x=0,
+                                y=0,
+                                width=1,
+                                height=0.45,
+                                confidence=0.9,
+                                reason="Upper panel border",
+                            ),
+                            dict(
+                                x=0,
+                                y=0.55,
+                                width=1,
+                                height=0.45,
+                                confidence=0.9,
+                                reason="Lower panel border",
+                            ),
+                        ],
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(VisionDirector, "plan", plan)
+    project = enable(client, project, mode="vision", rebuild_pages=True)
+    start(client, url, project)
+    result = wait_job(client, url)
+    assert result["status"] == "completed", result
+    rebuilt = client.get(url).json()
+    count = len(rebuilt["workflow"]["panel_organization"]["pages"][0]["regions"])
+    assert count == (1 if creator_saved else 2)
+    if creator_saved:
+        assert rebuilt["workflow"]["panel_organization"]["pages"] == original["pages"]
+    else:
+        assert {s["source_label"] for s in rebuilt["scenes"]} == {"ww_01A", "ww_01B"}

@@ -353,6 +353,8 @@ class DirectorService:
                 panels,
                 storage,
                 existing=project.workflow.get("panel_organization"),
+                redetect=options.rebuild_pages
+                and not (project.workflow.get("panel_organization") or {}).get("user_order"),
                 layouts=plan.page_layouts if provider else (),
             )
             panels.sort(
