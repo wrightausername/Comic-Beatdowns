@@ -721,3 +721,33 @@ injects a specific invalid pacing response, checks actionable inline guidance an
 preserved uploads, then retries through the real server to a rendered preview.
 Re-run final checks and package at this corrected source; the earlier deletion
 build `5a27e892f115a0f1f3909119f325e9604bb03eda` is superseded for owner delivery.
+
+### Verified combined application — final source and delivery preparation
+
+Final application source **`db47965b3e0b870f99ea1a1f11a6ededa5f58552`**. Local
+`make check` passed **233 backend tests** (one Windows-only skip), **77 frontend
+tests**, lint/format/build. Final `make e2e` passed all **20 browser workflows**,
+including the actual first-draft 422 reproduction/fix, specific inline validation
+and safe retry to a real FFmpeg preview, plus desktop/mobile delete/restore.
+
+Windows package **`46087066098`**, artifact **`15239173815`**: original EXE
+**146,601,013 bytes**, SHA256
+`d2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624`.
+Actual downloaded startup/native-window checks passed on Server 2022/2025 jobs
+`140799783099` / `140799783113`. Downloaded CArchive/PYZ inspection confirms
+`/assets/index-B2nikuZJ.js`, specific draft-error/Trash/Restore UI, the absence of
+the old generic form-fields string, and existing organizer/autonomy/quiet modules.
+Windows media validation for this source passed; push/PR Linux browser validation
+is finishing in `46087061321` / `46087066040`. Record final CI/media count below.
+
+Metadata-only sharing pins those same tested bytes under
+`studio-draft-fix-preview-2026-11-27`, dated filename
+**Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe**. A release metadata entry is
+precreated with authenticated `gh release create` because the Actions token's
+release-creation path previously returned 403; asset upload stays in Actions.
+Sharing now runs Windows PowerShell 5.1 public transfers on 2022/2025, including
+the exact copy/paste download-only command documented in windows-desktop.md.
+Confirm sharing, these new public checks and a complete anonymous download/hash
+before delivering. No expiring artifact URL is an owner delivery link.
+Later metadata-only commits do not change the tested application source. Actual
+owner Win10/11/real-comic acceptance and Issue #14 remain open; drafts stay unmerged.

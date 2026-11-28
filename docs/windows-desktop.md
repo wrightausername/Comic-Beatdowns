@@ -7,7 +7,47 @@ WebView2 window, with no browser tab or console window required.
 
 ## Building and downloading
 
-The corrected November 27 **named panels** preview is the current download:
+The November 27 **first draft fix + production Trash** preview is the current download:
+[Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe](https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-draft-fix-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe)
+([release page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-draft-fix-preview-2026-11-27)).
+It fixes Make a draft rejecting internal narration-approval metadata after import.
+Draft errors now identify the field and requirement beside the draft button;
+retry keeps your files and saved work. **Delete production** is visible on each
+production card and in the workspace, with confirmation and **Trash → Restore**.
+This retains files on disk; it is not permanent erasure. Active draft builds or
+renders must finish first. All named-panel, timeline, style and autonomy changes
+from the preceding preview are included.
+
+Close older Studio windows and open **this dated EXE** from Downloads. Existing
+productions stay in the same local profile. If ChatGPT opens a blank download
+page, open **Windows PowerShell** from the Windows Start menu and paste this
+complete block. It downloads only, verifies the SHA256, then saves the EXE in
+Downloads. It does not launch the EXE or change execution policy.
+
+```powershell
+& {
+  $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'
+  [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+  $studioFile="$env:USERPROFILE\Downloads\Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe"
+  New-Item -ItemType Directory -Force (Split-Path $studioFile) | Out-Null
+  Invoke-WebRequest -UseBasicParsing 'https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-draft-fix-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe' -OutFile "$studioFile.partial"
+  if ((Get-FileHash "$studioFile.partial" -Algorithm SHA256).Hash -ne 'd2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624') { throw 'Download verification failed' }
+  Move-Item "$studioFile.partial" $studioFile -Force
+}
+```
+
+Application source `db47965b3e0b870f99ea1a1f11a6ededa5f58552`, package
+`46087066098`, artifact `15239173815`; **146,601,013 bytes**, SHA256
+`d2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624`.
+The downloaded bundle contains `/assets/index-B2nikuZJ.js` and the new draft/error
+and Trash/Restore controls. Downloaded startup/native-window checks passed on
+separate Server 2022/2025 runners. Final local checks passed 233 backend tests
+(one Windows-only skip), 77 frontend tests and 20 browser workflows, including
+first-draft rejection/retry → real preview and deletion/restore on desktop/mobile.
+Public PowerShell checks run after sharing; confirm success before owner handoff.
+Actual owner Windows 10/11 and real-comic acceptance remain open.
+
+The preceding corrected November 27 **named panels** preview remains available:
 [Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe](https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-named-panels-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe)
 ([release page](https://github.com/wrightausername/Comic-Beatdowns/releases/tag/studio-named-panels-preview-2026-11-27)).
 Open **Organize panels** in the workspace toolbar. Use the optional `ww` prefix

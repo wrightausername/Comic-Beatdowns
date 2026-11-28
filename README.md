@@ -58,6 +58,15 @@ make ui    # Vite on port 5173, proxying /api to FastAPI
 
 Stop other servers before running browser tests, which own ports 8000 and 5173. Cloud tasks are already isolated: use the existing checkout; no extra Git worktree is necessary. Cloud onboarding does not supply public localhost preview links.
 
+## Delete or restore a production
+
+Choose **Delete production** on a production card or in its open workspace,
+then confirm **Move to Trash**. Open **Trash** beside Your productions and choose
+**Restore** to bring it back with its shots, narration, history and exports.
+Shared library pages and sounds stay in the library. Trash keeps files on your
+computer; this removes desk clutter rather than freeing disk space. Finish any
+active draft build or render before deleting.
+
 ## Tell Verdict what to fix
 
 New projects open in a focused workflow: **Add files → Make a draft → Edit shots

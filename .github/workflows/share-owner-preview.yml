@@ -3,7 +3,7 @@ name: Share verified Windows owner preview
 on:
   workflow_dispatch:
   push:
-    branches: [feature/named-panel-organizer]
+    branches: [feature/production-trash]
     paths: [.github/workflows/share-owner-preview.yml]
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: share-named-panels-preview-2026-11-27
+  group: share-draft-fix-preview-2026-11-27
   cancel-in-progress: false
 
 jobs:
@@ -23,10 +23,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Comic-Beatdowns-Studio-Windows
-          run-id: 46080151734
+          run-id: 46087066098
           github-token: ${{ github.token }}
           path: verified
-      - name: Verify the exact tested executable and prepare direct download
+      - name: Verify the exact tested executable and prepare the dated download
         shell: python
         run: |
           import hashlib
@@ -34,13 +34,13 @@ jobs:
           import shutil
           root = Path('verified')
           original = root / 'Comic Beatdowns Studio.exe'
-          expected = 'fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545'
+          expected = 'd2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624'
           actual = hashlib.sha256(original.read_bytes()).hexdigest()
           if actual != expected or (root / 'SHA256.txt').read_text(encoding='utf-8-sig').strip().lower() != expected:
               raise RuntimeError('The downloaded EXE does not match the tested owner build')
-          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio.exe')
-          shutil.copyfile(original, root / 'Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe')
-          (root / 'SHA256.txt').write_text(actual + '  Comic-Beatdowns-Studio.exe\n' + actual + '  Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe\n')
+          name = 'Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe'
+          shutil.copyfile(original, root / name)
+          (root / 'SHA256.txt').write_text(actual + '  ' + name + '\n')
           print('Verified original executable:', actual)
       - name: Share the standalone EXE as an owner test preview
         env:
@@ -49,28 +49,58 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag=studio-named-panels-preview-2026-11-27
-          source=76e31b321f10aed13d73b58a18bad44a48c0f914
+          tag=studio-draft-fix-preview-2026-11-27
+          source=db47965b3e0b870f99ea1a1f11a6ededa5f58552
           cat > preview-notes.md <<'NOTES'
-          Owner test preview from draft PR #22, stacked on #21. Adds a visible Organize panels shortcut, automatic clear-gutter cropping, page-grouped thumbnails, names such as ww_01A / ww_01B / ww_01C, visual crop corrections and saved reading order. The same labels follow editable video shots, timeline clips and assistant selections. Original source pages remain intact.
+          Owner test preview from draft PR #23, stacked on #22. Fixes Make a draft rejecting server-owned narration-approval metadata after import. Draft validation now names the field and constraint beside the draft button; retry keeps uploaded pages/audio. The imported-media regression reaches a real preview. Adds a visible Delete production action to every production card and the open workspace, a confirmation, and visible Trash with Restore. This is reversible deletion: it keeps source files, narration, shots, history and exports on your computer. Active draft builds/renders must finish first. Trashed productions stop inbox scanning and disappear from the active desk and export lists; Restore brings them back.
 
-          Download **Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe** below. Close older Studio windows and open that dated file from Downloads. If ChatGPT shows a blank download tab, paste the fixed GitHub EXE link into Edge or Chrome opened from Windows. Your projects stay in the same local profile; no ZIP extraction or installer is required for the executable.
+          Download **Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe**. Close older Studio windows and launch this dated file from Downloads. Existing productions remain in the same local profile. The prior named-panel organizer, automatic crop/order, timeline, style-reference, editing assistant, cached previews and quiet subprocess changes are included. No installer or ZIP extraction is needed for the executable.
 
-          Open **Organize panels** in the workspace toolbar. Auto-crop, review the page and panel order, Save named panels, then Build video from these panels. Crop fixes and naming controls are optional. Actual named PNG downloads are grouped as ww_01/ww_01A.png, etc., for the episode or selected page. Existing cameras/timing stay intact when saving the layout; explicit rebuild/order actions protect locked shots and custom routes and retain Undo.
+          Source: `db47965b3e0b870f99ea1a1f11a6ededa5f58552`. Original package run 46087066098, artifact 15239173815; 146601013 bytes. SHA256: `d2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624`. Separate Windows Server 2022/2025 checks verify the actual downloaded executable's startup and authenticated native window. Local checks cover 233 backend cases (one Windows-only skip), 77 frontend tests and 20 browser workflows; Windows media validation includes the lifecycle integration cases. Public transfers with Windows PowerShell 5.1 and checksum verification run after sharing, and must pass before delivery.
 
-          Source: `76e31b321f10aed13d73b58a18bad44a48c0f914`. Unchanged executable from package run 46080151734, artifact 15237306349; 146,600,776 bytes. SHA256: `fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545`. Separate Windows Server 2022/2025 runners passed downloaded-EXE startup and authenticated native-window checks. Inspection of the downloaded bundle confirmed the new organizer module and UI, persistent panel fields, and the existing autonomy/quiet-process modules.
+          A successful GitHub transfer does not repair ChatGPT's blank download page. The owner will also receive a download-only PowerShell command that bypasses that browser page, checks the exact SHA256 and saves the EXE to Downloads without launching it or changing execution policy.
 
-          Explicit rebuilds refine earlier automatic crop layouts, including new Vision regions, while creator-saved crop order stays protected. This corrects the initial organizer preview.
-
-          Validation run 46080146866 covers 224 backend tests (one Windows-only skip on Linux), 71 frontend tests, 18 browser workflows and 144 Windows media tests. Fixtures are original synthetic art/audio; providers are mocked. Actual owner Windows 10/11 and real-comic creative acceptance remain open.
-
-          Detection is conservative: ambiguous/irregular pages stay whole and flagged for correction. This does not claim universal comic understanding or close Issue #14. The existing reference style, timeline, assistant, cached previews, Undo and separate export/publishing choices remain in place. This unsigned owner preview does not merge draft PRs, install runtimes or publish videos. WebView2 and a compatible .NET runtime remain prerequisites.
+          This unsigned owner preview does not merge drafts or publish videos. Actual owner Windows 10/11 and real-comic/irregular-page creative acceptance remain open under Issue #14. WebView2 and a compatible .NET runtime remain prerequisites.
           NOTES
           if gh release view "$tag" --repo "$OWNER_REPO" >/dev/null 2>&1; then
             target=$(gh api "repos/$OWNER_REPO/git/ref/tags/$tag" --jq .object.sha)
             test "$target" = "$source"
-            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
+            gh release upload "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --clobber
             gh release edit "$tag" --repo "$OWNER_REPO" --draft=false --prerelease --notes-file preview-notes.md
           else
-            gh release create "$tag" verified/Comic-Beatdowns-Studio.exe verified/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — named panel crops preview, November 27' --notes-file preview-notes.md
+            gh release create "$tag" verified/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe verified/SHA256.txt --repo "$OWNER_REPO" --target "$source" --prerelease --title 'Comic Beatdowns Studio — first draft fix and production Trash, November 27' --notes-file preview-notes.md
           fi
+
+  verify-public-download:
+    needs: share
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the new public release through Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $studioUrl = 'https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-draft-fix-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe'
+          $studioSha = 'd2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624'
+          $studioDestination = Join-Path $env:RUNNER_TEMP 'Verified/Comic-Beatdowns-Studio.exe'
+          & ./scripts/download-owner-preview.ps1 -Url $studioUrl -Sha256 $studioSha -Destination $studioDestination
+          if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'This must exercise Windows PowerShell 5.1.' }
+      - name: Test the exact copy-and-paste owner command in Windows Downloads
+        shell: powershell
+        run: |
+          # The following block is the exact download-only command supplied to the owner.
+          & {
+            $ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'
+            [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+            $studioFile="$env:USERPROFILE\Downloads\Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe"
+            New-Item -ItemType Directory -Force (Split-Path $studioFile) | Out-Null
+            Invoke-WebRequest -UseBasicParsing 'https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-draft-fix-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe' -OutFile "$studioFile.partial"
+            if ((Get-FileHash "$studioFile.partial" -Algorithm SHA256).Hash -ne 'd2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624') { throw 'Download verification failed' }
+            Move-Item "$studioFile.partial" $studioFile -Force
+          }
+          # Do not execute the owner's EXE from this download-only command.
+          if ((Get-Item "$env:USERPROFILE\Downloads\Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe").Length -ne 146601013) { throw 'Incorrect download length' }
