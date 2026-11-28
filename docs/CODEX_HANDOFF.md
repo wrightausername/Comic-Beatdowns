@@ -850,44 +850,19 @@ accepted exact source using the existing verified delivery process. Keep long,
 wide, tall and splash compositions as single printed panels; naming is page then
 letter in reading order. The latest owner explicitly deferred narration matching.
 
-## November 28 — actual owner pages received and reviewed crops produced
+## November 28 — real-material cropping review
 
-The owner supplied **WW.rar**, containing six PNG screenshots (`WW__01.png` …
-`WW__06.png`), each 1920×922 RGBA. They are now available privately under
-`/workspace/ww-cropping/originals`; do not ask for these pages again while that
-workspace data exists. No comic images were committed or uploaded publicly.
-Artwork occupies x=653…1251; the rest includes black viewer canvas, a white UI
-strip and occasional screenshot cursor. The supplied artwork width is 599px.
+Source material is now available privately in the task workspace. A guided,
+visually reviewed crop set was produced and checked for original-pixel and file
+integrity. Private source images, crop data and detailed references remain outside
+the repository. Do not request the same input again when it is still available
+in the task attachments.
 
-Visually reviewed printed-panel counts are **6 / 8 / 4 / 3 / 6 / 1 = 28**.
-Large wide/tall compositions remain one panel, including the single splash on
-page 6. Page 1 has overlapping crowd insets; page 2 has an overlapping center
-panel over a wide strip; page 3 has three insets over one large composition.
-These require visible-shape masks or equivalent overlap handling, not only
-rectangular full-width separators. Speech balloons outside panel frames (e.g.
-page 1 final panel) must remain included. Do not invent art hidden by an inset.
-
-Produced a **guided, visually reviewed reference crop set**, not an automatic
-engine success: `/workspace/ww-cropping/output/WW-cropped-panels.zip`, 28 named
-PNGs grouped as `ww_01/ww_01A.png`, etc., **6,085,491 bytes**, SHA256
-`724a88b83ef57a23137871e663ed4255c8eeb1b38d435061b45d666e53246a77`.
-Overlapping visible shapes use transparent cutouts; RGB pixels are unchanged.
-All 28 outputs were opened, original RGB pixels/expected alpha were compared,
-source hashes stayed unchanged, and ZIP CRC/image decoding/hash checks passed.
-All six per-page review sheets were visually inspected. Crop plan, source boxes,
-masks, reading order and hashes: `/workspace/ww-cropping/crop-manifest.json`;
-reproduction script: `/workspace/ww-cropping/crop_pages.py`. Local review sheets
-are under `/workspace/ww-cropping/output/previews` and are not inside the image ZIP.
-
-**Actual automatic acceptance FAILS at e1ea125.** Direct `suggest_panels` on all
-six untrimmed screenshots returns no regions. After stripping only the known
-viewer margins, region counts are **4 / 5 / 0 / 3 / 6 / 0**; zero means the existing
-whole-page fallback (valid for page 6, incorrect for page 3). Current full-width
-separator detection therefore still misses overlapping insets on pages 1–3.
-`/workspace/ww-cropping/detector-comparison.json` records the measured results.
-Do not call the app's cropping fixed, mark Issue #14 done, or deliver the existing
-synthetic-only crop preview as real-material accepted. Use this private reference
-set to implement/test screenshot-frame removal and independent inset/parent
-segmentation; then compare actual source regions and pixels against all six pages.
-Owner visual approval of the delivered reference crops is still outstanding.
-No application code or new EXE was changed/released in this file-cropping turn.
+Real-material review exposed unresolved screenshot-frame and overlapping-inset
+segmentation. Current automatic detection is not accepted for these layouts.
+Guided reference crops are not evidence of an automatic engine success. Next
+work is general viewer-frame removal and independent inset/parent shapes, keeping
+large panels intact and preserving visible artwork. Do not hard-code examples as
+a general detector. No application code or new public EXE changed in this turn.
+Owner visual review and Issue #14 remain open. Cropping is the current priority;
+narration matching remains deferred.
