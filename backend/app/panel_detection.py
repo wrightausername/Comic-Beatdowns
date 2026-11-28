@@ -1,15 +1,15 @@
-"""Conservative local panel detection for straight, pale comic gutters.
+"""Local, source-preserving panel boundaries from continuous light/dark gutters.
 
-Returns suggestions only. The original image stays unchanged until a user accepts.
-Irregular/inset, dark and gutterless pages intentionally require manual review.
+Recursively separates printed panel regions, never editorial camera shots.
+Irregular/overlapping artwork without continuous separators still needs review.
 """
+
+import math
 
 from PIL import ImageOps
 
-# A single dark interruption in a proposed gutter can be a balloon outline or
-# artwork crossing between panels. Check the full-resolution strip too, since
-# downsampling can wash out thin lines.
-MIN_GUTTER_LUMINANCE = 210
+MIN_GUTTER_LUMINANCE = 150
+MAX_PANELS = 24
 
 
 def _bands(flags, minimum):
@@ -25,6 +25,24 @@ def _bands(flags, minimum):
     return runs
 
 
+def _source_band(gray, axis, start, end, span, scan, dark):
+    """Refine thumbnail coordinates at source resolution, protecting balloon tails."""
+    scale = span / scan
+    left = max(0, math.floor(start * scale - scale))
+    right = min(span, math.ceil(end * scale + scale))
+    width, height = gray.size
+    safe = []
+    for pos in range(left, right):
+        box = (0, pos, width, pos + 1) if axis == "horizontal" else (pos, 0, pos + 1, height)
+        low, high = gray.crop(box).getextrema()
+        safe.append(high <= 75 if dark else low >= MIN_GUTTER_LUMINANCE)
+    runs = _bands(safe, max(2, math.ceil(span * 0.001)))
+    candidates = [
+        (a + left, b + left) for a, b in runs if b + left > start * scale and a + left < end * scale
+    ]
+    return max(candidates, key=lambda pair: pair[1] - pair[0]) if candidates else None
+
+
 def _splits(image, axis):
     width, height = image.size
     span = height if axis == "horizontal" else width
@@ -38,81 +56,75 @@ def _splits(image, axis):
     scan = th if axis == "horizontal" else tw
     across = tw if axis == "horizontal" else th
     pixels = gray.load()
-    bright = []
+    pale, dark = [], []
     for pos in range(scan):
-        count = sum(
-            pixels[n, pos] >= 245 if axis == "horizontal" else pixels[pos, n] >= 245
-            for n in range(across)
-        )
-        bright.append(count / across >= 0.975)
-    gutters = _bands(bright, max(3, round(scan * 0.007)))
-    # Ignore the pale margin around a page. Only clear interior gutters count.
-    candidates = [
-        (a, b) for a, b in gutters if a > scan * 0.12 and b < scan * 0.88 and b - a <= scan * 0.09
-    ]
-    if not candidates:
-        return []
-    strips = [(round(a * span / scan), round(b * span / scan)) for a, b in candidates]
-    for start, end in strips:
-        box = (0, start, width, end) if axis == "horizontal" else (start, 0, end, height)
-        if image.crop(box).convert("L").getextrema()[0] < MIN_GUTTER_LUMINANCE:
-            return []
-    edges = [0]
-    for start, end in strips:
-        edges += [start, end]
-    edges.append(span)
-    segments = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2)]
-    minimum_size = max(75, round(span * 0.12))
-    if len(segments) < 2 or any(b - a < minimum_size for a, b in segments):
-        return []
-    return segments
+        values = [pixels[n, pos] if axis == "horizontal" else pixels[pos, n] for n in range(across)]
+        pale.append(sum(v >= 192 for v in values) / across >= 0.975)
+        dark.append(sum(v <= 45 for v in values) / across >= 0.995)
+    full_gray = image.convert("L")
+    for flags, is_dark in [(pale, False), (dark, True)]:
+        gutters = _bands(flags, max(2, round(scan * 0.002)))
+        candidates = [
+            (a, b)
+            for a, b in gutters
+            if a > scan * 0.025 and b < scan * 0.975 and b - a <= scan * 0.09
+        ]
+        strips = [
+            refined
+            for a, b in candidates
+            if (refined := _source_band(full_gray, axis, a, b, span, scan, is_dark))
+        ]
+        if not strips:
+            continue
+        edges = [0]
+        for start, end in strips:
+            edges += [start, end]
+        edges.append(span)
+        segments = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2)]
+        minimum_size = max(75, round(span * 0.05))
+        if len(segments) >= 2 and all(b - a >= minimum_size for a, b in segments):
+            return segments
+    return []
 
 
 def suggest_panels(source):
-    """List normalized candidate boxes. A blank/noisy page returns no suggestions."""
+    """Return normalized printed panels in reading order; keep large panels whole."""
     image = ImageOps.exif_transpose(source).convert("RGB")
     width, height = image.size
     if min(width, height) < 160:
         return []
-    # Only split when a complete straight gutter spans the whole current band.
-    # Never guess at nested layouts or overlapping characters.
-    horizontal = _splits(image, "horizontal")
-    if horizontal:
-        regions = [(0, a, width, b) for a, b in horizontal]
-    else:
-        vertical = _splits(image, "vertical")
-        regions = [(a, 0, b, height) for a, b in vertical]
-    if not regions:
+
+    def partition(box, depth=0):
+        x1, y1, x2, y2 = box
+        if depth >= 6:
+            return [box]
+        segment = image.crop(box)
+        for axis in ("horizontal", "vertical"):
+            splits = _splits(segment, axis)
+            if not splits:
+                continue
+            children = [
+                (x1, y1 + a, x2, y1 + b) if axis == "horizontal" else (x1 + a, y1, x1 + b, y2)
+                for a, b in splits
+            ]
+            if any(
+                b - a < max(75, width * 0.03) or d - c < max(75, height * 0.03)
+                for a, c, b, d in children
+            ):
+                continue
+            return [leaf for child in children for leaf in partition(child, depth + 1)]
+        return [box]
+
+    boxes = partition((0, 0, width, height))
+    if not 2 <= len(boxes) <= MAX_PANELS:
         return []
-    boxes = []
-    for x1, y1, x2, y2 in regions:
-        segment = image.crop((x1, y1, x2, y2))
-        secondary_axis = "vertical" if horizontal else "horizontal"
-        secondary = _splits(segment, secondary_axis)
-        if secondary:
-            for a, b in secondary:
-                boxes.append(
-                    (x1 + a, y1, x1 + b, y2)
-                    if secondary_axis == "vertical"
-                    else (x1, y1 + a, x2, y1 + b)
-                )
-        else:
-            boxes.append((x1, y1, x2, y2))
-    if len(boxes) < 2 or len(boxes) > 12:
-        return []
-    result = []
-    # A vertical first split can produce column-major order. Western comic
-    # reading order must visit the top row before returning to lower panels.
-    for x1, y1, x2, y2 in sorted(boxes, key=lambda box: (box[1], box[0])):
-        if x2 - x1 < 75 or y2 - y1 < 75:
-            return []
-        result.append(
-            {
-                "x": round(x1 / width, 6),
-                "y": round(y1 / height, 6),
-                "width": round((x2 - x1) / width, 6),
-                "height": round((y2 - y1) / height, 6),
-                "confidence": 0.75,
-            }
-        )
-    return result
+    return [
+        {
+            "x": round(x1 / width, 6),
+            "y": round(y1 / height, 6),
+            "width": round((x2 - x1) / width, 6),
+            "height": round((y2 - y1) / height, 6),
+            "confidence": 0.75,
+        }
+        for x1, y1, x2, y2 in sorted(boxes, key=lambda box: (box[1], box[0]))
+    ]

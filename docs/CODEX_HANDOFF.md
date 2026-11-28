@@ -780,3 +780,39 @@ windows and open the dated Draft-Fix EXE from Downloads. Existing productions
 remain in the same local profile. Draft PR #23 stays stacked on #22 and unmerged.
 Actual owner Windows 10/11 and real-comic creative acceptance still remain open
 under Issue #14. Later documentation-only commits do not alter the packaged source.
+
+## November 27 follow-up — printed-panel cropping only
+
+Owner narrowed the immediate task: full comic pages → one crop per printed panel,
+in reading order; large/wide/tall panels stay whole. Narration-to-action matching
+and camera planning are deferred for this task. No CapCut control is connected.
+The actual owner page files are on their Windows PC, not in this workspace; one
+full page has been requested for real-material verification. Do not claim their
+specific comic is fixed from synthetic fixtures or publish another preview as
+owner-accepted without checking their material.
+
+Branch `fix/full-page-panel-crops`, stacked on draft PR #23. Local detection used
+to require almost-white wide gutters and stopped after two layout levels. It now
+accepts thin light/aged-paper and uniform dark separators, refines at original
+resolution (including balloon-tail protection), and recursively follows complete
+separators up to six levels / 24 printed panels. A large/tall panel without an
+internal separator remains one crop; no narration-based or camera-sized slicing.
+Irregular/inset/overlapping layouts without reliable separators still need review;
+Issue #14 remains open. Existing source files are not rewritten during cropping.
+The library's pre-existing JPEG normalization on import is unchanged; exact PNG
+crop tests compare against the stored source raster and verify its hash survives.
+
+The organizer exposes **Auto-crop full pages** even for an older cached layout;
+it now actually re-detects instead of just re-opening the old whole-page result.
+Saved creator layouts/unsaved changes get confirmation before replacement preview;
+video shots/timing remain intact until an explicit build/order operation. Whole-
+page fallbacks are labelled “whole page · check boundaries.” Save and PNG download
+are the primary cropping actions; no narration or video build is required.
+
+Focused verification: 23 existing detector/page/camera/story-flow cases pass.
+Six new backend cases cover thin/aged/JPEG/dark nested layouts, intact large/tall
+panels, single large artwork, exact named PNG pixels/reading order/source hashes,
+and read-only re-detection of a cached whole-page fallback. Two real-browser
+workflows pass, including no-narration crop/save/ZIP download and mobile layout.
+Full `make check`, `make e2e` and Windows validation/package checks follow at the
+committed source. Actual owner page acceptance is still pending their upload.
