@@ -286,7 +286,12 @@ def send(body: PublishInput, request: Request):
         if job.snapshot.get("quality") != "final" or job.snapshot.get("section"):
             raise HTTPException(422, "Only complete final videos can be published")
         project = db.get(Project, job.project_id)
-        if not project or not project.script_approved or project.revision != job.project_revision:
+        if (
+            not project
+            or project.deleted_at is not None
+            or not project.script_approved
+            or project.revision != job.project_revision
+        ):
             raise HTTPException(409, "The export no longer matches an approved project revision")
         title = body.youtube_title.strip() or project.title.strip()[:100]
         if not title:

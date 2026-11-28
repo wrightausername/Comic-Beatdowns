@@ -64,6 +64,7 @@ def test_upgrade_preserves_old_projects_templates_and_original_files(tmp_path):
                 9,
                 "narration/original.wav",
             )
+            assert project.deleted_at is None
             assert project.caption_cues == [] and project.edit_history == {}
             assert project.logo_key is None and project.music_key is None
             assert db.get(Template, "old-template").name == "Keep template"

@@ -53,11 +53,11 @@ SCENE_FIELDS = (
 )
 
 
-def locked_project(db, project_id, revision):
+def locked_project(db, project_id, revision, *, include_trashed=False):
     # A write reservation makes checking the revision and saving one transaction.
     db.execute(text("BEGIN IMMEDIATE"))
     project = db.get(Project, project_id)
-    if project is None:
+    if project is None or (project.deleted_at is not None and not include_trashed):
         raise HTTPException(404, "This project no longer exists")
     if project.revision != revision:
         raise HTTPException(

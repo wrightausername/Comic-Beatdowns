@@ -24,6 +24,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Upload,
+  Trash2,
   Send,
   X,
   Zap,
@@ -40,6 +41,7 @@ import {
 } from "./components";
 import { ImportPanels, NewProject, PanelDetail } from "./dialogs";
 import Editor from "./Editor";
+import { DeleteProduction, ProductionTrash } from "./ProductionTrash";
 import PublishingDesk from "./PublishingDesk";
 import CreativeDNA from "./CreativeDNA";
 import BatchQueue from "./BatchQueue";
@@ -134,6 +136,9 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [page, setPage] = useState<Page>("production");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [trash, setTrash] = useState<Project[]>([]);
+  const [showTrash, setShowTrash] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]),
     [panels, setPanels] = useState<Panel[]>([]);
   const [jobs, setJobs] = useState<RenderJob[]>([]),
@@ -153,14 +158,17 @@ export default function App() {
   const showError = useCallback((message: string) => setError(message), []);
   const refresh = useCallback(async () => {
     try {
-      const [p, assets, renders, presets, connections] = await Promise.all([
-        api<Project[]>("/projects"),
-        api<Panel[]>("/panels"),
-        api<RenderJob[]>("/renders"),
-        api<Template[]>("/templates"),
-        api<Integrations>("/integrations"),
-      ]);
+      const [p, assets, renders, presets, connections, deleted] =
+        await Promise.all([
+          api<Project[]>("/projects"),
+          api<Panel[]>("/panels"),
+          api<RenderJob[]>("/renders"),
+          api<Template[]>("/templates"),
+          api<Integrations>("/integrations"),
+          api<Project[]>("/projects?trashed=true"),
+        ]);
       setProjects(p);
+      setTrash(deleted);
       setPanels(assets);
       setJobs(renders);
       setTemplates(presets);
@@ -415,6 +423,7 @@ export default function App() {
               onError={showError}
               onDirty={setDirty}
               onImport={() => setDialog("import")}
+              onDelete={setDeleteTarget}
             />
           ) : (
             <>
@@ -587,7 +596,16 @@ export default function App() {
                               Your productions{" "}
                               <span className="count">{projects.length}</span>
                             </h2>
-                            <span className="muted tiny">LATEST FIRST</span>
+                            <button
+                              className="button secondary small-button"
+                              onClick={() => {
+                                setShowTrash(true);
+                                void refresh();
+                              }}
+                            >
+                              <Trash2 size={15} />
+                              Trash ({trash.length})
+                            </button>
                           </div>
                           <div className="project-toolbar">
                             <div className="filter-tabs">
@@ -627,55 +645,67 @@ export default function App() {
                           {filteredProjects.length ? (
                             <div className="project-grid">
                               {filteredProjects.map((project) => (
-                                <button
-                                  className="project-card"
+                                <div
+                                  className="production-card"
                                   key={project.id}
-                                  onClick={() =>
-                                    navigate("production", project.id)
-                                  }
                                 >
-                                  <div className="project-cover">
-                                    {project.cover_url ? (
-                                      <img src={project.cover_url} alt="" />
-                                    ) : (
-                                      <>
-                                        <div className="cover-lines" />
-                                        <Clapperboard size={34} />
-                                        <span>AWAITING THE EVIDENCE</span>
-                                      </>
-                                    )}
-                                    <span className="cover-format">9:16</span>
-                                    {project.scene_count > 0 && (
-                                      <span className="cover-time">
-                                        {timecode(project.duration)}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="project-card-content">
-                                    <StatusPill status={project.status} />
-                                    <h3>{project.title}</h3>
-                                    <p>
-                                      {project.idea ||
-                                        "Every fight needs an angle. Find yours."}
-                                    </p>
-                                    <div className="project-card-footer">
-                                      <span>
-                                        <Layers size={13} />
-                                        {project.scene_count} scenes
-                                      </span>
-                                      <span>
-                                        {project.scene_count === 0
-                                          ? "Add files"
-                                          : !project.narration_url
-                                            ? "Add narration"
-                                            : !project.script_approved
-                                              ? "Continue editing"
-                                              : "Review & export"}
-                                        <ArrowRight size={14} />
-                                      </span>
+                                  <button
+                                    className="project-card"
+                                    onClick={() =>
+                                      navigate("production", project.id)
+                                    }
+                                  >
+                                    <div className="project-cover">
+                                      {project.cover_url ? (
+                                        <img src={project.cover_url} alt="" />
+                                      ) : (
+                                        <>
+                                          <div className="cover-lines" />
+                                          <Clapperboard size={34} />
+                                          <span>AWAITING THE EVIDENCE</span>
+                                        </>
+                                      )}
+                                      <span className="cover-format">9:16</span>
+                                      {project.scene_count > 0 && (
+                                        <span className="cover-time">
+                                          {timecode(project.duration)}
+                                        </span>
+                                      )}
                                     </div>
-                                  </div>
-                                </button>
+                                    <div className="project-card-content">
+                                      <StatusPill status={project.status} />
+                                      <h3>{project.title}</h3>
+                                      <p>
+                                        {project.idea ||
+                                          "Every fight needs an angle. Find yours."}
+                                      </p>
+                                      <div className="project-card-footer">
+                                        <span>
+                                          <Layers size={13} />
+                                          {project.scene_count} scenes
+                                        </span>
+                                        <span>
+                                          {project.scene_count === 0
+                                            ? "Add files"
+                                            : !project.narration_url
+                                              ? "Add narration"
+                                              : !project.script_approved
+                                                ? "Continue editing"
+                                                : "Review & export"}
+                                          <ArrowRight size={14} />
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </button>
+                                  <button
+                                    className="production-delete button secondary small-button"
+                                    aria-label={`Delete production ${project.title}`}
+                                    onClick={() => setDeleteTarget(project)}
+                                  >
+                                    <Trash2 size={14} />
+                                    Delete production
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           ) : (
@@ -1060,6 +1090,28 @@ export default function App() {
         </main>
       </div>
       {toast}
+      {deleteTarget && (
+        <DeleteProduction
+          project={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            if (selectedId === deleteTarget.id) {
+              setSelectedId(null);
+              setDirty(false);
+              setPage("production");
+            }
+            setDeleteTarget(null);
+            void refresh();
+          }}
+        />
+      )}
+      {showTrash && (
+        <ProductionTrash
+          projects={trash}
+          onClose={() => setShowTrash(false)}
+          onRestored={refresh}
+        />
+      )}
       {dialog === "new" && (
         <NewProject
           templates={templates}

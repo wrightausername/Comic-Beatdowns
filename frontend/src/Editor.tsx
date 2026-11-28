@@ -73,6 +73,7 @@ interface Props {
   onError: (error: string) => void;
   onDirty: (dirty: boolean) => void;
   onImport: () => void;
+  onDelete: (project: Project) => void;
 }
 const newId = () => crypto.randomUUID().replaceAll("-", "");
 
@@ -85,6 +86,7 @@ export default function Editor({
   onError,
   onDirty,
   onImport,
+  onDelete,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [autoRunRequest, setAutoRunRequest] = useState(0);
@@ -556,6 +558,18 @@ export default function Editor({
         )}
       </div>
       <div className="workspace-toolbar">
+        <button
+          className="button secondary small-button"
+          disabled={busy || directorRunning || !!activeJob}
+          onClick={() =>
+            void perform(async () =>
+              onDelete(await api<Project>(`/projects/${projectId}`)),
+            )
+          }
+        >
+          <Trash2 size={15} />
+          Delete production
+        </button>
         <button
           className="button secondary small-button"
           disabled={busy || (!dirty && !project.can_undo)}

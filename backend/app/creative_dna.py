@@ -190,7 +190,7 @@ def record_feedback(data: FeedbackCreate, db: Session = Depends(session)):
     # A simultaneous workspace save cannot move the scene while feedback is recorded.
     db.execute(text("BEGIN IMMEDIATE"))
     project = db.get(Project, data.project_id)
-    if project is None:
+    if project is None or project.deleted_at is not None:
         raise HTTPException(404, "Project not found")
     if project.revision != data.base_revision:
         raise HTTPException(409, "This episode changed. Refresh before recording feedback.")

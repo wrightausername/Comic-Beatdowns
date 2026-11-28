@@ -1,0 +1,40 @@
+name: Verify public Windows download
+
+on:
+  push:
+    branches: [feature/production-trash]
+    paths: [.github/workflows/verify-owner-download.yml, scripts/download-owner-preview.ps1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-download:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download public EXE with built-in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $studioUrl = 'https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-named-panels-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe'
+          $studioSha = 'fc7b057a97a2bbbf0bffa17ac3fc90ccb0395ed90e266afabbc0644453282545'
+          $studioDestination = Join-Path $env:RUNNER_TEMP 'Downloads/Comic-Beatdowns-Studio.exe'
+          & ./scripts/download-owner-preview.ps1 -Url $studioUrl -Sha256 $studioSha -Destination $studioDestination
+          if ($PSVersionTable.PSVersion.Major -ne 5) { throw 'This must exercise Windows PowerShell 5.1.' }
+          if ((Get-Item $studioDestination).Length -lt 100000000) { throw 'Missing executable bytes.' }
+      - name: Reject an incorrect checksum without replacing the existing download
+        shell: powershell
+        run: |
+          $studioUrl = 'https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-named-panels-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Named-Panels.exe'
+          $studioDestination = Join-Path $env:RUNNER_TEMP 'Downloads/Comic-Beatdowns-Studio.exe'
+          $studioBefore = (Get-FileHash $studioDestination).Hash
+          $studioRejected = $false
+          try { & ./scripts/download-owner-preview.ps1 -Url $studioUrl -Sha256 ('0' * 64) -Destination $studioDestination } catch { $studioRejected = $true }
+          if (-not $studioRejected -or (Get-FileHash $studioDestination).Hash -ne $studioBefore) { throw 'Checksum guard failed.' }
+          if (Get-ChildItem (Split-Path $studioDestination) -Filter '*.partial') { throw 'Temporary file was left behind.' }

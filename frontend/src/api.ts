@@ -1,3 +1,5 @@
+import { requestError } from "./requestErrors";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -23,12 +25,7 @@ export async function api<T>(
     const body = (await response.json().catch(() => ({}))) as {
       detail?: unknown;
     };
-    const message =
-      typeof body.detail === "string"
-        ? body.detail
-        : response.status === 422
-          ? "Check the form fields and try again."
-          : `Request failed (${response.status}).`;
+    const message = requestError(body.detail, response.status);
     if (response.status === 401 && path !== "/auth/login")
       window.dispatchEvent(new Event("studio:unauthorized"));
     throw new ApiError(message, response.status);

@@ -646,3 +646,137 @@ Confirm sharing and complete anonymous download/hash before delivery. Later
 metadata-only commits do not change the tested application source. Issue #14 and
 actual owner Windows 10/11/real-comic acceptance remain open; no installer/main
 merge or automatic publishing was added.
+
+## November 27 follow-up — production deletion and Windows download fallback
+
+Branch `feature/production-trash`, stacked on draft PR #22. The owner requested
+production deletion while reporting another blank ChatGPT download page. The
+previous public named-panels EXE still returns a full anonymous 200/MZ download;
+that server-side result does not establish that the owner's ChatGPT path works.
+Do not present the same link alone as a resolution.
+
+Adds a visible Delete production action on every desk card and in the open
+workspace. Confirmation explicitly moves the production to Trash; Trash and
+Restore stay visible on the production desk. This is reversible deletion, not a
+disk cleanup: narration, original shared panels/sounds, scenes, edit history,
+versions and exports remain local and intact. Trash is excluded from active
+productions, export lists and inbox watching, and standard edit/build/preview
+routes reject hidden productions. Restore retains the folder-watching preference
+and changes the revision so stale requests cannot overwrite restored work.
+Delete reserves the DB writer and render enqueue lock; active Director jobs or
+renders must finish before deletion. No real owner production was deleted.
+
+Nine isolated lifecycle tests pass, covering source hashes, narration/shots/history
+and export preservation, another production, stale revisions, repeated deletion,
+active Director/render states, hidden edit/build routes and paused/restored inbox.
+The existing legacy upgrade test also checks the additive nullable timestamp.
+A browser workflow covers cancellation, desk deletion, reload, Restore, editor
+confirmation/deletion and phone-width restore. Full local and Windows checks,
+packaging and delivery verification are pending at this milestone.
+
+`scripts/download-owner-preview.ps1` downloads only a fixed public release URL,
+checks the expected SHA256, saves through a temporary file and never starts the
+EXE or changes execution policy. A dedicated Windows 2022/2025 workflow exercises
+built-in Windows PowerShell 5.1 and checksum failure preservation. This is a
+browser-independent fallback; it does not claim ChatGPT itself has been repaired.
+Record the final new source/run/file/hash and public transfer checks below before
+delivering a new owner preview. Issue #14 and actual owner Win10/11/real-comic
+acceptance remain open; no installer, main merge or automatic publication.
+
+Browser audit caught lifecycle dialogs being mounted in the signed-out layout
+instead of the authenticated workspace; corrected before preview delivery. Dialog
+headings now provide accessible names through `aria-labelledby`. The focused
+end-to-end delete/cancel/restore test passes after the correction (desktop and
+390px mobile). Initial full check passed 233 backend tests (one Windows-only
+skip), 71 frontend tests, lint/format/build; a full browser run was intentionally
+stopped after the audit finding. Rerun full checks at the corrected source.
+Public-download workflow `46086071291` passed built-in Windows PowerShell 5.1
+transfers and checksum-failure preservation on both Server 2022/2025, using the
+previous public EXE. Repeat against the new preview after packaging/sharing.
+
+### Make a draft validation failure — reproduced and corrected
+
+Owner reported the generic “Check the form fields and try again” specifically
+in Make a draft. A real Chromium reproduction created a normal production,
+imported a page and external narration, then clicked Make my video draft. The
+Autopilot settings PUT returned 422 `extra_forbidden` at `body.voice_approved`
+with `input:false`. `touch(..., invalidate_approval=True)` legitimately stores
+this server-owned flag; the client incorrectly spread it back into the strict
+editable request when enabling Autopilot (or switching final delivery to draft).
+
+The client now explicitly selects editable Autopilot fields. Crop rebuild and
+page-reorder choices are retained when changing another setting. Server-owned
+approval is never submitted as an editable field; the strict backend remains
+unchanged. The same page/narration → first draft reproduction now builds a real
+FFmpeg preview. Validation details name the actual field and constraints,
+including numbered shot/page paths, instead of discarding the server's list.
+Draft failures appear beside the draft button, retain uploads/edits, and clear
+when retrying. Missing server details are described honestly; unknown request
+settings are identified as app compatibility errors rather than user mistakes.
+
+API/draft unit checks cover structured validation, missing fields, nested shots,
+revision/unknown fields, unreadable responses, readonly approval filtering,
+retained crop/order choices and visible inline retry. Browser regression also
+injects a specific invalid pacing response, checks actionable inline guidance and
+preserved uploads, then retries through the real server to a rendered preview.
+Re-run final checks and package at this corrected source; the earlier deletion
+build `5a27e892f115a0f1f3909119f325e9604bb03eda` is superseded for owner delivery.
+
+### Verified combined application — final source and delivery preparation
+
+Final application source **`db47965b3e0b870f99ea1a1f11a6ededa5f58552`**. Local
+`make check` passed **233 backend tests** (one Windows-only skip), **77 frontend
+tests**, lint/format/build. Final `make e2e` passed all **20 browser workflows**,
+including the actual first-draft 422 reproduction/fix, specific inline validation
+and safe retry to a real FFmpeg preview, plus desktop/mobile delete/restore.
+
+Windows package **`46087066098`**, artifact **`15239173815`**: original EXE
+**146,601,013 bytes**, SHA256
+`d2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624`.
+Actual downloaded startup/native-window checks passed on Server 2022/2025 jobs
+`140799783099` / `140799783113`. Downloaded CArchive/PYZ inspection confirms
+`/assets/index-B2nikuZJ.js`, specific draft-error/Trash/Restore UI, the absence of
+the old generic form-fields string, and existing organizer/autonomy/quiet modules.
+Windows media validation for this source passed; push/PR Linux browser validation
+is finishing in `46087061321` / `46087066040`. Record final CI/media count below.
+
+Metadata-only sharing pins those same tested bytes under
+`studio-draft-fix-preview-2026-11-27`, dated filename
+**Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe**. A release metadata entry is
+precreated with authenticated `gh release create` because the Actions token's
+release-creation path previously returned 403; asset upload stays in Actions.
+Sharing now runs Windows PowerShell 5.1 public transfers on 2022/2025, including
+the exact copy/paste download-only command documented in windows-desktop.md.
+Confirm sharing, these new public checks and a complete anonymous download/hash
+before delivering. No expiring artifact URL is an owner delivery link.
+Later metadata-only commits do not change the tested application source. Actual
+owner Win10/11/real-comic acceptance and Issue #14 remain open; drafts stay unmerged.
+
+
+### Combined preview delivery completed
+
+Application-source push validation **`46087061321`** and PR validation
+**`46087066040`** both passed: 233 backend tests (one Linux Windows-only skip),
+77 frontend tests, 20 browser workflows and **153 Windows media tests**. Package
+`46087066098` and its separate downloaded-EXE checks are green at the same source.
+
+Sharing **`46087571827`** passed. The exact new public EXE was downloaded and
+SHA256-verified with Windows PowerShell 5.1 on Server 2022/2025 jobs
+**`140800791831` / `140800791849`**. Both also passed the exact copy/paste owner
+command in Windows Downloads. These commands download only and do not execute
+the EXE or change execution policy. Earlier run `46086071291` separately tested
+wrong-checksum rejection while preserving a previous good download.
+
+A complete **anonymous public GET** returned 200, `application/octet-stream`, the
+correct dated attachment filename, **146,601,013 bytes** and SHA256
+`d2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624`;
+the public SHA256.txt matches both filename and tested artifact. This fixed URL
+is the owner download, not the short-lived signed workflow-artifact URI:
+https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-draft-fix-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe
+
+The PowerShell fallback bypasses ChatGPT's blank download page; it is not evidence
+that ChatGPT's browser behavior itself has been repaired. Close older Studio
+windows and open the dated Draft-Fix EXE from Downloads. Existing productions
+remain in the same local profile. Draft PR #23 stays stacked on #22 and unmerged.
+Actual owner Windows 10/11 and real-comic creative acceptance still remain open
+under Issue #14. Later documentation-only commits do not alter the packaged source.
