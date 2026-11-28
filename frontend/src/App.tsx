@@ -306,28 +306,6 @@ export default function App() {
           onError={showError}
         />
         {toast}
-        {deleteTarget && (
-          <DeleteProduction
-            project={deleteTarget}
-            onClose={() => setDeleteTarget(null)}
-            onDeleted={() => {
-              if (selectedId === deleteTarget.id) {
-                setSelectedId(null);
-                setDirty(false);
-                setPage("production");
-              }
-              setDeleteTarget(null);
-              void refresh();
-            }}
-          />
-        )}
-        {showTrash && (
-          <ProductionTrash
-            projects={trash}
-            onClose={() => setShowTrash(false)}
-            onRestored={refresh}
-          />
-        )}
       </>
     );
   return (
@@ -1112,6 +1090,28 @@ export default function App() {
         </main>
       </div>
       {toast}
+      {deleteTarget && (
+        <DeleteProduction
+          project={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            if (selectedId === deleteTarget.id) {
+              setSelectedId(null);
+              setDirty(false);
+              setPage("production");
+            }
+            setDeleteTarget(null);
+            void refresh();
+          }}
+        />
+      )}
+      {showTrash && (
+        <ProductionTrash
+          projects={trash}
+          onClose={() => setShowTrash(false)}
+          onRestored={refresh}
+        />
+      )}
       {dialog === "new" && (
         <NewProject
           templates={templates}

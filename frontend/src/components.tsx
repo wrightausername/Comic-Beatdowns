@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { ReactNode } from "react";
 import { AudioLines, Box, CircleCheck, X, Zap } from "lucide-react";
 import type { Status } from "./types";
@@ -108,6 +108,7 @@ export function Modal({
   wide?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const node = dialog.current!;
     node.showModal();
@@ -116,6 +117,7 @@ export function Modal({
   return (
     <dialog
       ref={dialog}
+      aria-labelledby={titleId}
       className={`modal ${wide ? "wide" : ""}`}
       onCancel={onClose}
       onClick={(e) => {
@@ -125,7 +127,7 @@ export function Modal({
       <div className="modal-heading">
         <div>
           {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
         </div>
         <button
           className="icon-button"

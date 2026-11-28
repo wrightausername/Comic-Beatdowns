@@ -682,3 +682,14 @@ browser-independent fallback; it does not claim ChatGPT itself has been repaired
 Record the final new source/run/file/hash and public transfer checks below before
 delivering a new owner preview. Issue #14 and actual owner Win10/11/real-comic
 acceptance remain open; no installer, main merge or automatic publication.
+
+Browser audit caught lifecycle dialogs being mounted in the signed-out layout
+instead of the authenticated workspace; corrected before preview delivery. Dialog
+headings now provide accessible names through `aria-labelledby`. The focused
+end-to-end delete/cancel/restore test passes after the correction (desktop and
+390px mobile). Initial full check passed 233 backend tests (one Windows-only
+skip), 71 frontend tests, lint/format/build; a full browser run was intentionally
+stopped after the audit finding. Rerun full checks at the corrected source.
+Public-download workflow `46086071291` passed built-in Windows PowerShell 5.1
+transfers and checksum-failure preservation on both Server 2022/2025, using the
+previous public EXE. Repeat against the new preview after packaging/sharing.
