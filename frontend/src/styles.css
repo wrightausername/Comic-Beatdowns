@@ -5988,3 +5988,20 @@ details[open] > .tool-disclosure-heading::after {
   display: block;
   margin-top: 5px;
 }
+
+.error-toast > span,
+.draft-validation-error p {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.draft-validation-error {
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid #944b59;
+  border-radius: 9px;
+  background: #3c202d;
+  color: #f1bdc6;
+}
+.draft-validation-error p {
+  margin: 8px 0;
+}

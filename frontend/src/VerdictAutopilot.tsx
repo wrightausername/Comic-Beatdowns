@@ -11,12 +11,27 @@ import type {
 import { errorMessage, timecode } from "./utils";
 import StoryPlanReview from "./StoryPlanReview";
 
-export const defaultAutopilot: AutopilotOptions = {
+type DraftOptions = Omit<AutopilotOptions, "voice_approved">;
+
+export const defaultAutopilot: DraftOptions = {
   enabled: false,
   mode: "basic",
   pace: "fast",
   delivery: "draft",
 };
+// Approval is server-owned metadata. Never spread it into strict editable options.
+export function editableAutopilot(project: Project): DraftOptions {
+  const saved = project.autopilot;
+  return {
+    enabled: saved?.enabled ?? defaultAutopilot.enabled,
+    mode: saved?.mode ?? defaultAutopilot.mode,
+    pace: saved?.pace ?? project.settings?.edit_pace ?? defaultAutopilot.pace,
+    delivery: saved?.delivery ?? defaultAutopilot.delivery,
+    rebuild_pages: saved?.rebuild_pages ?? false,
+    reorder_pages: saved?.reorder_pages ?? false,
+  };
+}
+
 export const readyForVerdict = (project: Project) =>
   Boolean(
     project.narration_url &&
@@ -170,6 +185,7 @@ export default function VerdictAutopilot({
   const [providerBusy, setProviderBusy] = useState(false);
   const [providerMessage, setProviderMessage] = useState("");
   const [pollError, setPollError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [reviewed, setReviewed] = useState(false);
   const gate = useRef({ dirty, busy, revision: project.revision });
   gate.current = { dirty, busy, revision: project.revision };
@@ -181,11 +197,7 @@ export default function VerdictAutopilot({
   useEffect(() => {
     onActivity?.(Boolean(running));
   }, [running, onActivity]);
-  const options = {
-    ...defaultAutopilot,
-    pace: project.settings?.edit_pace ?? defaultAutopilot.pace,
-    ...project.autopilot,
-  };
+  const options = editableAutopilot(project);
   const currentResult = latest?.output_revision === project.revision;
   useEffect(() => {
     setReviewed(false);
@@ -254,17 +266,26 @@ export default function VerdictAutopilot({
       clearInterval(timer);
     };
   }, [project.id]);
-  async function changeOptions(change: Partial<AutopilotOptions>) {
+  async function draftAction(action: () => Promise<void>) {
+    setActionError("");
+    onError("");
     await perform(async () => {
+      try {
+        await action();
+      } catch (error) {
+        setActionError(errorMessage(error));
+        throw error;
+      }
+    });
+  }
+  async function changeOptions(change: Partial<DraftOptions>) {
+    await draftAction(async () => {
       const saved = await api<Project>(`/projects/${project.id}`);
       const next = await api<Project>(
         `/projects/${project.id}/autopilot`,
         json(
           {
-            enabled: options.enabled,
-            mode: options.mode,
-            pace: options.pace,
-            delivery: options.delivery,
+            ...editableAutopilot(saved),
             ...change,
             base_revision: saved.revision,
           },
@@ -276,14 +297,10 @@ export default function VerdictAutopilot({
     });
   }
   async function run() {
-    await perform(async () => {
+    await draftAction(async () => {
       // The normal workflow is one click, not a separate enable toggle.
       const saved = await api<Project>(`/projects/${project.id}`);
-      const current = {
-        ...defaultAutopilot,
-        pace: saved.settings?.edit_pace ?? defaultAutopilot.pace,
-        ...saved.autopilot,
-      };
+      const current = editableAutopilot(saved);
       const ready =
         current.enabled && !(simple && current.delivery !== "draft")
           ? saved
@@ -409,6 +426,16 @@ export default function VerdictAutopilot({
           </button>
         )}
       </div>
+      {actionError && (
+        <div className="draft-validation-error" role="alert">
+          <strong>Draft could not start</strong>
+          <p>{actionError}</p>
+          <small>
+            Your uploaded files and saved edits are kept. Fix the issue above,
+            then choose Make my video draft again.
+          </small>
+        </div>
+      )}
       <div className="draft-reading-mode">
         {options.mode === "vision" && (
           <p className="help">

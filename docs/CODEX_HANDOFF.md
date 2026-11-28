@@ -693,3 +693,31 @@ stopped after the audit finding. Rerun full checks at the corrected source.
 Public-download workflow `46086071291` passed built-in Windows PowerShell 5.1
 transfers and checksum-failure preservation on both Server 2022/2025, using the
 previous public EXE. Repeat against the new preview after packaging/sharing.
+
+### Make a draft validation failure — reproduced and corrected
+
+Owner reported the generic “Check the form fields and try again” specifically
+in Make a draft. A real Chromium reproduction created a normal production,
+imported a page and external narration, then clicked Make my video draft. The
+Autopilot settings PUT returned 422 `extra_forbidden` at `body.voice_approved`
+with `input:false`. `touch(..., invalidate_approval=True)` legitimately stores
+this server-owned flag; the client incorrectly spread it back into the strict
+editable request when enabling Autopilot (or switching final delivery to draft).
+
+The client now explicitly selects editable Autopilot fields. Crop rebuild and
+page-reorder choices are retained when changing another setting. Server-owned
+approval is never submitted as an editable field; the strict backend remains
+unchanged. The same page/narration → first draft reproduction now builds a real
+FFmpeg preview. Validation details name the actual field and constraints,
+including numbered shot/page paths, instead of discarding the server's list.
+Draft failures appear beside the draft button, retain uploads/edits, and clear
+when retrying. Missing server details are described honestly; unknown request
+settings are identified as app compatibility errors rather than user mistakes.
+
+API/draft unit checks cover structured validation, missing fields, nested shots,
+revision/unknown fields, unreadable responses, readonly approval filtering,
+retained crop/order choices and visible inline retry. Browser regression also
+injects a specific invalid pacing response, checks actionable inline guidance and
+preserved uploads, then retries through the real server to a rendered preview.
+Re-run final checks and package at this corrected source; the earlier deletion
+build `5a27e892f115a0f1f3909119f325e9604bb03eda` is superseded for owner delivery.

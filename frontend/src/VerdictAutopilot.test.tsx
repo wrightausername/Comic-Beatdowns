@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import VerdictAutopilot, {
   handToVerdict,
+  editableAutopilot,
   orderForProduction,
 } from "./VerdictAutopilot";
 import { api } from "./api";
@@ -339,6 +340,8 @@ test("Easy Mode's single Generate click enables safe preview delivery and starts
           mode: "basic",
           pace: "fast",
           delivery: "draft",
+          rebuild_pages: false,
+          reorder_pages: false,
           base_revision: 4,
         }),
       }),
@@ -361,4 +364,91 @@ test("Easy Mode's single Generate click enables safe preview delivery and starts
     ),
   ).toHaveLength(1);
   expect(accept).toHaveBeenCalledWith(updated);
+});
+
+test("editable draft options exclude approval metadata and preserve saved crop/order choices", () => {
+  const saved = {
+    ...project,
+    settings: { edit_pace: "slow" },
+    autopilot: {
+      ...project.autopilot!,
+      voice_approved: false,
+      rebuild_pages: true,
+      reorder_pages: true,
+    },
+  } as Project;
+  expect(editableAutopilot(saved)).toEqual({
+    enabled: true,
+    mode: "basic",
+    pace: "fast",
+    delivery: "draft",
+    rebuild_pages: true,
+    reorder_pages: true,
+  });
+  expect(editableAutopilot({ ...saved, autopilot: undefined }).pace).toBe(
+    "slow",
+  );
+});
+
+test("draft validation errors appear beside the draft action and retry clears the message", async () => {
+  const off = {
+    ...project,
+    autopilot: { ...project.autopilot!, enabled: false, voice_approved: false },
+  };
+  let reject = true;
+  mocked.mockImplementation(async (path, options) => {
+    if (path === "/verdict/connection") return { configured: false } as never;
+    if (path === "/projects/test") return off as never;
+    if (path === "/projects/test/autopilot") {
+      const body = JSON.parse(options!.body as string);
+      expect(body).not.toHaveProperty("voice_approved");
+      if (reject) throw new Error("Pacing: Choose fast or slow.");
+      return {
+        ...off,
+        revision: 5,
+        autopilot: { ...off.autopilot, enabled: true },
+      } as never;
+    }
+    if (path === "/projects/test/director")
+      return (
+        options?.method === "POST"
+          ? { id: "new", status: "queued", report: {} }
+          : []
+      ) as never;
+    return [] as never;
+  });
+  render(
+    <VerdictAutopilot
+      project={off}
+      dirty={false}
+      busy={false}
+      accept={vi.fn()}
+      perform={async (action) => {
+        try {
+          await action();
+        } catch {
+          /* Editor reports the same error globally. */
+        }
+      }}
+      onChanged={vi.fn()}
+      onReview={vi.fn()}
+      onError={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Make my video draft" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Pacing: Choose fast or slow.",
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Your uploaded files and saved edits are kept.",
+  );
+  reject = false;
+  fireEvent.click(screen.getByRole("button", { name: "Make my video draft" }));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  await waitFor(() =>
+    expect(mocked).toHaveBeenCalledWith(
+      "/projects/test/director",
+      expect.objectContaining({ method: "POST" }),
+    ),
+  );
 });

@@ -2429,3 +2429,104 @@ test("delete productions from desk or editor, cancel safely and restore from Tra
   await trash.getByRole("button", { name: "Close dialog" }).click();
   await expect(card).toBeVisible();
 });
+
+test("first draft accepts imported narration metadata, explains validation and retries to a real preview", async ({
+  page,
+}) => {
+  const title = "First draft after importing pages and narration";
+  const project = await (
+    await page.request.post("/api/projects", { data: { title } })
+  ).json();
+  const url = `/api/projects/${project.id}`;
+  for (const file of [
+    {
+      kind: "panels",
+      name: "ww_01.png",
+      mimeType: "image/png",
+      buffer: originalPng(),
+    },
+    {
+      kind: "narration",
+      name: "voice.wav",
+      mimeType: "audio/wav",
+      buffer: silentWav(2),
+    },
+  ]) {
+    const imported = await page.request.post(url + "/import-file", {
+      multipart: {
+        kind: file.kind,
+        file: { name: file.name, mimeType: file.mimeType, buffer: file.buffer },
+      },
+    });
+    expect(imported.status()).toBe(201);
+  }
+  const saved = await (await page.request.get(url)).json();
+  expect(saved.autopilot.voice_approved).toBe(false);
+  expect(saved.autopilot.enabled).not.toBe(true);
+  await page.reload();
+  await page.locator(".project-card").filter({ hasText: title }).click();
+  await page
+    .getByRole("button", { name: "Open Make a draft", exact: true })
+    .click();
+  const director = page.getByRole("region", {
+    name: "Verdict Autopilot",
+    exact: true,
+  });
+  let rejectOnce = true;
+  await page.route(`**${url}/autopilot`, async (route) => {
+    if (route.request().method() === "PUT" && rejectOnce) {
+      rejectOnce = false;
+      await route.fulfill({
+        status: 422,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: [
+            {
+              loc: ["body", "pace"],
+              type: "literal_error",
+              msg: "Input should be 'fast' or 'slow'",
+            },
+          ],
+        }),
+      });
+    } else await route.continue();
+  });
+  const rejectedResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(url + "/autopilot") &&
+      response.request().method() === "PUT",
+  );
+  await director
+    .getByRole("button", { name: "Make my video draft", exact: true })
+    .click();
+  expect((await rejectedResponse).status()).toBe(422);
+  await expect(director.getByRole("alert")).toContainText(
+    "Pacing: Input should be 'fast' or 'slow'",
+  );
+  await expect(director.getByRole("alert")).toContainText(
+    "Your uploaded files and saved edits are kept",
+  );
+  const afterError = await (await page.request.get(url)).json();
+  expect(afterError.narration_url).toBe(saved.narration_url);
+  expect(afterError.workflow.panel_ids).toEqual(saved.workflow.panel_ids);
+  const settingResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(url + "/autopilot") &&
+      response.request().method() === "PUT",
+  );
+  await director
+    .getByRole("button", { name: "Make my video draft", exact: true })
+    .click();
+  const response = await settingResponse;
+  expect(response.status(), await response.text()).toBe(200);
+  await expect(director.getByRole("alert")).toHaveCount(0);
+  await expect(
+    director.getByRole("button", {
+      name: "Approve & export 1080p",
+      exact: true,
+    }),
+  ).toBeVisible({ timeout: 120000 });
+  const built = await (await page.request.get(url)).json();
+  expect(built.scene_count).toBeGreaterThan(0);
+  expect(built.narration_url).toBe(saved.narration_url);
+});
