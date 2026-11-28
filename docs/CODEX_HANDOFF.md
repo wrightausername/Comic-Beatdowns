@@ -816,3 +816,11 @@ and read-only re-detection of a cached whole-page fallback. Two real-browser
 workflows pass, including no-narration crop/save/ZIP download and mobile layout.
 Full `make check`, `make e2e` and Windows validation/package checks follow at the
 committed source. Actual owner page acceptance is still pending their upload.
+
+Full regression checks found a false separator caused by JPEG ringing beneath a
+dark colored frame. The black-gutter rule now requires nearly neutral dark ink
+and visible neighboring artwork on both sides; flat dark artwork is not another
+panel. Added color/monochrome regressions. All **33 focused cases** pass,
+including the original Vision assignment tests and balloon/large-panel guards.
+The interrupted initial broad runs are superseded; rerun full checks at this
+hardened source. Eight new segmentation cases now exist (including parameters).

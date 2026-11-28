@@ -172,3 +172,13 @@ def test_re_detect_replaces_whole_page_preview_without_touching_saved_video(clie
     assert fresh.status_code == 200, fresh.text
     assert len(fresh.json()["organization"]["pages"][0]["regions"]) == 5
     assert client.get(url).json() == project
+
+
+@pytest.mark.parametrize("monochrome", [False, True])
+def test_dark_illustration_is_not_a_black_gutter(image_bytes, monochrome):
+    # JPEG ringing below a colored frame must not invent a tiny black separator.
+    with Image.open(io.BytesIO(image_bytes)) as image:
+        output = io.BytesIO()
+        image.convert("L" if monochrome else "RGB").save(output, "JPEG", quality=94)
+    with Image.open(io.BytesIO(output.getvalue())) as image:
+        assert suggest_panels(image) == []
