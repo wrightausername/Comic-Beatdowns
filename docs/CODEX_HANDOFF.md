@@ -780,3 +780,89 @@ windows and open the dated Draft-Fix EXE from Downloads. Existing productions
 remain in the same local profile. Draft PR #23 stays stacked on #22 and unmerged.
 Actual owner Windows 10/11 and real-comic creative acceptance still remain open
 under Issue #14. Later documentation-only commits do not alter the packaged source.
+
+## November 27 follow-up — printed-panel cropping only
+
+Owner narrowed the immediate task: full comic pages → one crop per printed panel,
+in reading order; large/wide/tall panels stay whole. Narration-to-action matching
+and camera planning are deferred for this task. No CapCut control is connected.
+The actual owner page files are on their Windows PC, not in this workspace; one
+full page has been requested for real-material verification. Do not claim their
+specific comic is fixed from synthetic fixtures or publish another preview as
+owner-accepted without checking their material.
+
+Branch `fix/full-page-panel-crops`, stacked on draft PR #23. Local detection used
+to require almost-white wide gutters and stopped after two layout levels. It now
+accepts thin light/aged-paper and uniform dark separators, refines at original
+resolution (including balloon-tail protection), and recursively follows complete
+separators up to six levels / 24 printed panels. A large/tall panel without an
+internal separator remains one crop; no narration-based or camera-sized slicing.
+Irregular/inset/overlapping layouts without reliable separators still need review;
+Issue #14 remains open. Existing source files are not rewritten during cropping.
+The library's pre-existing JPEG normalization on import is unchanged; exact PNG
+crop tests compare against the stored source raster and verify its hash survives.
+
+The organizer exposes **Auto-crop full pages** even for an older cached layout;
+it now actually re-detects instead of just re-opening the old whole-page result.
+Saved creator layouts/unsaved changes get confirmation before replacement preview;
+video shots/timing remain intact until an explicit build/order operation. Whole-
+page fallbacks are labelled “whole page · check boundaries.” Save and PNG download
+are the primary cropping actions; no narration or video build is required.
+
+Focused verification: 23 existing detector/page/camera/story-flow cases pass.
+Six new backend cases cover thin/aged/JPEG/dark nested layouts, intact large/tall
+panels, single large artwork, exact named PNG pixels/reading order/source hashes,
+and read-only re-detection of a cached whole-page fallback. Two real-browser
+workflows pass, including no-narration crop/save/ZIP download and mobile layout.
+Full `make check`, `make e2e` and Windows validation/package checks follow at the
+committed source. Actual owner page acceptance is still pending their upload.
+
+Full regression checks found a false separator caused by JPEG ringing beneath a
+dark colored frame. The black-gutter rule now requires nearly neutral dark ink
+and visible neighboring artwork on both sides; flat dark artwork is not another
+panel. Added color/monochrome regressions. All **33 focused cases** pass,
+including the original Vision assignment tests and balloon/large-panel guards.
+The interrupted initial broad runs are superseded; rerun full checks at this
+hardened source. Eight new segmentation cases now exist (including parameters).
+
+### Cropping-only implementation verified; owner page still needed
+
+Application source **`e1ea125417e6640cb7a412801f4b0032c9ac54f0`**, draft PR #24.
+Local `make check` passed **241 backend tests** (one Windows-only skip),
+**77 frontend tests**, lint/format/build. Local full `make e2e` had 20 passed and
+one existing assistant-disclosure timing failure; its isolated discovery retry
+passed. Clean source push CI **`46110780779`** passed all checks, all **21 browser
+workflows**, and **161 Windows media cases**. This includes actual no-narration
+PNG download, intact large/tall crops and existing editor/Director regressions.
+
+Package **`46110784353`** passed; actual downloaded-EXE startup/native-window checks
+passed on separate Server 2022/2025 jobs **`140874358427` / `140874358436`**.
+PR CI `46110784295` passed Windows but initially hit the pre-existing asynchronous
+preview-approval unit test (76/77 frontend); failed Linux job was explicitly
+retried. Do not describe that first attempt as green. Production UI changes here
+are confined to the panel organizer; narration/approval behavior is unchanged.
+
+**No new public owner EXE was released for these cropping changes.** The existing
+Draft-Fix download remains the prior `db47965` application. First obtain an actual
+full page from the owner and inspect the resulting crops against it; this source
+has only synthetic/layout/PNG/Windows acceptance so far. Then package/share the
+accepted exact source using the existing verified delivery process. Keep long,
+wide, tall and splash compositions as single printed panels; naming is page then
+letter in reading order. The latest owner explicitly deferred narration matching.
+
+## November 28 — real-material cropping review
+
+Source material is now available privately in the task workspace. A guided,
+visually reviewed crop set was produced and checked for original-pixel and file
+integrity. Private source images, crop data and detailed references remain outside
+the repository. Do not request the same input again when it is still available
+in the task attachments.
+
+Real-material review exposed unresolved screenshot-frame and overlapping-inset
+segmentation. Current automatic detection is not accepted for these layouts.
+Guided reference crops are not evidence of an automatic engine success. Next
+work is general viewer-frame removal and independent inset/parent shapes, keeping
+large panels intact and preserving visible artwork. Do not hard-code examples as
+a general detector. No application code or new public EXE changed in this turn.
+Owner visual review and Issue #14 remain open. Cropping is the current priority;
+narration matching remains deferred.

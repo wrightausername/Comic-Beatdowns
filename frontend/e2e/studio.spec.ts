@@ -2210,7 +2210,7 @@ test("named panel organizer crops, reorders, saves, downloads and builds editabl
     exact: true,
   });
   await organizer
-    .getByRole("button", { name: "Auto-crop & organize panels", exact: true })
+    .getByRole("button", { name: "Auto-crop full pages", exact: true })
     .click();
   await expect(
     organizer.getByRole("button", {
@@ -2529,4 +2529,126 @@ test("first draft accepts imported narration metadata, explains validation and r
   const built = await (await page.request.get(url)).json();
   expect(built.scene_count).toBeGreaterThan(0);
   expect(built.narration_url).toBe(saved.narration_url);
+});
+
+function nestedPrintedPanelsPng() {
+  const width = 1000,
+    height = 1400,
+    header = Buffer.alloc(13);
+  header.writeUInt32BE(width);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 2;
+  const boxes = [
+    [10, 10, 990, 590],
+    [10, 602, 480, 1390],
+    [492, 602, 990, 970],
+    [492, 982, 730, 1390],
+    [742, 982, 990, 1390],
+  ];
+  const colors = [
+    [167, 66, 54],
+    [46, 110, 154],
+    [182, 140, 50],
+    [102, 133, 66],
+    [125, 73, 139],
+  ];
+  const pixels = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
+      const region = boxes.findIndex(
+        ([x1, y1, x2, y2]) => x >= x1 && x <= x2 && y >= y1 && y <= y2,
+      );
+      const color = region < 0 ? [222, 212, 188] : colors[region];
+      const offset = y * (width * 3 + 1) + 1 + x * 3;
+      pixels[offset] = color[0];
+      pixels[offset + 1] = color[1];
+      pixels[offset + 2] = color[2];
+    }
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(pixels)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+test("whole comic pages crop into ordered PNGs without narration, preserving large panels", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page
+    .getByLabel("Project title", { exact: true })
+    .fill("Crop whole pages only");
+  await page.getByLabel("New project files").setInputFiles([
+    {
+      name: "ww_01.png",
+      mimeType: "image/png",
+      buffer: nestedPrintedPanelsPng(),
+    },
+    { name: "ww_02.png", mimeType: "image/png", buffer: originalPng() },
+  ]);
+  await page
+    .getByRole("button", { name: "Create project", exact: true })
+    .click();
+  const organizer = page.getByRole("region", {
+    name: "Panel organizer",
+    exact: true,
+  });
+  await organizer
+    .getByRole("button", { name: "Auto-crop full pages", exact: true })
+    .click();
+  await expect(
+    organizer.getByRole("button", {
+      name: "Organized panel ww_01E",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    organizer.getByText(/Large, wide and tall panels stay whole/),
+  ).toBeVisible();
+  await expect(
+    organizer.getByRole("button", {
+      name: /ww_02 · whole page · check boundaries/,
+    }),
+  ).toBeVisible();
+  await organizer
+    .getByRole("button", { name: "Save named panels", exact: true })
+    .click();
+  await expect(organizer.getByText(/Named panels saved/)).toBeVisible();
+  const projects = await (await page.request.get("/api/projects")).json();
+  const id = projects.find(
+    (p: { title: string }) => p.title === "Crop whole pages only",
+  ).id;
+  const project = await (await page.request.get(`/api/projects/${id}`)).json();
+  expect(project.narration_url).toBeNull();
+  expect(project.scene_count).toBe(0);
+  const regions = project.workflow.panel_organization.pages[0].regions;
+  expect(regions).toHaveLength(5);
+  expect(regions[0].crop.width).toBeGreaterThan(0.95);
+  expect(regions[0].crop.height).toBeGreaterThan(0.4);
+  expect(regions[1].crop.height).toBeGreaterThan(0.5);
+  const downloaded = page.waitForEvent("download");
+  await organizer
+    .getByRole("link", { name: "Download named crops · ZIP", exact: true })
+    .click();
+  expect((await downloaded).suggestedFilename()).toBe("Organized-panels.zip");
+  await organizer.screenshot({
+    path: testInfo.outputPath("whole-page-panel-crops.png"),
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    )
+    .toBeTruthy();
+  await expect(
+    organizer.getByRole("button", {
+      name: "Auto-crop full pages",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await organizer.screenshot({
+    path: testInfo.outputPath("whole-page-panel-crops-mobile.png"),
+  });
 });

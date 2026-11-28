@@ -91,6 +91,7 @@ export default function PanelOrganizer({
   async function detect(redetect = false) {
     if (
       redetect &&
+      (changed || organization?.user_order) &&
       !window.confirm(
         "Detect the panels again? Your current saved layout stays in Undo when you save a replacement. Existing video shots stay intact.",
       )
@@ -253,23 +254,31 @@ export default function PanelOrganizer({
         <div>
           <h3>Crop & organize panels</h3>
           <p>
-            Keep every page together: <strong>ww_01A → ww_01B → ww_01C</strong>.
-            The same names follow your video shots.
+            One crop per printed panel, in reading order. Large, wide and tall
+            panels stay whole.
+          </p>
+          <p className="help">
+            1. Auto-crop pages → 2. Check the thumbnails → 3. Save and download
           </p>
         </div>
-        <button
-          className="button secondary"
-          disabled={!ready}
-          onClick={() =>
-            organization ? setOpen(!open) : void run(() => detect())
-          }
-        >
-          {organization
-            ? open
-              ? "Close panel organizer"
-              : "Review organized panels"
-            : "Auto-crop & organize panels"}
-        </button>
+        <div className="workflow-actions">
+          <button
+            className="button"
+            disabled={!ready}
+            onClick={() => void run(() => detect(!!organization))}
+          >
+            {working ? "Finding panel boundaries…" : "Auto-crop full pages"}
+          </button>
+          {organization && (
+            <button
+              className="button secondary"
+              disabled={!ready}
+              onClick={() => setOpen(!open)}
+            >
+              {open ? "Close panel organizer" : "Review organized panels"}
+            </button>
+          )}
+        </div>
       </div>
       {error && (
         <p className="inline-error" role="alert">
@@ -286,8 +295,10 @@ export default function PanelOrganizer({
           <p className="help">
             {pages.length} pages ·{" "}
             {pages.reduce((sum, p) => sum + p.regions.length, 0)} named panels.
-            Clear gutters are detected locally. Uncertain pages stay whole for
-            your review. Original images stay intact.
+            Light and dark gutters are detected locally. A large panel stays one
+            crop. If boundaries are unclear, the page stays whole and is marked
+            for review. No narration or video build is needed to save and
+            download the crops.
           </p>
           {stale && (
             <p className="notice">
@@ -311,8 +322,17 @@ export default function PanelOrganizer({
                   setDraw(null);
                 }}
               >
-                {p.name} · {p.regions.length} panels
-                {p.review_required ? " · check" : ""}
+                {p.name} ·{" "}
+                {p.regions.length === 1 &&
+                p.review_required &&
+                Object.entries(whole).every(
+                  ([key, value]) =>
+                    Math.abs(
+                      p.regions[0].crop[key as keyof typeof whole] - value,
+                    ) < 0.000001,
+                )
+                  ? "whole page · check boundaries"
+                  : `${p.regions.length} ${p.regions.length === 1 ? "panel" : "panels"}${p.review_required ? " · check" : ""}`}
               </button>
             ))}
           </div>
@@ -647,13 +667,6 @@ export default function PanelOrganizer({
               >
                 Sort page names
               </button>
-              <button
-                className="text-button"
-                disabled={!ready}
-                onClick={() => void run(() => detect(true))}
-              >
-                Re-detect page crops
-              </button>
             </div>
             <p className="help">
               Names change inside this project; original filenames are
@@ -662,7 +675,7 @@ export default function PanelOrganizer({
           </details>
           <div className="workflow-actions organizer-save-actions">
             <button
-              className="button secondary"
+              className={changed ? "button" : "button secondary"}
               disabled={!ready || !changed || stale || dirty}
               onClick={() =>
                 void run(async () => {
@@ -673,7 +686,7 @@ export default function PanelOrganizer({
               Save named panels
             </button>
             <button
-              className="button"
+              className="button secondary"
               disabled={
                 !ready ||
                 stale ||
@@ -705,7 +718,7 @@ export default function PanelOrganizer({
             )}
             {!changed && (
               <a
-                className="button secondary"
+                className="button"
                 href={`/api/projects/${project.id}/panel-organization/download`}
               >
                 Download named crops · ZIP
