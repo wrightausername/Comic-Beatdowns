@@ -646,3 +646,39 @@ Confirm sharing and complete anonymous download/hash before delivery. Later
 metadata-only commits do not change the tested application source. Issue #14 and
 actual owner Windows 10/11/real-comic acceptance remain open; no installer/main
 merge or automatic publishing was added.
+
+## November 27 follow-up — production deletion and Windows download fallback
+
+Branch `feature/production-trash`, stacked on draft PR #22. The owner requested
+production deletion while reporting another blank ChatGPT download page. The
+previous public named-panels EXE still returns a full anonymous 200/MZ download;
+that server-side result does not establish that the owner's ChatGPT path works.
+Do not present the same link alone as a resolution.
+
+Adds a visible Delete production action on every desk card and in the open
+workspace. Confirmation explicitly moves the production to Trash; Trash and
+Restore stay visible on the production desk. This is reversible deletion, not a
+disk cleanup: narration, original shared panels/sounds, scenes, edit history,
+versions and exports remain local and intact. Trash is excluded from active
+productions, export lists and inbox watching, and standard edit/build/preview
+routes reject hidden productions. Restore retains the folder-watching preference
+and changes the revision so stale requests cannot overwrite restored work.
+Delete reserves the DB writer and render enqueue lock; active Director jobs or
+renders must finish before deletion. No real owner production was deleted.
+
+Nine isolated lifecycle tests pass, covering source hashes, narration/shots/history
+and export preservation, another production, stale revisions, repeated deletion,
+active Director/render states, hidden edit/build routes and paused/restored inbox.
+The existing legacy upgrade test also checks the additive nullable timestamp.
+A browser workflow covers cancellation, desk deletion, reload, Restore, editor
+confirmation/deletion and phone-width restore. Full local and Windows checks,
+packaging and delivery verification are pending at this milestone.
+
+`scripts/download-owner-preview.ps1` downloads only a fixed public release URL,
+checks the expected SHA256, saves through a temporary file and never starts the
+EXE or changes execution policy. A dedicated Windows 2022/2025 workflow exercises
+built-in Windows PowerShell 5.1 and checksum failure preservation. This is a
+browser-independent fallback; it does not claim ChatGPT itself has been repaired.
+Record the final new source/run/file/hash and public transfer checks below before
+delivering a new owner preview. Issue #14 and actual owner Win10/11/real-comic
+acceptance remain open; no installer, main merge or automatic publication.

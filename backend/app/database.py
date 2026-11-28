@@ -65,6 +65,7 @@ class Project(Base):
     workflow: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     watch_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     autopilot: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    deleted_at: Mapped[str | None] = mapped_column(String, nullable=True)
     revision: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[str] = mapped_column(String, default=now)
     updated_at: Mapped[str] = mapped_column(String, default=now)
@@ -229,6 +230,7 @@ def connect(data_dir):
     with engine.begin() as connection:
         existing = {c["name"] for c in inspect(connection).get_columns("projects")}
         for name, definition in {
+            "deleted_at": "VARCHAR",
             "caption_cues": "JSON NOT NULL DEFAULT '[]'",
             "edit_history": "JSON NOT NULL DEFAULT '{}'",
             "workflow": "JSON NOT NULL DEFAULT '{}'",

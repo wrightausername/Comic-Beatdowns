@@ -22,6 +22,7 @@ from .creative_edits import summarize_workspace_change
 from .creator_preferences import approved_defaults, preferences
 from .database import (
     CreativeEditEvent,
+    DirectorJob,
     Panel,
     Project,
     RenderJob,
@@ -67,7 +68,7 @@ def session(request: Request):
 
 def get_or_404(db, model, object_id):
     obj = db.get(model, object_id)
-    if obj is None:
+    if obj is None or (isinstance(obj, Project) and obj.deleted_at is not None):
         raise HTTPException(404, "This item no longer exists")
     return obj
 
@@ -156,6 +157,7 @@ def project_dict(project, db, detail=False):
         "can_undo": bool((project.edit_history or {}).get("past")),
         "can_redo": bool((project.edit_history or {}).get("future")),
         "revision": project.revision,
+        "deleted_at": project.deleted_at,
         "created_at": project.created_at,
         "updated_at": project.updated_at,
         "scene_count": len(scenes),
@@ -416,10 +418,53 @@ def crop_panel(panel_id: str, data: Crop, request: Request, db: Session = Depend
 
 
 @router.get("/projects")
-def list_projects(db: Session = Depends(session)):
+def list_projects(trashed: bool = False, db: Session = Depends(session)):
+    condition = Project.deleted_at.is_not(None) if trashed else Project.deleted_at.is_(None)
     return [
-        project_dict(p, db) for p in db.scalars(select(Project).order_by(Project.updated_at.desc()))
+        project_dict(p, db)
+        for p in db.scalars(select(Project).where(condition).order_by(Project.updated_at.desc()))
     ]
+
+
+@router.delete("/projects/{project_id}")
+def trash_project(
+    project_id: str, data: RevisionInput, request: Request, db: Session = Depends(session)
+):
+    # Match render enqueue lock order; the DB reservation also serializes Director starts.
+    with request.app.state.render_lock:
+        project = locked_project(db, project_id, data.base_revision)
+        building = db.scalar(
+            select(DirectorJob.id).where(
+                DirectorJob.project_id == project_id,
+                DirectorJob.status.in_(["queued", "working", "rendering"]),
+            )
+        )
+        rendering = db.scalar(
+            select(RenderJob.id).where(
+                RenderJob.project_id == project_id, RenderJob.status.in_(["queued", "running"])
+            )
+        )
+        if building or rendering:
+            raise HTTPException(
+                409, "Let this production's draft build or render finish before deleting it."
+            )
+        project.deleted_at = now()
+        project.updated_at = now()
+        project.revision += 1
+        db.commit()
+        return project_dict(project, db)
+
+
+@router.post("/projects/{project_id}/restore")
+def restore_project(project_id: str, data: RevisionInput, db: Session = Depends(session)):
+    project = locked_project(db, project_id, data.base_revision, include_trashed=True)
+    if project.deleted_at is None:
+        raise HTTPException(409, "This production is already on your production desk.")
+    project.deleted_at = None
+    project.updated_at = now()
+    project.revision += 1
+    db.commit()
+    return project_dict(project, db)
 
 
 @router.post("/projects", status_code=201)
@@ -765,7 +810,12 @@ def queue_render_for_state(
 
 @router.get("/renders")
 def list_renders(project_id: str | None = None, db: Session = Depends(session)):
-    query = select(RenderJob).order_by(RenderJob.created_at.desc())
+    query = (
+        select(RenderJob)
+        .join(Project, Project.id == RenderJob.project_id)
+        .where(Project.deleted_at.is_(None))
+        .order_by(RenderJob.created_at.desc())
+    )
     if project_id:
         query = query.where(RenderJob.project_id == project_id)
     return [job_dict(j) for j in db.scalars(query)]

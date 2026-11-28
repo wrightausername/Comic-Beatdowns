@@ -35,7 +35,13 @@ class InboxWatcher:
 
     def scan(self):
         with self.sessions() as db:
-            ids = list(db.scalars(select(Project.id).where(Project.watch_enabled.is_(True))))
+            ids = list(
+                db.scalars(
+                    select(Project.id).where(
+                        Project.watch_enabled.is_(True), Project.deleted_at.is_(None)
+                    )
+                )
+            )
         for project_id in ids:
             folder = self.storage.path(f"inbox/{project_id}")
             folder.mkdir(parents=True, exist_ok=True)
@@ -61,7 +67,11 @@ class InboxWatcher:
                 with self.sessions() as db:
                     db.execute(text("BEGIN IMMEDIATE"))
                     project = db.get(Project, project_id)
-                    if not project.watch_enabled:
+                    if (
+                        project is None
+                        or project.deleted_at is not None
+                        or not project.watch_enabled
+                    ):
                         continue
                     if db.scalar(
                         select(InboxFile.id).where(

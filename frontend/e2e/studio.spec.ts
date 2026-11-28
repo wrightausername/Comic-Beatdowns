@@ -2353,3 +2353,79 @@ test("named panel organizer crops, reorders, saves, downloads and builds editabl
     page.getByRole("button", { name: "Timeline shot 1: ww_01A", exact: true }),
   ).toBeVisible();
 });
+
+test("delete productions from desk or editor, cancel safely and restore from Trash", async ({
+  page,
+}) => {
+  const title = "Trash and restore this production";
+  const created = await (
+    await page.request.post("/api/projects", {
+      data: { title, idea: "Keep my work" },
+    })
+  ).json();
+  await page.reload();
+  const card = page.locator(".production-card").filter({ hasText: title });
+  await card
+    .getByRole("button", { name: `Delete production ${title}`, exact: true })
+    .click();
+  let dialog = page.getByRole("dialog", { name: "Delete production?" });
+  await expect(dialog).toContainText(title);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(card).toBeVisible();
+  await card
+    .getByRole("button", { name: `Delete production ${title}`, exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Move to Trash", exact: true })
+    .click();
+  await expect(card).toHaveCount(0);
+  await page.reload();
+  await expect(card).toHaveCount(0);
+  await page.getByRole("button", { name: /^Trash \(/ }).click();
+  const trash = page.getByRole("dialog", {
+    name: "Production Trash",
+    exact: true,
+  });
+  await expect(trash).toContainText(title);
+  await trash
+    .getByRole("button", { name: `Restore ${title}`, exact: true })
+    .click();
+  await expect(
+    trash.getByRole("button", { name: `Restore ${title}`, exact: true }),
+  ).toHaveCount(0);
+  await trash.getByRole("button", { name: "Close dialog" }).click();
+  await card.locator(".project-card").click();
+  await expect(
+    page.getByRole("heading", { name: title, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Delete production", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "Delete production?" });
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: title, exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Delete production", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Move to Trash", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Your productions", exact: false }),
+  ).toBeVisible();
+  expect((await page.request.get(`/api/projects/${created.id}`)).status()).toBe(
+    404,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: /^Trash \(/ }).click();
+  await expect(
+    trash.getByRole("button", { name: `Restore ${title}`, exact: true }),
+  ).toBeVisible();
+  await trash
+    .getByRole("button", { name: `Restore ${title}`, exact: true })
+    .click();
+  await trash.getByRole("button", { name: "Close dialog" }).click();
+  await expect(card).toBeVisible();
+});

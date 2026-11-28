@@ -162,7 +162,7 @@ class SaveInput(RevisionInput):
 
 def get_project(db, project_id):
     project = db.get(Project, project_id)
-    if project is None:
+    if project is None or project.deleted_at is not None:
         raise HTTPException(404, "Project not found")
     return project
 

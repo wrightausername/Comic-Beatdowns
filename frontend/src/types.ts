@@ -132,6 +132,7 @@ export interface SoundEffect {
 }
 export type Status = "idea" | "scripting" | "ready" | "rendering" | "exported";
 export interface Project {
+  deleted_at?: string | null;
   id: string;
   title: string;
   idea: string;
