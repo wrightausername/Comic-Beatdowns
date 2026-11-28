@@ -44,7 +44,9 @@ and Trash/Restore controls. Downloaded startup/native-window checks passed on
 separate Server 2022/2025 runners. Final local checks passed 233 backend tests
 (one Windows-only skip), 77 frontend tests and 20 browser workflows, including
 first-draft rejection/retry → real preview and deletion/restore on desktop/mobile.
-Public PowerShell checks run after sharing; confirm success before owner handoff.
+Public Windows PowerShell 5.1 transfers and the exact command above passed on
+both Server 2022/2025 in sharing run `46087571827`. A complete anonymous public
+download returned 200 and matched the original artifact byte count/hash.
 Actual owner Windows 10/11 and real-comic acceptance remain open.
 
 The preceding corrected November 27 **named panels** preview remains available:

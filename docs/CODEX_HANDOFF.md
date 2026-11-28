@@ -751,3 +751,32 @@ Confirm sharing, these new public checks and a complete anonymous download/hash
 before delivering. No expiring artifact URL is an owner delivery link.
 Later metadata-only commits do not change the tested application source. Actual
 owner Win10/11/real-comic acceptance and Issue #14 remain open; drafts stay unmerged.
+
+
+### Combined preview delivery completed
+
+Application-source push validation **`46087061321`** and PR validation
+**`46087066040`** both passed: 233 backend tests (one Linux Windows-only skip),
+77 frontend tests, 20 browser workflows and **153 Windows media tests**. Package
+`46087066098` and its separate downloaded-EXE checks are green at the same source.
+
+Sharing **`46087571827`** passed. The exact new public EXE was downloaded and
+SHA256-verified with Windows PowerShell 5.1 on Server 2022/2025 jobs
+**`140800791831` / `140800791849`**. Both also passed the exact copy/paste owner
+command in Windows Downloads. These commands download only and do not execute
+the EXE or change execution policy. Earlier run `46086071291` separately tested
+wrong-checksum rejection while preserving a previous good download.
+
+A complete **anonymous public GET** returned 200, `application/octet-stream`, the
+correct dated attachment filename, **146,601,013 bytes** and SHA256
+`d2a5ae52dd60f08ccb7c25757a11b6c7c04bb61b9f50ed7df4417a8278ce8624`;
+the public SHA256.txt matches both filename and tested artifact. This fixed URL
+is the owner download, not the short-lived signed workflow-artifact URI:
+https://github.com/wrightausername/Comic-Beatdowns/releases/download/studio-draft-fix-preview-2026-11-27/Comic-Beatdowns-Studio-2026-11-27-Draft-Fix.exe
+
+The PowerShell fallback bypasses ChatGPT's blank download page; it is not evidence
+that ChatGPT's browser behavior itself has been repaired. Close older Studio
+windows and open the dated Draft-Fix EXE from Downloads. Existing productions
+remain in the same local profile. Draft PR #23 stays stacked on #22 and unmerged.
+Actual owner Windows 10/11 and real-comic creative acceptance still remain open
+under Issue #14. Later documentation-only commits do not alter the packaged source.
