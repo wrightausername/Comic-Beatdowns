@@ -58,6 +58,20 @@ make ui    # Vite on port 5173, proxying /api to FastAPI
 
 Stop other servers before running browser tests, which own ports 8000 and 5173. Cloud tasks are already isolated: use the existing checkout; no extra Git worktree is necessary. Cloud onboarding does not supply public localhost preview links.
 
+## Crop whole comic pages into separate panels
+
+Import full pages, open **Organize panels**, then choose **Auto-crop full pages**.
+Review the ordered thumbnails, **Save named panels**, and **Download named crops · ZIP**.
+No narration or video build is required. A large, wide or tall printed panel stays
+one crop. Output files are grouped by page, such as `ww_01/ww_01A.png`,
+`ww_01/ww_01B.png`, and `ww_01/ww_01C.png`.
+
+Local detection handles continuous light/dark gutters and nested layouts.
+Pages without reliable boundaries are marked **whole page · check boundaries**;
+they have not been successfully separated into panels. The optional crop tools
+can correct those boundaries. Original stored source pages and existing video
+edits stay intact while previewing/saving crops.
+
 ## Delete or restore a production
 
 Choose **Delete production** on a production card or in its open workspace,

@@ -824,3 +824,28 @@ panel. Added color/monochrome regressions. All **33 focused cases** pass,
 including the original Vision assignment tests and balloon/large-panel guards.
 The interrupted initial broad runs are superseded; rerun full checks at this
 hardened source. Eight new segmentation cases now exist (including parameters).
+
+### Cropping-only implementation verified; owner page still needed
+
+Application source **`e1ea125417e6640cb7a412801f4b0032c9ac54f0`**, draft PR #24.
+Local `make check` passed **241 backend tests** (one Windows-only skip),
+**77 frontend tests**, lint/format/build. Local full `make e2e` had 20 passed and
+one existing assistant-disclosure timing failure; its isolated discovery retry
+passed. Clean source push CI **`46110780779`** passed all checks, all **21 browser
+workflows**, and **161 Windows media cases**. This includes actual no-narration
+PNG download, intact large/tall crops and existing editor/Director regressions.
+
+Package **`46110784353`** passed; actual downloaded-EXE startup/native-window checks
+passed on separate Server 2022/2025 jobs **`140874358427` / `140874358436`**.
+PR CI `46110784295` passed Windows but initially hit the pre-existing asynchronous
+preview-approval unit test (76/77 frontend); failed Linux job was explicitly
+retried. Do not describe that first attempt as green. Production UI changes here
+are confined to the panel organizer; narration/approval behavior is unchanged.
+
+**No new public owner EXE was released for these cropping changes.** The existing
+Draft-Fix download remains the prior `db47965` application. First obtain an actual
+full page from the owner and inspect the resulting crops against it; this source
+has only synthetic/layout/PNG/Windows acceptance so far. Then package/share the
+accepted exact source using the existing verified delivery process. Keep long,
+wide, tall and splash compositions as single printed panels; naming is page then
+letter in reading order. The latest owner explicitly deferred narration matching.

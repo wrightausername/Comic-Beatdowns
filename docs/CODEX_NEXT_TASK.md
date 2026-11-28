@@ -1,6 +1,6 @@
 # Codex: Next implementation task for Comic Beatdowns Studio
 
-> **November 27 update:** draft PR #22 now stacks on #21 with the named panel organizer; #21 supplies the connected autonomy workflow. Read the latest November 27 entries in [CODEX_HANDOFF.md](CODEX_HANDOFF.md) for tested application source, exact EXE delivery, implementation limits and remaining real-material/Windows 10 acceptance. The older briefs below preserve the creator requirements; do not duplicate implemented modules or assume drafts are merged.
+> **Latest owner direction:** focus on **cropping only**: full comic pages → separate printed panels in reading order; keep large/wide/tall panels whole. Draft PR #24 (`fix/full-page-panel-crops`) stacks on #23 and improves thin/aged/dark gutters, nested layouts and the cropping-only save/download flow. Read the latest [handoff](CODEX_HANDOFF.md) entries for exact checks and remaining work. An actual owner page has been requested but is not available in the workspace yet; do not claim their pages are fixed from synthetic tests. Narration matching/camera planning is deferred for this task. The older briefs below preserve broader requirements; drafts are not assumed merged.
 
 **Owner direction confirmed November 21, 2026:** Make video creation feel automatic and effortless, while letting the creator correct individual comic shots visually in seconds. **This is the primary creator workflow, not an optional subfeature.**
 
